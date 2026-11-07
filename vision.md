@@ -14,12 +14,12 @@ The player starts alone and recruits NPCs to form an increasingly massive protes
 
 ## Core Gameplay Loop
 
-1. **Recruit:** Use your megaphone to convince nearby civilians to join your protest.
+1. **Recruit:** Hold your megaphone to project a recruitment cone and convince nearby civilians to join your protest.
 2. **Direct:** Aim at a location or object and shout "À L'ATTAQUE!" to send your mob there.
 3. **Cause chaos:** Protesters interact with the target, creating funny, physics-driven disruptions.
-4. **Gain publicity:** Successful disruptions attract more civilians and increase crowd enthusiasm.
-5. **Grow:** Use your larger mob to cause increasingly spectacular disruptions.
-6. **Survive:** Keep protesters engaged and together before they lose patience and leave.
+4. **Build Grabuge:** Recruiting and successful disruptions raise the crowd's shared chaos/excitement meter.
+5. **Grow:** Use your larger mob — and a bigger megaphone cone — to cause increasingly spectacular disruptions.
+6. **Survive:** Keep Grabuge up before it decays away and the crowd disperses.
 
 Repeat until the protest collapses.
 
@@ -29,9 +29,9 @@ Repeat until the protest collapses.
 |---|---|---|
 | WASD | Movement | First-person movement |
 | Mouse | Aim | Look around and select targets |
-| Left Click | Recruit | Shout through megaphone to recruit nearby NPCs |
-| Right Click | À L'ATTAQUE! | Send the crowd toward the targeted object or location |
-| Hold Right Click | Rally | Gather protesters at the targeted location |
+| Hold Left Click | Megaphone | Project a recruitment cone that recruits nearby civilians; size scales with Grabuge |
+| Right Click | À L'ATTAQUE! | Send the crowd charging toward the targeted object or location |
+| Hold Right Click | Regroup | Gather the crowd back around the player |
 | E | Protest Action | Perform contextual actions such as chanting, sitting, or occupying an area |
 
 ## Main Mechanic: Context-Sensitive Mob Direction
@@ -70,31 +70,20 @@ The mob should feel like a living, slightly uncontrollable entity.
 
 NPCs should also imitate certain player actions where appropriate, creating emergent comedy.
 
-## Publicity and Recruitment
+## Grabuge: the One Shared Resource
 
-Publicity rewards the player for causing disruptions.
+**Grabuge** is the protest's single shared meter of chaos and excitement (0-100%). It replaces any separate publicity, enthusiasm, or patience-style meters — there is only one number to manage.
 
-- Recruiting people increases enthusiasm.
-- Disruptions generate publicity.
-- Bigger, more ridiculous disruptions generate more publicity.
-- Higher publicity attracts more NPCs and accelerates recruitment.
-- Successful chains of actions can create rapid, exponential crowd growth.
+- Recruiting civilians and pulling off disruptions raise Grabuge.
+- Bigger, more ridiculous disruptions raise it more.
+- Grabuge decays continuously on its own.
+- Higher Grabuge grows the megaphone's recruitment cone (range and width), making recruiting easier and the mob grow faster.
 
-The player is encouraged to keep moving and find increasingly interesting targets.
+The player is encouraged to keep moving and find increasingly interesting targets to keep Grabuge from running out.
 
-## Losing Condition: Protester Patience
+## Losing Condition: Grabuge Collapse
 
-The protest has a shared **Patience Meter**.
-
-Patience decreases when:
-- Nothing interesting happens for too long.
-- Protesters become separated from the main crowd.
-- Commands fail or cause the mob to scatter.
-- The player repeatedly attempts unsuccessful disruptions.
-
-Patience increases through successful actions, recruiting, and exciting events.
-
-When patience gets low, NPCs gradually begin leaving. At zero, the crowd disperses rapidly.
+When Grabuge runs out, the protest loses steam: NPCs gradually begin leaving, and at zero the crowd disperses rapidly.
 
 **Game Over:** The last protester leaves.
 
@@ -102,18 +91,18 @@ The final screen displays:
 - Peak number of protesters
 - Total disruptions
 - Protest duration
-- Total publicity generated
+- Peak Grabuge reached
 - A humorous reason for the protest ending
 
 ## Secondary Mechanics for Later
 
-**Occupy Locations:** Leave portions of your mob at intersections or landmarks to generate passive publicity, at the expense of reducing your mobile crowd.
+**Occupy Locations:** Leave portions of your mob at intersections or landmarks to generate passive Grabuge, at the expense of reducing your mobile crowd.
 
-**Recruitment Combos:** Consecutive recruitments and successful stunts build an enthusiasm multiplier.
+**Recruitment Combos:** Consecutive recruitments and successful stunts build a temporary Grabuge multiplier.
 
 **Mob Imitation:** NPCs copy funny player actions, such as sitting in the road or climbing on objects.
 
-**Escalating City Response:** As publicity increases, the city responds with more obstacles, traffic disruptions, and police barricades.
+**Escalating City Response:** As Grabuge rises, the city responds with more obstacles, traffic disruptions, and police barricades.
 
 ## MVP Scope
 
@@ -122,12 +111,12 @@ Build the smallest prototype that proves the central mechanic is fun.
 **First playable version:**
 1. A small Paris-inspired street environment.
 2. First-person character with a megaphone.
-3. Civilian NPCs who can be recruited using left click.
-4. Recruited NPCs follow the player as a crowd.
-5. Right click sends the mob toward a selected target.
+3. Civilian NPCs who can be recruited by holding left click (recruitment cone).
+4. Recruited NPCs follow the player as a loose crowd (seek/separation/cohesion steering).
+5. Right click sends the mob charging toward a selected target; hold right click regroups it.
 6. Two or three contextual targets, such as a bus, road, and plaza.
 7. Simple NPC reactions and crowd physics.
-8. Publicity and patience systems.
+8. The Grabuge system (single shared meter, decay, and debug controls).
 9. Crowd counter and game-over screen.
 
 **Avoid initially:** Story mode, complex combat, sophisticated police AI, skill trees, detailed progression systems, and large maps.
@@ -138,7 +127,7 @@ Build the smallest prototype that proves the central mechanic is fun.
 2. **The mob is the main character.** Watching and directing the crowd is the primary entertainment.
 3. **Size changes gameplay.** A crowd of 500 must feel substantially different from a crowd of 10.
 4. **Comedy through simulation.** Funny moments emerge from NPC physics and interactions, not scripted cutscenes.
-5. **Constant risk and reward.** Bigger disruptions create more publicity but risk scattering the crowd.
+5. **Constant risk and reward.** Bigger disruptions raise Grabuge faster but risk scattering the crowd.
 6. **Replayability over narrative.** Short sandbox runs centered on beating your previous high score.
 
 ## The Core Design Test
