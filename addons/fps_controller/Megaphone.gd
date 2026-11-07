@@ -31,11 +31,20 @@ signal regroup_triggered
 @export var regroup_hold_threshold_msec := 350
 
 ## -- Recruitment influence cone --
-## Static for now (Grabuge isn't implemented yet -- see vision.md). These
-## match the spec's "50% Grabuge" row as a reasonable fixed default; once
-## Grabuge exists, scale these two with it instead of hand-tuning further.
-@export var cone_range := 18.0
-@export var cone_angle_degrees := 50.0
+## Driven by GameState.grabuge via piecewise-linear interpolation across
+## these three keyframes (0%/50%/100%), per the original spec's balancing
+## table. `cone_range`/`cone_angle_degrees` below are the live computed
+## values (read by is_point_within_cone() and the visual mesh) -- don't
+## edit those directly, tune the keyframes instead.
+@export var cone_range_at_0pct := 6.0
+@export var cone_range_at_50pct := 18.0
+@export var cone_range_at_100pct := 35.0
+@export var cone_angle_at_0pct := 25.0
+@export var cone_angle_at_50pct := 50.0
+@export var cone_angle_at_100pct := 80.0
+
+var cone_range: float = cone_range_at_0pct
+var cone_angle_degrees: float = cone_angle_at_0pct
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var muzzle: Marker3D = $VisualRoot/MuzzlePoint
@@ -64,7 +73,8 @@ func _ready() -> void:
 	feedback_label.text = ""
 	feedback_label.modulate.a = 0.0
 	influence_cone.visible = false
-	_update_cone_shape()
+	GameState.grabuge_changed.connect(_on_grabuge_changed)
+	_on_grabuge_changed(GameState.grabuge)
 
 
 ## Pulses the recruit particle burst at the horn's mouth every
@@ -149,10 +159,26 @@ func _do_regroup() -> void:
 	regroup_triggered.emit()
 
 
-## Builds the cone mesh from `cone_range`/`cone_angle_degrees`. Only needs to
-## run once at `_ready()` right now since both are static exports -- once
-## Grabuge drives them dynamically, call this whenever Grabuge changes
-## instead of only at startup.
+## Recomputes cone_range/cone_angle_degrees from the current Grabuge value
+## (piecewise-linear across the 0/50/100% keyframes) and rebuilds the mesh.
+func _on_grabuge_changed(value: float) -> void:
+	cone_range = _piecewise_lerp(value, cone_range_at_0pct, cone_range_at_50pct, cone_range_at_100pct)
+	cone_angle_degrees = _piecewise_lerp(value, cone_angle_at_0pct, cone_angle_at_50pct, cone_angle_at_100pct)
+	_update_cone_shape()
+
+
+## Linear interpolation across two segments (0-50, 50-100) instead of one
+## straight 0-100 lerp, since the balancing table's three keyframes aren't
+## collinear (e.g. range goes 6 -> 18 -> 35, a steeper slope in the second
+## half).
+func _piecewise_lerp(value: float, at_0: float, at_50: float, at_100: float) -> float:
+	var clamped: float = clamp(value, 0.0, 100.0)
+	if clamped <= 50.0:
+		return lerp(at_0, at_50, clamped / 50.0)
+	return lerp(at_50, at_100, (clamped - 50.0) / 50.0)
+
+
+## Builds the cone mesh from the current `cone_range`/`cone_angle_degrees`.
 func _update_cone_shape() -> void:
 	var mesh: CylinderMesh = influence_cone.mesh as CylinderMesh
 	if mesh == null:

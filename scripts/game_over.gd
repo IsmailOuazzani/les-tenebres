@@ -2,7 +2,9 @@ extends CanvasLayer
 
 ## Game-over screen. Triggered by GameState.game_over; displays end-of-run
 ## stats plus a randomized humorous reason (placeholder per vision.md).
-## See agents/publicity-patience-notes.md.
+## See agents/grabuge-notes.md. Note: nothing currently emits
+## GameState.game_over -- Grabuge-triggered dispersal/game-over is
+## deliberately not wired up yet, so this screen is dormant for now.
 
 ## Placeholder "humorous reason" list. Real version should eventually pick a
 ## reason tied to what actually happened in the run (e.g. mob got separated,
@@ -48,13 +50,13 @@ func _populate_stats() -> void:
 		"Peak protesters: %d\n"
 		+ "Total disruptions: %d\n"
 		+ "Protest duration: %d:%02d\n"
-		+ "Total publicity generated: %d"
+		+ "Peak Grabuge reached: %d%%"
 	) % [
 		GameState.peak_crowd_count,
 		GameState.total_disruptions,
 		minutes,
 		seconds,
-		round(GameState.total_publicity_generated),
+		round(GameState.peak_grabuge),
 	]
 
 	_reason_label.text = HUMOROUS_REASONS[randi() % HUMOROUS_REASONS.size()]
