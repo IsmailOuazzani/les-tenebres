@@ -1,5 +1,14 @@
 # Megaphone prop + click-command signals
 
+**Superseded in part — see `agents/crowd-swarm-notes.md` for the current
+contract.** Recruit is now hold-based (an influence cone) instead of a
+single-click `recruit_triggered` signal, and the right-click hold-vs-click
+distinction ("Not implemented" note at the bottom of this file) has since
+been implemented as `attack_command_triggered`/`regroup_triggered`. The
+rest of this file (raycast target logic, raise/shake animation, click
+feedback) is still accurate.
+
+
 Implements the player-facing half of "Core Controls" (left click = Recruit,
 right click = À L'ATTAQUE!) from `vision.md`. **No NPC/crowd logic lives
 here** — that's a separate, parallel workstream. This is the integration

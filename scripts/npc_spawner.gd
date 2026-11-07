@@ -14,6 +14,11 @@ class_name NPCSpawner
 @export var spawn_radius: float = 10.0
 @export var min_spacing: float = 1.5
 
+## All spawned NPCs, recruited or not. CrowdController reads this to find
+## recruitable civilians -- the spawner doesn't know or care what the crowd
+## system does with them afterward.
+var spawned_npcs: Array[Node3D] = []
+
 
 func _ready() -> void:
 	if npc_scene == null:
@@ -28,6 +33,7 @@ func _ready() -> void:
 		var npc: Node3D = npc_scene.instantiate()
 		add_child(npc)
 		npc.global_position = spawn_point
+		spawned_npcs.append(npc)
 
 
 func _find_spawn_point(placed_points: Array[Vector3]) -> Vector3:

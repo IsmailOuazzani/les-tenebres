@@ -29,6 +29,7 @@
 [ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="27_npcscn"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="28_hud"]
 [ext_resource type="PackedScene" path="res://scenes/game_over.tscn" id="29_gmovr"]
+[ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="30_crowdctl"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
 
@@ -1399,8 +1400,13 @@ script = ExtResource("25_2icoj")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
 script = ExtResource("26_npcspw")
 npc_scene = ExtResource("27_npcscn")
-npc_count = 7
-spawn_radius = 10.0
+npc_count = 30
+spawn_radius = 14.0
+
+[node name="CrowdController" type="Node" parent="."]
+script = ExtResource("30_crowdctl")
+player_path = NodePath("../Player")
+npc_spawner_path = NodePath("../NPCSpawner")
 min_spacing = 1.5
 
 [node name="HUD" parent="." instance=ExtResource("28_hud")]

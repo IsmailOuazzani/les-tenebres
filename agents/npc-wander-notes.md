@@ -1,5 +1,13 @@
 # NPC Wander — Foundation Notes
 
+**Superseded in part:** the `RECRUITED`/`FOLLOWING` placeholder states
+described below have been replaced by a real `FOLLOW`/`CHARGE`/`REGROUP`
+state machine driven by a new `CrowdController` — see
+`agents/crowd-swarm-notes.md` for the current design. `IDLE`/`WANDER` (for
+not-yet-recruited civilians) are unchanged and still described accurately
+here.
+
+
 Scope of this pass: get civilian NPCs existing and wandering around the map on
 their own. No recruitment, no crowd-follow, no click interaction — those come
 later and are intentionally not implemented here.
