@@ -1,0 +1,48 @@
+[gd_scene load_steps=5 format=3 uid="uid://csmokefumig01"]
+
+[sub_resource type="Gradient" id="Gradient_falloff"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 1, 1, 0.55, 1, 1, 1, 0.3, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_puff"]
+gradient = SubResource("Gradient_falloff")
+width = 64
+height = 64
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_smoke"]
+transparency = 1
+shading_mode = 0
+albedo_texture = SubResource("GradientTexture2D_puff")
+vertex_color_use_as_albedo = true
+billboard_mode = 1
+billboard_keep_scale = true
+cull_mode = 2
+disable_receive_shadows = true
+no_depth_test = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_smoke"]
+material = SubResource("StandardMaterial3D_smoke")
+size = Vector2(1.4, 1.4)
+
+[node name="SmokeFumigene" type="CPUParticles3D"]
+amount = 10
+lifetime = 5.5
+preprocess = 5.5
+randomness = 0.4
+fixed_fps = 30
+emission_shape = 1
+emission_sphere_radius = 0.3
+direction = Vector3(0, 1, 0)
+spread = 20.0
+gravity = Vector3(0, 0.12, 0)
+initial_velocity_min = 0.15
+initial_velocity_max = 0.4
+angular_velocity_min = -15.0
+angular_velocity_max = 15.0
+scale_amount_min = 0.6
+scale_amount_max = 1.1
+color_ramp = SubResource("Gradient_falloff")
+mesh = SubResource("QuadMesh_smoke")

@@ -1,0 +1,4 @@
+- snap feed of notifcations of the proterors e.g. ils prennent la bastille
+- recrute policier undercover
+- smoke effect on screen
+- heatlh bar

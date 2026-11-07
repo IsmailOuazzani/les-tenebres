@@ -40,8 +40,12 @@ class_name CrowdController
 ## prop for that prop to become the active attack target.
 @export var attack_target_pick_radius: float = 2.5
 ## How close an attacking NPC needs to be to the active attack target to
-## contribute damage.
-@export var attack_range: float = 2.0
+## contribute damage. Kept comfortably >= charge_spread_radius (plus a
+## margin for the target's own footprint) so NPCs that arrive at their
+## scattered charge destination are actually still in range to hit it --
+## otherwise most of the mob lands just outside attack_range and never
+## deals damage.
+@export var attack_range: float = 4.0
 ## Per vision.md's "Cause chaos" -- each attacking NPC in range does this
 ## much damage per second to the active target.
 @export var attack_damage_per_second: float = 1.0
@@ -135,6 +139,8 @@ func _recruit(npc: Node3D) -> void:
 
 func _on_attack_command(target_position: Vector3) -> void:
 	_attack_target = _find_destructible_near(target_position)
+	if _attack_target != null:
+		_attack_target.destroyed.connect(_on_attack_target_destroyed, CONNECT_ONE_SHOT)
 
 	for npc in recruited:
 		var destination: Vector3 = _scatter_point(target_position, charge_spread_radius)
@@ -156,6 +162,13 @@ func _find_destructible_near(point: Vector3) -> Node3D:
 				closest = node
 				closest_dist = dist
 	return closest
+
+
+## Clears the active attack target once it's destroyed, so recruited NPCs
+## stop dealing damage to a freed node and a new attack command is needed to
+## pick the next target.
+func _on_attack_target_destroyed() -> void:
+	_attack_target = null
 
 
 func _on_regroup() -> void:

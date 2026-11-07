@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://scripts/destructible_prop.gd" id="2_script"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_dumpster"]
-size = Vector3(1.1, 0.824, 1.48)
+size = Vector3(1.1, 0.838, 1.48)
 
 [sub_resource type="QuadMesh" id="QuadMesh_bar"]
 size = Vector2(1.0, 0.14)
@@ -28,7 +28,7 @@ collision_mask = 1
 script = ExtResource("2_script")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0.03, 0.412, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.03, 0.419, 0)
 shape = SubResource("BoxShape3D_dumpster")
 
 [node name="DumpsterModel" parent="." instance=ExtResource("1_dumpster")]
@@ -36,7 +36,7 @@ transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
 
 [node name="HealthBar" type="Node3D" parent="."]
 visible = false
-position = Vector3(0, 1.1, 0)
+position = Vector3(0, 1.15, 0)
 
 [node name="Background" type="MeshInstance3D" parent="HealthBar"]
 mesh = SubResource("QuadMesh_bar")

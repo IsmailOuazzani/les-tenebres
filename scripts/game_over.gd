@@ -1,10 +1,8 @@
 extends CanvasLayer
 
-## Game-over screen. Triggered by GameState.game_over; displays end-of-run
-## stats plus a randomized humorous reason (placeholder per vision.md).
-## See agents/grabuge-notes.md. Note: nothing currently emits
-## GameState.game_over -- Grabuge-triggered dispersal/game-over is
-## deliberately not wired up yet, so this screen is dormant for now.
+## Game-over screen. Triggered by GameState.game_over, which fires when
+## Grabuge decays to zero; displays end-of-run stats plus a randomized
+## humorous reason (placeholder per vision.md). See agents/grabuge-notes.md.
 
 ## Placeholder "humorous reason" list. Real version should eventually pick a
 ## reason tied to what actually happened in the run (e.g. mob got separated,
@@ -64,4 +62,5 @@ func _populate_stats() -> void:
 
 func _on_restart_pressed() -> void:
 	get_tree().paused = false
+	GameState.reset()
 	get_tree().reload_current_scene()

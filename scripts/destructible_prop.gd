@@ -13,7 +13,7 @@ class_name DestructibleProp
 
 signal destroyed
 
-@export var max_health: float = 10.0
+@export var max_health: float = 100.0
 
 var current_health: float
 

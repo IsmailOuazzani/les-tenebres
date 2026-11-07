@@ -5,9 +5,8 @@ extends Node
 ## Registered as the `GameState` autoload (see project.godot [autoload]).
 ## Grabuge is the single shared chaos/excitement resource described in
 ## vision.md -- it replaces the earlier separate Publicity/Patience/Zbeul
-## meters (see agents/grabuge-notes.md for the migration and what's
-## deliberately still deferred: NPC dispersal and game-over are NOT tied to
-## Grabuge yet).
+## meters (see agents/grabuge-notes.md for the migration). Game-over fires
+## when Grabuge decays to zero; NPC dispersal on game-over is still deferred.
 
 signal grabuge_changed(new_value: float)
 signal crowd_count_changed(new_value: int)
@@ -43,7 +42,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _game_over_fired:
 		return
+	var was_positive: bool = grabuge > 0.0
 	add_grabuge(-GRABUGE_DECAY_PER_SECOND * delta)
+	if was_positive and grabuge <= 0.0:
+		_game_over_fired = true
+		game_over.emit()
 
 
 ## Elapsed time since the session started, in seconds.
@@ -79,10 +82,9 @@ func record_disruption(magnitude: float = 1.0) -> void:
 	add_grabuge(DISRUPTION_GRABUGE_BASE * magnitude)
 
 
-## Resets all state. Not currently wired to anything except a manual restart
-## flow (e.g. reloading the main scene recreates the autoload automatically,
-## so this is mostly here for completeness / future use, e.g. a "play again
-## without reload" button).
+## Resets all state. Called by game_over.gd's restart handler -- autoloads
+## are NOT recreated by get_tree().reload_current_scene(), so without this
+## _game_over_fired would stay true forever after a restart.
 func reset() -> void:
 	crowd_count = 1
 	grabuge = 0.0
