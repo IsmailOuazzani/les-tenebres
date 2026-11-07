@@ -23,7 +23,7 @@ Running list of external assets we're pulling into the project. Add a row when y
 | Fox Statue by Quaternius | https://www.poly.pizza/m/abxyXID5EA | Props — statue (alt) | glTF/FBX | CC0 alternative, not yet imported |
 | Mannequin by reyshapes | https://poly.pizza/m/tYwjQJvcFX | Props — statue (alt, posed) | glTF/FBX | CC0 alternative, not yet imported |
 | Kenney Car Kit | https://kenney.nl/assets/car-kit | Props — bus/vehicles | glTF/FBX/OBJ | Recommended (includes bus), not yet imported |
-| Megaphone by 4444ESOUSA | https://poly.pizza/search/megaphone | Props — megaphone (player prop) | glTF/FBX | Unconfirmed, needs direct page check |
+| Megaphone by 4444ESOUSA | https://poly.pizza/search/megaphone | Props — megaphone (player prop) | glTF/FBX | Not used — built a primitive (cone+cylinder) megaphone viewmodel instead, see `agents/megaphone-notes.md` |
 | Quaternius Ultimate Modular Women | https://quaternius.com/packs/ultimatemodularwomen.html | Characters — crowd NPCs | glTF/FBX/OBJ/blend | Recommended (pairs with Modular Men), not yet imported |
 | Quaternius Public Transport | https://quaternius.com/packs/publictransport | Props — bus/vehicles | glTF/FBX/OBJ/blend | Recommended (preferred over Kenney Car Kit for bus), not yet imported |
 | VOiD1 Free Megaphones Collection | https://void1gaming.itch.io/free-3d-megaphones-collection | Props — megaphone (player prop) | varies | Recommended (preferred over unconfirmed poly.pizza megaphone), not yet imported |

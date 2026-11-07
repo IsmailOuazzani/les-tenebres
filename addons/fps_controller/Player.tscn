@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://bdupkh0grwy27"]
+[gd_scene load_steps=5 format=3 uid="uid://bdupkh0grwy27"]
 
 [ext_resource type="PackedScene" path="res://addons/fps_controller/MovementController.tscn" id="1_t1jcr"]
 [ext_resource type="PackedScene" path="res://addons/fps_controller/Head.tscn" id="2_41iu1"]
 [ext_resource type="Script" path="res://addons/fps_controller/Sprint.gd" id="3_bgqcu"]
+[ext_resource type="PackedScene" path="res://addons/fps_controller/Megaphone.tscn" id="4_mgphn"]
 
 [node name="Player" instance=ExtResource("1_t1jcr")]
 
@@ -10,3 +11,5 @@
 
 [node name="Sprint" type="Node" parent="." index="2"]
 script = ExtResource("3_bgqcu")
+
+[node name="Megaphone" parent="Head/Camera" instance=ExtResource("4_mgphn")]
