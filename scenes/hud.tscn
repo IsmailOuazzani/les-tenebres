@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3 uid="uid://chudmeta001"]
+
+[ext_resource type="Script" path="res://scripts/hud.gd" id="1_script"]
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 120.0
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="Root/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="CrowdLabel" type="Label" parent="Root/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Protesters: 1"
+horizontal_alignment = 2
+
+[node name="PublicityLabel" type="Label" parent="Root/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Publicity: 0"
+horizontal_alignment = 2
+
+[node name="PatienceLabel" type="Label" parent="Root/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Patience: 100%"
+horizontal_alignment = 2
+
+[node name="PatienceBar" type="ProgressBar" parent="Root/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 18)
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+show_percentage = false

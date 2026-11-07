@@ -27,6 +27,8 @@
 [ext_resource type="Script" path="res://addons/fps_controller/Sprint.gd" id="25_2icoj"]
 [ext_resource type="Script" path="res://scripts/npc_spawner.gd" id="26_npcspw"]
 [ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="27_npcscn"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="28_hud"]
+[ext_resource type="PackedScene" path="res://scenes/game_over.tscn" id="29_gmovr"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
 
@@ -1400,3 +1402,7 @@ npc_scene = ExtResource("27_npcscn")
 npc_count = 7
 spawn_radius = 10.0
 min_spacing = 1.5
+
+[node name="HUD" parent="." instance=ExtResource("28_hud")]
+
+[node name="GameOver" parent="." instance=ExtResource("29_gmovr")]
