@@ -25,6 +25,8 @@
 [ext_resource type="PackedScene" path="res://addons/fps_controller/Head.tscn" id="23_6hptx"]
 [ext_resource type="Script" path="res://addons/fps_controller/Head.gd" id="24_6xons"]
 [ext_resource type="Script" path="res://addons/fps_controller/Sprint.gd" id="25_2icoj"]
+[ext_resource type="Script" path="res://scripts/npc_spawner.gd" id="26_npcspw"]
+[ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="27_npcscn"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
 
@@ -1390,3 +1392,11 @@ current = true
 
 [node name="Sprint" type="Node" parent="Player" unique_id=352760709]
 script = ExtResource("25_2icoj")
+
+[node name="NPCSpawner" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
+script = ExtResource("26_npcspw")
+npc_scene = ExtResource("27_npcscn")
+npc_count = 7
+spawn_radius = 10.0
+min_spacing = 1.5
