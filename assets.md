@@ -4,9 +4,9 @@ Running list of external assets we're pulling into the project. Add a row when y
 
 | Name | URL | Category | Format | Status |
 |---|---|---|---|---|
-| Kenney City Kit (Roads) | https://kenney.nl/assets/city-kit-roads | Map — streets/roads | glTF/FBX/OBJ | Recommended, not yet imported |
-| Kenney City Kit (Commercial) | https://kenney.nl/assets/city-kit-commercial | Map — buildings | glTF/FBX/OBJ | Recommended, not yet imported |
-| KayKit City Builder Bits | https://kaylousberg.itch.io/city-builder-bits | Map — buildings/props (variety) | glTF/FBX/OBJ | Optional add-on, not yet imported |
+| Kenney City Kit (Roads) | https://kenney.nl/assets/city-kit-roads | Map — streets/roads | glTF/FBX/OBJ | Imported — GLB files under `assets/kenney_city_kit_roads/` |
+| Kenney City Kit (Commercial) | https://kenney.nl/assets/city-kit-commercial | Map — buildings | glTF/FBX/OBJ | Imported — GLB files under `assets/kenney_city_kit_commercial/` |
+| KayKit City Builder Bits | https://kaylousberg.itch.io/city-builder-bits | Map — buildings/props (variety) | glTF/FBX/OBJ | Optional add-on, not imported (skipped this pass — see `agents/map-dressing-notes.md`) |
 | EH98 Low Poly City Kit | https://eh98.itch.io/low-poly-city-kit | Map — streets/buildings/interiors | glTF/FBX/OBJ/blend | Hold (paid) |
 | Nozenx Lowpoly Street Pack | https://nozenx.itch.io/lowpoly-street-pack | Map — building facades (filler) | FBX | Optional filler, not yet imported |
 | Quaternius City Pack | https://poly.pizza/bundle/City-Pack-q11onRvPoJ | Map — generic clutter (filler) | glTF/FBX/OBJ | Optional filler, not yet imported |
@@ -16,7 +16,7 @@ Running list of external assets we're pulling into the project. Add a row when y
 | Quaternius Animated Men/Women Packs | https://quaternius.com/packs/animatedmen.html | Characters — named civilians/player | FBX/OBJ/blend | Optional, not yet imported |
 | Kenney Character Assets (Mini Characters) | https://kenney.itch.io/kenney-character-assets | Characters — alt NPCs (blocky style) | glTF/FBX | Alternative, not yet imported |
 | Kenney Animated Characters 2 | https://opengameart.org/content/animated-characters-2 | Characters — placeholder only | glTF/FBX | Placeholder only, not yet imported |
-| Kenney City Kit (Roads) — barricades/cones/signs/lamps/bins | https://kenney.nl/assets/city-kit-roads | Props — street furniture | glTF/FBX/OBJ | Recommended (same pack as map roads), not yet imported |
+| Kenney City Kit (Roads) — barricades/cones/signs/lamps/bins | https://kenney.nl/assets/city-kit-roads | Props — street furniture | glTF/FBX/OBJ | Imported alongside the roads pack (all GLBs, including these props, are in `assets/kenney_city_kit_roads/`) — not yet placed in the test map |
 | Kenney standalone Barricade | https://poly.pizza/m/cNGRlrEJEe | Props — barricade (single) | glTF/FBX | Optional single-prop, not yet imported |
 | Wood Barricade by Dakota_Du | https://poly.pizza/m/HS49Rmidqs | Props — barricade (single) | glTF/FBX | Unverified license, not yet imported |
 | Statue by Zsky | https://poly.pizza/m/VerAznL5lK | Props — statue | glTF/FBX | CC-BY (credit needed), not yet imported |
