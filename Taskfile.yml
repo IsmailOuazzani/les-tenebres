@@ -1,0 +1,20 @@
+version: "3"
+
+vars:
+  GODOT: /Applications/Godot.app/Contents/MacOS/Godot
+
+tasks:
+  run:
+    desc: Launch the game (no editor)
+    cmds:
+      - "{{.GODOT}} --path ."
+
+  run-headless:
+    desc: Launch the game headlessly (no window, no editor)
+    cmds:
+      - "{{.GODOT}} --path . --headless"
+
+  editor:
+    desc: Open the project in the Godot editor
+    cmds:
+      - "{{.GODOT}} --path . -e"
