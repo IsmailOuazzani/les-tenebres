@@ -40,5 +40,5 @@ func camera_rotation() -> void:
 	# Vertical mouse look.
 	rot.x = clamp(rot.x - mouse_axis.y * mouse_sensitivity, -y_limit, y_limit)
 	
-	get_owner().rotation.y = rot.y
+	get_parent().rotation.y = rot.y
 	rotation.x = rot.x
