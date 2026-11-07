@@ -1,0 +1,48 @@
+[gd_scene load_steps=7 format=3 uid="uid://cdestructprop01"]
+
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/dumpster.glb" id="1_dumpster"]
+[ext_resource type="Script" path="res://scripts/destructible_prop.gd" id="2_script"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_dumpster"]
+size = Vector3(1.1, 0.824, 1.48)
+
+[sub_resource type="QuadMesh" id="QuadMesh_bar"]
+size = Vector2(1.0, 0.14)
+
+[sub_resource type="StandardMaterial3D" id="Material_bar_bg"]
+shading_mode = 0
+albedo_color = Color(0.08, 0.08, 0.09, 0.85)
+transparency = 1
+billboard_mode = 1
+no_depth_test = true
+
+[sub_resource type="StandardMaterial3D" id="Material_bar_fill"]
+shading_mode = 0
+albedo_color = Color(0.25, 0.85, 0.3, 1)
+billboard_mode = 1
+no_depth_test = true
+
+[node name="DestructibleProp" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("2_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0.03, 0.412, 0)
+shape = SubResource("BoxShape3D_dumpster")
+
+[node name="DumpsterModel" parent="." instance=ExtResource("1_dumpster")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
+
+[node name="HealthBar" type="Node3D" parent="."]
+visible = false
+position = Vector3(0, 1.1, 0)
+
+[node name="Background" type="MeshInstance3D" parent="HealthBar"]
+mesh = SubResource("QuadMesh_bar")
+surface_material_override/0 = SubResource("Material_bar_bg")
+
+[node name="Fill" type="MeshInstance3D" parent="HealthBar"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.002)
+mesh = SubResource("QuadMesh_bar")
+surface_material_override/0 = SubResource("Material_bar_fill")

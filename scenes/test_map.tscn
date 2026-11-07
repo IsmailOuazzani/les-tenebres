@@ -36,6 +36,7 @@
 [ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/construction-barrier.glb" id="34_barrier"]
 [ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/construction-cone.glb" id="35_cone"]
 [ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/light-square.glb" id="36_lamp"]
+[ext_resource type="PackedScene" path="res://scenes/destructible_prop.tscn" id="37_dstrprop"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
 
@@ -1311,6 +1312,8 @@ transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -6, 0, -4)
 
 [node name="Lamp4" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 6, 0, -4)
+[node name="TestDumpster" parent="MapGeometry/Visuals" instance=ExtResource("37_dstrprop")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 8)
 
 [node name="Collision" type="Node3D" parent="MapGeometry" unique_id=802962760]
 

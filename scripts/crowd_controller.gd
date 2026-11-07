@@ -35,11 +35,23 @@ class_name CrowdController
 ## position.
 @export var regroup_spread_radius: float = 2.0
 
+## -- Destructible props (PoC) --
+## How close an attack-command point needs to land to a "destructible"-group
+## prop for that prop to become the active attack target.
+@export var attack_target_pick_radius: float = 2.5
+## How close an attacking NPC needs to be to the active attack target to
+## contribute damage.
+@export var attack_range: float = 2.0
+## Per vision.md's "Cause chaos" -- each attacking NPC in range does this
+## much damage per second to the active target.
+@export var attack_damage_per_second: float = 1.0
+
 var recruited: Array[Node3D] = []
 
 var _player: Node3D
 var _npc_spawner: Node
 var _megaphone: Node
+var _attack_target: Node3D = null
 
 
 func _ready() -> void:
@@ -52,7 +64,7 @@ func _ready() -> void:
 		push_warning("CrowdController: npc_spawner_path did not resolve, nothing to recruit.")
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if _megaphone == null:
 		# The active Camera3D isn't guaranteed to be registered with the
 		# viewport yet at _ready() (observed headless -- get_camera_3d()
@@ -64,6 +76,8 @@ func _physics_process(_delta: float) -> void:
 			_megaphone.regroup_triggered.connect(_on_regroup)
 		else:
 			return
+
+	_process_attack_target_damage(delta)
 
 	if _npc_spawner == null or _player == null:
 		return
@@ -78,6 +92,25 @@ func _physics_process(_delta: float) -> void:
 			continue
 		if _megaphone.is_point_within_cone(npc.global_position):
 			_recruit(npc)
+
+
+## Ticks damage on the active attack target (if any) from every recruited
+## NPC currently within `attack_range` of it -- per vision.md's "Cause
+## chaos: Protesters interact with the target." Deliberately simple for the
+## PoC: doesn't check that an NPC was actually *sent* to this target (vs.
+## just wandering past it in FOLLOW), since in practice only charging NPCs
+## end up near a freshly-commanded target.
+func _process_attack_target_damage(delta: float) -> void:
+	if _attack_target == null:
+		return
+	if not is_instance_valid(_attack_target):
+		_attack_target = null
+		return
+
+	var target_pos: Vector3 = _attack_target.global_position
+	for npc in recruited:
+		if npc.global_position.distance_to(target_pos) <= attack_range:
+			_attack_target.take_damage(attack_damage_per_second * delta)
 
 
 ## Local neighbor search for an NPC's separation steering. O(n) over the
@@ -101,10 +134,28 @@ func _recruit(npc: Node3D) -> void:
 
 
 func _on_attack_command(target_position: Vector3) -> void:
+	_attack_target = _find_destructible_near(target_position)
+
 	for npc in recruited:
 		var destination: Vector3 = _scatter_point(target_position, charge_spread_radius)
 		var delay: float = randf_range(0.0, charge_reaction_delay_max)
 		npc.enter_charge(destination, delay)
+
+
+## Finds the closest "destructible"-group prop within attack_target_pick_radius
+## of `point`, or null if none are close enough -- lets an attack command
+## pick a nearby destructible target without the megaphone's raycast needing
+## to know anything about destructible props itself.
+func _find_destructible_near(point: Vector3) -> Node3D:
+	var closest: Node3D = null
+	var closest_dist: float = attack_target_pick_radius
+	for node in get_tree().get_nodes_in_group(&"destructible"):
+		if node is Node3D:
+			var dist: float = (node as Node3D).global_position.distance_to(point)
+			if dist <= closest_dist:
+				closest = node
+				closest_dist = dist
+	return closest
 
 
 func _on_regroup() -> void:
