@@ -29,6 +29,7 @@
 [ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="27_npcscn"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="28_hud"]
 [ext_resource type="PackedScene" path="res://scenes/game_over.tscn" id="29_gmovr"]
+[ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="30_crowdctl"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
 
@@ -1374,33 +1375,20 @@ shape = SubResource("BoxShape3D_24j4n")
 [node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1539687313]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
 
-[node name="Player" type="CharacterBody3D" parent="." unique_id=2030623642 instance=ExtResource("21_fveia")]
+[node name="Player" parent="." instance=ExtResource("21_fveia")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
-collision_layer = 2
-collision_mask = 3
-floor_block_on_wall = false
-floor_snap_length = 0.5
-script = ExtResource("22_0ckd3")
-
-[node name="Collision" type="CollisionShape3D" parent="Player" unique_id=950791633]
-shape = SubResource("CapsuleShape3D_fn1rj")
-
-[node name="Head" type="Node3D" parent="Player" unique_id=1111231442 instance=ExtResource("23_6hptx")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.64, 0)
-script = ExtResource("24_6xons")
-
-[node name="Camera" type="Camera3D" parent="Player/Head" unique_id=799327286]
-current = true
-
-[node name="Sprint" type="Node" parent="Player" unique_id=352760709]
-script = ExtResource("25_2icoj")
 
 [node name="NPCSpawner" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
 script = ExtResource("26_npcspw")
 npc_scene = ExtResource("27_npcscn")
-npc_count = 7
-spawn_radius = 10.0
+npc_count = 30
+spawn_radius = 14.0
+
+[node name="CrowdController" type="Node" parent="."]
+script = ExtResource("30_crowdctl")
+player_path = NodePath("../Player")
+npc_spawner_path = NodePath("../NPCSpawner")
 min_spacing = 1.5
 
 [node name="HUD" parent="." instance=ExtResource("28_hud")]

@@ -1,38 +1,7 @@
-[gd_scene load_steps=11 format=3 uid="uid://cmegaphone001"]
+[gd_scene load_steps=7 format=3 uid="uid://cmegaphone001"]
 
 [ext_resource type="Script" path="res://addons/fps_controller/Megaphone.gd" id="1_script"]
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_horn"]
-top_radius = 0.15
-bottom_radius = 0.045
-height = 0.32
-radial_segments = 10
-rings = 1
-
-[sub_resource type="StandardMaterial3D" id="Material_horn"]
-shading_mode = 0
-albedo_color = Color(0.85, 0.22, 0.18, 1)
-roughness = 0.9
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_handle"]
-top_radius = 0.035
-bottom_radius = 0.035
-height = 0.18
-radial_segments = 8
-rings = 1
-
-[sub_resource type="StandardMaterial3D" id="Material_handle"]
-shading_mode = 0
-albedo_color = Color(0.12, 0.12, 0.14, 1)
-roughness = 0.9
-
-[sub_resource type="BoxMesh" id="BoxMesh_button"]
-size = Vector3(0.04, 0.025, 0.04)
-
-[sub_resource type="StandardMaterial3D" id="Material_button"]
-shading_mode = 0
-albedo_color = Color(0.9, 0.75, 0.1, 1)
-roughness = 0.6
+[ext_resource type="PackedScene" uid="uid://da5w3b4aax6xm" path="res://assets/megaphone/MegaphoneCollection.fbx" id="2_model"]
 
 [sub_resource type="SphereMesh" id="SphereMesh_particle"]
 radius = 0.025
@@ -47,33 +16,57 @@ emission_enabled = true
 emission = Color(1, 0.95, 0.6, 1)
 emission_energy_multiplier = 1.5
 
+[sub_resource type="CylinderMesh" id="CylinderMesh_cone"]
+top_radius = 0.0
+bottom_radius = 9.0
+height = 18.0
+radial_segments = 24
+rings = 1
+cap_top = false
+
+[sub_resource type="StandardMaterial3D" id="Material_cone"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.2, 0.18)
+transparency = 1
+cull_mode = 2
+emission_enabled = true
+emission = Color(1, 0.85, 0.2, 1)
+emission_energy_multiplier = 0.4
+
 [node name="Megaphone" type="Node3D"]
 script = ExtResource("1_script")
 
+[node name="InfluenceCone" type="MeshInstance3D" parent="."]
+visible = false
+position = Vector3(0, 0, -9)
+rotation_degrees = Vector3(-90, 0, 0)
+mesh = SubResource("CylinderMesh_cone")
+surface_material_override/0 = SubResource("Material_cone")
+
 [node name="VisualRoot" type="Node3D" parent="."]
-position = Vector3(0.28, -0.32, -0.55)
+position = Vector3(0.3, -0.35, -0.6)
 rotation_degrees = Vector3(10, -15, -5)
 
-[node name="Horn" type="MeshInstance3D" parent="VisualRoot"]
-rotation_degrees = Vector3(-90, 0, 0)
-mesh = SubResource("CylinderMesh_horn")
-surface_material_override/0 = SubResource("Material_horn")
+[node name="MegaphoneModel" parent="VisualRoot" instance=ExtResource("2_model")]
+scale = Vector3(0.5, 0.5, 0.5)
 
-[node name="Handle" type="MeshInstance3D" parent="VisualRoot"]
-position = Vector3(0, -0.12, 0.15)
-mesh = SubResource("CylinderMesh_handle")
-surface_material_override/0 = SubResource("Material_handle")
+[node name="Electronic Megaphone_low" parent="VisualRoot/MegaphoneModel" index="0"]
+visible = false
 
-[node name="Button" type="MeshInstance3D" parent="VisualRoot"]
-position = Vector3(0, -0.045, 0.185)
-mesh = SubResource("BoxMesh_button")
-surface_material_override/0 = SubResource("Material_button")
+[node name="Air Horn_low" parent="VisualRoot/MegaphoneModel" index="1"]
+visible = false
+
+[node name="Plastic Megaphone_low" parent="VisualRoot/MegaphoneModel" index="2"]
+position = Vector3(0, 0, 0)
+
+[node name="Cheerleader's Megaphone_low" parent="VisualRoot/MegaphoneModel" index="3"]
+visible = false
 
 [node name="MuzzlePoint" type="Marker3D" parent="VisualRoot"]
-position = Vector3(0, 0, -0.16)
+position = Vector3(0, 0.02, -0.22)
 
 [node name="Burst" type="CPUParticles3D" parent="VisualRoot"]
-position = Vector3(0, 0, -0.16)
+position = Vector3(0, 0.02, -0.22)
 emitting = false
 amount = 14
 lifetime = 0.35

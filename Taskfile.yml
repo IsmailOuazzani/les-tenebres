@@ -5,14 +5,16 @@ vars:
 
 tasks:
   run:
-    desc: Launch the game (no editor)
+    desc: Launch the game (no editor), logging output to logs/run.log
     cmds:
-      - "{{.GODOT}} --path ."
+      - mkdir -p logs
+      - "{{.GODOT}} --path . > logs/run.log 2>&1"
 
   run-headless:
-    desc: Launch the game headlessly (no window, no editor)
+    desc: Launch the game headlessly (no window, no editor), logging output to logs/run-headless.log
     cmds:
-      - "{{.GODOT}} --path . --headless"
+      - mkdir -p logs
+      - "{{.GODOT}} --path . --headless > logs/run-headless.log 2>&1"
 
   editor:
     desc: Open the project in the Godot editor
