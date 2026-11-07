@@ -1,0 +1,106 @@
+[gd_scene load_steps=8 format=3 uid="uid://ctestmap001"]
+
+[ext_resource type="Script" path="res://scenes/test_map.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://addons/fps_controller/Player.tscn" id="2_player"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_energy = 0.6
+
+[node name="TestMap" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.8137977, -0.4545195, 0.3620723, 0, 0.6225147, 0.7826239, -0.5811571, -0.6368793, 0.5064741, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Ground" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+use_collision = true
+size = Vector3(60, 1, 60)
+
+[node name="WallNorth" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -30)
+use_collision = true
+size = Vector3(60, 5, 1)
+
+[node name="WallSouth" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 30)
+use_collision = true
+size = Vector3(60, 5, 1)
+
+[node name="WallEast" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 2, 0)
+use_collision = true
+size = Vector3(1, 5, 60)
+
+[node name="WallWest" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 2, 0)
+use_collision = true
+size = Vector3(1, 5, 60)
+
+[node name="BuildingA" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 2.5, -8)
+use_collision = true
+size = Vector3(6, 5, 6)
+
+[node name="BuildingB" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.5, -14)
+use_collision = true
+size = Vector3(5, 5, 8)
+
+[node name="BuildingC" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 3.5, 10)
+use_collision = true
+size = Vector3(10, 7, 4)
+
+[node name="RaisedPlatform" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 1.75, 14)
+use_collision = true
+size = Vector3(8, 0.5, 8)
+
+[node name="Ramp" type="CSGBox3D" parent="."]
+transform = Transform3D(0.9848078, 0, -0.1736482, 0, 1, 0, 0.1736482, 0, 0.9848078, -14, 0.9, 7.5)
+use_collision = true
+size = Vector3(6, 0.4, 9)
+
+[node name="Step1" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0.25, -20)
+use_collision = true
+size = Vector3(3, 0.5, 2)
+
+[node name="Step2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0.75, -21.5)
+use_collision = true
+size = Vector3(3, 0.5, 2)
+
+[node name="Step3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.25, -23)
+use_collision = true
+size = Vector3(3, 0.5, 2)
+
+[node name="Step4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 1.75, -24.5)
+use_collision = true
+size = Vector3(3, 0.5, 2)
+
+[node name="StepPlatform" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 2.1, -27)
+use_collision = true
+size = Vector3(5, 0.6, 3)
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
