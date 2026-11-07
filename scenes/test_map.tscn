@@ -1,7 +1,9 @@
-[gd_scene load_steps=8 format=3 uid="uid://ctestmap001"]
+[gd_scene load_steps=10 format=3 uid="uid://ctestmap001"]
 
 [ext_resource type="Script" path="res://scenes/test_map.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://addons/fps_controller/Player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://scripts/npc_spawner.gd" id="3_npc_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="4_npc_scene"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 
@@ -104,3 +106,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
+
+[node name="NPCSpawner" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
+script = ExtResource("3_npc_spawner")
+npc_scene = ExtResource("4_npc_scene")
+npc_count = 7
+spawn_radius = 10.0
+min_spacing = 1.5
