@@ -208,3 +208,138 @@ I have **no display in this environment**, so movement feel, visual
 alignment, lighting, and whether the street actually looks like a Paris block
 (versus, say, a parking lot) are all unverified. Playtesting via `task run` is
 needed before calling this done-done.
+
+## Update: Paris Building Pack swap + street props
+
+Swapped three of the generic Kenney commercial buildings for the **Free
+Paris 3 Building Pack** (CGTrader, https://www.cgtrader.com/free-3d-models/architectural/decoration/paris-3-building-pack,
+by designer `ponpadolen` — free, Royalty Free License, "free for personal
+and commercial use"). CGTrader requires an account login even for free
+downloads (no anonymous/guest path like Kenney or itch.io) — the user
+downloaded the zip manually and handed it off.
+
+### Where it lives / what's in it
+
+- `assets/paris_building_pack/BuildingA/`, `BuildingB/`, `BuildingC/` — one
+  FBX per building, each with a `TradeBuilding<X>1texs/` texture folder
+  staged alongside it (not the pack's original folder names — see gotcha
+  below).
+- The pack's **OBJ+MTL export is broken** — every `.mtl` material has
+  `Kd 0.00 0.00 0.00` (black) and zero texture references (`map_Kd` etc.),
+  a classic artifact of a Maya `aiStandardSurface` → OBJ export that didn't
+  translate PBR shader textures. Did not use the OBJ files at all; used the
+  FBX files instead, which do carry texture-path references.
+- Did **not** convert to GLB — no Blender install in this environment (see
+  `agents/megaphone-notes.md` for the same constraint). Godot 4.7's native
+  FBX importer loads these directly.
+
+### Import gotcha: FBX texture paths are absolute, from the original author's machine, and don't match the extracted folder names
+
+Each FBX references its textures by a path like
+`/TradeBuildingA1texs/BricksB.jpg` (originally
+`E:\...\TradeBuildingA1texs\BricksB.jpg` on a Windows machine, FBX stores it
+both as an absolute Windows path and a "relative" `/<folder>/<file>` form).
+Godot's FBX importer only tries that literal path reinterpreted as
+`res://<path>` — unlike the GLB importer (see the Kenney notes above), it
+does **not** fall back to searching the FBX's own directory by filename.
+Fix: for each building, created a `TradeBuilding<A|B|C>1texs/` folder next
+to its FBX (matching the exact folder name the FBX expects) and copied the
+extracted texture files into it under their *expected* filenames — the
+zip's actual folder/file names (`ShopMaterial/ShopAndRoofsABase.jpg`,
+`WallMaterial/WindowNormal.jpg`, `TopRoofMat/TopRoofBase.png`, etc., spread
+across half a dozen differently-named subfolders per building) don't match
+what the FBX asks for 1:1.
+
+**This matching was best-effort, not exact** — most names lined up exactly
+(`BricksB.jpg`, `WindowBase.jpg`, `ShopNormal.jpg`...), but a few didn't:
+`ShopAndRoofsBase.jpg` (FBX) vs `ShopAndRoofsABase.jpg` (zip, has an extra
+"A" — copied over the mismatch), and `RoofAuv_Shop_BaseColor.png`/
+`RoofAuv_Shop_Normal.png` (FBX, Building A's shop-roof UV) have **no
+matching file in the zip at all** — substituted the closest candidate
+(`TopRoofMat/TopRoofBase.png` / `TopRoofNormal.png`) as a guess. Building
+A's `TradeBuildingNormal.jpg` (FBX) was similarly unmatched; substituted
+`WallMaterial/WindowNormal.jpg`. **Not visually confirmed** — a few
+surfaces (roof/shop awning parts, mostly) on Building A may show the wrong
+texture or fall back to a default grey material. Buildings B and C had
+cleaner matches.
+
+### Geometry note: huge flat node hierarchy, but only one real mesh per building
+
+Each FBX imports as ~100-450 near-empty `Node3D` placeholder nodes
+(`pPlaneN`, `pCubeN`, `pCylinderN` — Maya's original per-object names) plus
+exactly **one** `MeshInstance3D` at the end of the list holding the entire
+building as a multi-surface merged mesh (Godot's FBX importer's default
+"merge meshes" behavior). Confirmed via a throwaway headless inspection
+script (not checked in) that walked each instantiated scene, found the
+`MeshInstance3D`, and accumulated its parent-chain transform by hand (the
+normal `Node3D.global_transform` API returned identity when queried from a
+bare `SceneTree._initialize()` script — nodes aren't reliably "inside tree"
+at that point in a `--script` run — so the script composed
+`parent.transform * child.transform` manually walking up `get_parent()`
+instead). The empty placeholder nodes are harmless (no mesh, no collision)
+but mean these scenes are much heavier node-count-wise than the single-mesh
+Kenney GLBs; fine for a prototype, worth flattening if this pack sees
+heavier use later.
+
+### Scale — already real-world/game scale, no 4x multiplier needed
+
+Unlike the Kenney kit (authored at a small internal scale, needing the
+project's `scale = Vector3(4,4,4)` convention), this pack's FBX files
+already bake real-world-ish scale into their node transforms. Measured
+world-space bounding boxes (combined, accumulated-transform method above):
+
+- Building A: ~2.29m (w) × 4.76m (h) × 4.47m (d)
+- Building B: ~6.80m (w) × 7.35m (h) × 6.81m (d)
+- Building C: ~3.03m (w) × 5.92m (h) × 4.37m (d)
+
+All in the same 3.5-7m height range as the Kenney commercial buildings they
+replaced, so no extra scaling was applied — each is instanced at
+`scale = Vector3(1,1,1)`.
+
+### Where they're placed
+
+Swapped in for `building-a2`/`building-b2`/`building-e2` at the same grid
+slots (west row `x=-8`, east row `x=8`, main-street `z` positions 16/16/0):
+`paris-building-a` (west, Building A), `paris-building-b` (east, Building
+B), `paris-building-c` (west, Building C, raised `y=0.72` since its local
+mesh origin sits 0.72m below its own ground plane — the other two sit
+almost exactly at `y=0` already). Matching invisible collision boxes
+(`BuildingWest_0`, `BuildingEast_0`, `BuildingWest_2` under
+`MapGeometry/Collision`) were resized to each building's measured
+footprint — same decoupled-collision pattern as the rest of the map, per
+the "Collision: decoupled from the visuals, deliberately" section above.
+Did not touch rotation (left at identity) — **unverified whether each
+building's "front" (shopfront/window side) actually faces the street**;
+same "no display, needs an eyeball pass" caveat as everything else in this
+file.
+
+### Street props
+
+Placed a few of the previously-imported-but-unused Kenney Roads props near
+the main intersection (`MapGeometry/Visuals/StreetProps`): two
+`construction-barrier` + three `construction-cone` clustered just off the
+sidewalk near the plaza end of the main street (loose "protest barricade"
+dressing, not a full blockade), and four `light-square` lamp posts flanking
+the street at two points along the main stretch. Signs and bins from the
+same pack are still unplaced — left for a future pass.
+
+### Verification done / not done
+
+Ran the same headless pipeline as every other pass in this repo: forced a
+reimport (`--headless --editor --quit-after 30`) then a full game load
+check (`--headless --quit-after 4`). **Zero errors, zero warnings** beyond
+the usual harmless leaked-RID/ObjectDB noise on abrupt shutdown.
+
+**Not verified — no display access in this session** (see
+`agents/megaphone-notes.md` for why: a real monitor is attached to this
+machine, but the shell driving this work lacks macOS Screen Recording
+permission, and the user opted to eyeball the result themselves via `task
+run` rather than grant it). Specifically unconfirmed: whether the three
+Paris buildings actually look right next to the Kenney buildings (style
+clash, texture mismatches from the best-effort matching above, scale
+looking right in person vs. just on paper), whether their rotation puts the
+right face toward the street, whether they clip into the sidewalk/street
+geometry given their footprints don't perfectly match the Kenney buildings
+they replaced, and whether the new barricade/cone/lamp placements look
+reasonable rather than floating/clipped. Someone with eyes on the screen
+needs to run `task run` and nudge positions/rotations as needed.

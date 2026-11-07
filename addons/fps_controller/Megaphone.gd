@@ -187,10 +187,12 @@ func _update_cone_shape() -> void:
 	mesh.height = cone_range
 	mesh.top_radius = 0.0
 	mesh.bottom_radius = cone_range * tan(half_angle_rad)
-	# Cylinder is centered on its own origin; rotation_degrees=(-90,0,0) on
+	# Cylinder is centered on its own origin; rotation_degrees=(90,0,0) on
 	# the node (set in Megaphone.tscn) maps its +Y (apex, top_radius=0) to
-	# local -Z (forward). Shifting the node forward by half the height moves
-	# the apex to the camera (z=0) and the wide base out to cone_range.
+	# local +Z (toward the camera). Shifting the node forward by half the
+	# height moves the apex to the camera (z=0) and the wide base out to
+	# cone_range at -Z (forward). (-90 is wrong here: it puts the wide base
+	# at the camera instead, so the player stands inside the flared end.)
 	influence_cone.position = Vector3(0, 0, -cone_range * 0.5)
 
 

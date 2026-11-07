@@ -12,7 +12,7 @@ extends CharacterBody3D
 enum State { IDLE, WANDER, FOLLOW, CHARGE, REGROUP }
 
 @export var wander_radius: float = 6.0
-@export var move_speed: float = 2.0
+@export var move_speed: float = 4.0
 @export var idle_time_min: float = 2.0
 @export var idle_time_max: float = 5.0
 @export var turn_speed: float = 6.0

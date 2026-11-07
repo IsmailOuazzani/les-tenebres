@@ -16,7 +16,7 @@ Running list of external assets we're pulling into the project. Add a row when y
 | Quaternius Animated Men/Women Packs | https://quaternius.com/packs/animatedmen.html | Characters — named civilians/player | FBX/OBJ/blend | Optional, not yet imported |
 | Kenney Character Assets (Mini Characters) | https://kenney.itch.io/kenney-character-assets | Characters — alt NPCs (blocky style) | glTF/FBX | Alternative, not yet imported |
 | Kenney Animated Characters 2 | https://opengameart.org/content/animated-characters-2 | Characters — placeholder only | glTF/FBX | Placeholder only, not yet imported |
-| Kenney City Kit (Roads) — barricades/cones/signs/lamps/bins | https://kenney.nl/assets/city-kit-roads | Props — street furniture | glTF/FBX/OBJ | Imported alongside the roads pack (all GLBs, including these props, are in `assets/kenney_city_kit_roads/`) — not yet placed in the test map |
+| Kenney City Kit (Roads) — barricades/cones/signs/lamps/bins | https://kenney.nl/assets/city-kit-roads | Props — street furniture | glTF/FBX/OBJ | Imported alongside the roads pack (all GLBs, including these props, are in `assets/kenney_city_kit_roads/`) — construction-barrier/construction-cone/light-square now placed near the main intersection in `scenes/test_map.tscn` (`MapGeometry/Visuals/StreetProps`); signs/bins still unplaced |
 | Kenney standalone Barricade | https://poly.pizza/m/cNGRlrEJEe | Props — barricade (single) | glTF/FBX | Optional single-prop, not yet imported |
 | Wood Barricade by Dakota_Du | https://poly.pizza/m/HS49Rmidqs | Props — barricade (single) | glTF/FBX | Unverified license, not yet imported |
 | Statue by Zsky | https://poly.pizza/m/VerAznL5lK | Props — statue | glTF/FBX | CC-BY (credit needed), not yet imported |
@@ -27,7 +27,7 @@ Running list of external assets we're pulling into the project. Add a row when y
 | Quaternius Ultimate Modular Women | https://quaternius.com/packs/ultimatemodularwomen.html | Characters — crowd NPCs | glTF/FBX/OBJ/blend | Recommended (pairs with Modular Men), not yet imported |
 | Quaternius Public Transport | https://quaternius.com/packs/publictransport | Props — bus/vehicles | glTF/FBX/OBJ/blend | Recommended (preferred over Kenney Car Kit for bus), not yet imported |
 | VOiD1 Free Megaphones Collection | https://void1gaming.itch.io/free-3d-megaphones-collection | Props — megaphone (player prop) | FBX/.blend | Imported — `assets/megaphone/` (using the "Plastic Megaphone_low" variant from the FBX; see `agents/megaphone-notes.md`) |
-| Free Paris 3 Building Pack | https://www.cgtrader.com/free-3d-models/architectural/decoration/paris-3-building-pack | Map — Paris-styled buildings | varies (check CGTrader page) | Recommended (actual Parisian style, preferred over generic Kenney Commercial), not yet imported |
+| Free Paris 3 Building Pack | https://www.cgtrader.com/free-3d-models/architectural/decoration/paris-3-building-pack | Map — Paris-styled buildings | FBX (OBJ/MTL export was broken, unused) | Imported — `assets/paris_building_pack/` (Buildings A/B/C swapped into `scenes/test_map.tscn`; see `agents/map-dressing-notes.md`) |
 | French Protest Crowd Audio | https://freesound.org/people/Mathias.Arrignon/sounds/686002/ | Audio — crowd/protest ambience | WAV/audio | Recommended, new category — not yet imported |
 
 ## Notes

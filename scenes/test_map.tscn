@@ -30,6 +30,12 @@
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="28_hud"]
 [ext_resource type="PackedScene" path="res://scenes/game_over.tscn" id="29_gmovr"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="30_crowdctl"]
+[ext_resource type="PackedScene" path="res://assets/paris_building_pack/BuildingA/BuildingA.fbx" id="31_parisa"]
+[ext_resource type="PackedScene" path="res://assets/paris_building_pack/BuildingB/BuildingB.fbx" id="32_parisb"]
+[ext_resource type="PackedScene" path="res://assets/paris_building_pack/BuildingC/BuildingC.fbx" id="33_parisc"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/construction-barrier.glb" id="34_barrier"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/construction-cone.glb" id="35_cone"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/light-square.glb" id="36_lamp"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
 
@@ -710,19 +716,19 @@ shadow_mesh = SubResource("ArrayMesh_uhg7c")
 size = Vector3(56, 1, 70)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_8de4v"]
-size = Vector3(3.53, 5.17, 3.76)
+size = Vector3(2.29, 4.76, 4.47)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_h1ag3"]
 size = Vector3(3.53, 3.57, 4.36)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_f5sdk"]
-size = Vector3(6.56, 3.57, 4.03)
+size = Vector3(3.03, 5.92, 4.37)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_v7e27"]
 size = Vector3(3.88, 6.77, 3.69)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_kin18"]
-size = Vector3(3.88, 5.17, 3.76)
+size = Vector3(6.80, 7.35, 6.81)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_w2hch"]
 size = Vector3(3.36, 5.17, 3.6)
@@ -1142,11 +1148,8 @@ transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, 0,
 [node name="road-crossing" type="MeshInstance3D" parent="MapGeometry/Visuals/@Node3D@60" unique_id=2052342265]
 mesh = SubResource("ArrayMesh_ged5y")
 
-[node name="building-a2" type="Node3D" parent="MapGeometry/Visuals" unique_id=417555399 instance=ExtResource("7_q4233")]
-transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, -8, 0, 16)
-
-[node name="building-a" type="MeshInstance3D" parent="MapGeometry/Visuals/building-a2" unique_id=2080131092]
-mesh = SubResource("ArrayMesh_kx3gw")
+[node name="paris-building-a" parent="MapGeometry/Visuals" instance=ExtResource("31_parisa")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, 16)
 
 [node name="building-c2" type="Node3D" parent="MapGeometry/Visuals" unique_id=1369433343 instance=ExtResource("9_dxr60")]
 transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, -8, 0, 8)
@@ -1154,11 +1157,8 @@ transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, -8
 [node name="building-c" type="MeshInstance3D" parent="MapGeometry/Visuals/building-c2" unique_id=1056196196]
 mesh = SubResource("ArrayMesh_s5qa3")
 
-[node name="building-e2" type="Node3D" parent="MapGeometry/Visuals" unique_id=1627829991 instance=ExtResource("10_ooflh")]
-transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, -8, 0, 0)
-
-[node name="building-e" type="MeshInstance3D" parent="MapGeometry/Visuals/building-e2" unique_id=1675733346]
-mesh = SubResource("ArrayMesh_bf7e3")
+[node name="paris-building-c" parent="MapGeometry/Visuals" instance=ExtResource("33_parisc")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.72, 0)
 
 [node name="building-g2" type="Node3D" parent="MapGeometry/Visuals" unique_id=385525369 instance=ExtResource("11_2w63r")]
 transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, -8, 0, -8)
@@ -1166,11 +1166,8 @@ transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, -8
 [node name="building-g" type="MeshInstance3D" parent="MapGeometry/Visuals/building-g2" unique_id=1842836018]
 mesh = SubResource("ArrayMesh_gq313")
 
-[node name="building-b2" type="Node3D" parent="MapGeometry/Visuals" unique_id=1903180754 instance=ExtResource("12_cea3d")]
-transform = Transform3D(-1.7484555e-07, 0, -4, 0, 4, 0, 4, 0, -1.7484555e-07, 8, 0, 16)
-
-[node name="building-b" type="MeshInstance3D" parent="MapGeometry/Visuals/building-b2" unique_id=1205875523]
-mesh = SubResource("ArrayMesh_mi57g")
+[node name="paris-building-b" parent="MapGeometry/Visuals" instance=ExtResource("32_parisb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 16)
 
 [node name="building-d2" type="Node3D" parent="MapGeometry/Visuals" unique_id=848223154 instance=ExtResource("13_1c7d3")]
 transform = Transform3D(-1.7484555e-07, 0, -4, 0, 4, 0, 4, 0, -1.7484555e-07, 8, 0, 8)
@@ -1286,6 +1283,35 @@ transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, -8
 [node name="building-a" type="MeshInstance3D" parent="MapGeometry/Visuals/@Node3D@84" unique_id=1397507821]
 mesh = SubResource("ArrayMesh_kx3gw")
 
+[node name="StreetProps" type="Node3D" parent="MapGeometry/Visuals"]
+
+[node name="Barricade1" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("34_barrier")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -2.5, 0, 6)
+
+[node name="Barricade2" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("34_barrier")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 2.5, 0, 6)
+
+[node name="Cone1" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("35_cone")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -3, 0, 5)
+
+[node name="Cone2" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("35_cone")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 3, 0, 5)
+
+[node name="Cone3" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("35_cone")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -3, 0, 7)
+
+[node name="Lamp1" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -6, 0, 12)
+
+[node name="Lamp2" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 6, 0, 12)
+
+[node name="Lamp3" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -6, 0, -4)
+
+[node name="Lamp4" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 6, 0, -4)
+
 [node name="Collision" type="Node3D" parent="MapGeometry" unique_id=802962760]
 
 [node name="GroundCollision" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=978643638]
@@ -1295,7 +1321,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -10)
 shape = SubResource("BoxShape3D_m8t5h")
 
 [node name="BuildingWest_0" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=1456554804]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.585, 16)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.38, 16)
 
 [node name="@CollisionShape3D@62" type="CollisionShape3D" parent="MapGeometry/Collision/BuildingWest_0" unique_id=356195959]
 shape = SubResource("BoxShape3D_8de4v")
@@ -1307,7 +1333,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.785, 8)
 shape = SubResource("BoxShape3D_h1ag3")
 
 [node name="BuildingWest_2" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=1398771913]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.785, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.96, 0)
 
 [node name="@CollisionShape3D@64" type="CollisionShape3D" parent="MapGeometry/Collision/BuildingWest_2" unique_id=1183373970]
 shape = SubResource("BoxShape3D_f5sdk")
@@ -1319,7 +1345,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 3.385, -8)
 shape = SubResource("BoxShape3D_v7e27")
 
 [node name="BuildingEast_0" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=126851312]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.585, 16)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 3.675, 16)
 
 [node name="@CollisionShape3D@66" type="CollisionShape3D" parent="MapGeometry/Collision/BuildingEast_0" unique_id=886285909]
 shape = SubResource("BoxShape3D_kin18")
