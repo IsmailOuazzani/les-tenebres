@@ -28,15 +28,22 @@ Repeat until the protest collapses.
 | Input | Action | Behavior |
 |---|---|---|
 | WASD | Movement | First-person movement |
-| Mouse | Aim | Look around and select targets |
-| Hold Left Click | Megaphone | Project a recruitment cone that recruits nearby civilians; size scales with Grabuge |
-| Right Click | À L'ATTAQUE! | Send the crowd charging toward the targeted object or location |
-| Hold Right Click | Regroup | Gather the crowd back around the player |
+| Mouse | Aim | Look around; the reticle outlines an interactable in view, or shows a plain marker when aiming at nothing interactable |
+| Hold Right Click | Megaphone | Project a recruitment cone that recruits nearby civilians; size scales with Grabuge |
+| Hold Left Click | Send Mob | Hold to ramp up what % of the mob gets committed, release to send that share at the reticle's target |
 | E | Protest Action | Perform contextual actions such as chanting, sitting, or occupying an area |
 
 ## Main Mechanic: Context-Sensitive Mob Direction
 
 **The player decides WHERE the mob goes. The NPCs decide HOW to interact with the destination.**
+
+**Send Mob is one command, not two.** À L'ATTAQUE! and Regroup are the same
+underlying action — "send this share of the mob to a position" — the only
+difference is what that position resolves to: an aimed-at interactable
+object (outlined in the reticle), or the player when nothing interactable
+is in view (shown as a plain marker instead). See
+`agents/mob-selector-notes.md` for the targeting/outline and send-percentage
+spec.
 
 Examples:
 
