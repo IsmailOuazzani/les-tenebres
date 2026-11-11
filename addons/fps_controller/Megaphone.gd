@@ -4,21 +4,24 @@ class_name Megaphone
 ## First-person megaphone viewmodel + click/hold-command hooks.
 ##
 ## This node is purely player-facing: it owns the held prop, the recruitment
-## influence cone, raise/shake animation, and the signals below. It does NOT
-## know about NPCs or the crowd -- CrowdController (scripts/crowd_controller.gd)
-## polls `is_recruiting_held()` / `is_point_within_cone()` itself rather than
-## this script reaching into NPCs. See `agents/megaphone-notes.md` for the
-## full integration contract.
+## influence cone, the aim reticle/outline, raise/shake animation, and the
+## signal below. It does NOT know about NPCs or the crowd --
+## CrowdController (scripts/crowd_controller.gd) polls `is_recruiting_held()`
+## / `is_point_within_cone()` and listens for `send_mob_triggered` itself
+## rather than this script reaching into NPCs. See `agents/megaphone-notes.md`
+## and `agents/mob-selector-notes.md` for the full integration contract.
+##
+## Checking `is_in_group("destructible")` on the raycast hit below is the one
+## exception to "doesn't know about NPCs/crowd" -- it's a visual-only check
+## (which object gets the outline reticle), not crowd logic.
 
-## Emitted when the player releases right-click after a short hold
-## ("À L'ATTAQUE!"). `target_position` is the world-space point the camera
-## raycast hit at the moment the click started (or a point at `ray_range`
-## along the look direction if nothing was hit).
-signal attack_command_triggered(target_position: Vector3)
-
-## Emitted when the player releases right-click after holding it past
-## `regroup_hold_threshold_msec` (vision.md: "Hold Right Click = Regroup").
-signal regroup_triggered
+## Emitted when the player releases Send Mob (hold Left Click). `percentage`
+## (0-1) is how much of the recruited mob to commit, per the hold-to-charge
+## ramp. `target` is the destructible object the reticle was outlining at
+## release time, or null if the reticle was showing the yellow-ball fallback
+## -- per agents/mob-selector-notes.md, attack and regroup are the same
+## command; CrowdController decides what null vs. non-null means.
+signal send_mob_triggered(percentage: float, target: Node3D)
 
 @export var ray_range := 50.0
 ## Physics layer mask used for the aim raycast. Defaults to layer 1
@@ -26,31 +29,35 @@ signal regroup_triggered
 ## collision (layer 2, "Player") never self-intersects the ray.
 @export var ray_collision_mask := 1
 
-## How long right-click has to be held (milliseconds) before release counts
-## as "Regroup" instead of a normal "À L'ATTAQUE!" click.
-@export var regroup_hold_threshold_msec := 350
+## -- Send Mob hold-to-charge --
+## How long (milliseconds) Send Mob must be held to ramp from the tap floor
+## up to committing 100% of the mob.
+@export var send_ramp_duration_msec := 1200
+## Minimum share of the mob a quick tap still commits, so a tap always does
+## something (0-1).
+@export var send_tap_floor_percentage := 0.1
 
 ## -- Recruitment influence cone --
-## Driven by GameState.grabuge via piecewise-linear interpolation across
-## these three keyframes (0%/50%/100%), per the original spec's balancing
-## table. `cone_range`/`cone_angle_degrees` below are the live computed
-## values (read by is_point_within_cone() and the visual mesh) -- don't
-## edit those directly, tune the keyframes instead.
-@export var cone_range_at_0pct := 6.0
-@export var cone_range_at_50pct := 18.0
-@export var cone_range_at_100pct := 35.0
-@export var cone_angle_at_0pct := 25.0
-@export var cone_angle_at_50pct := 50.0
-@export var cone_angle_at_100pct := 80.0
+## Driven by GameState.grabuge (0-100%): linearly interpolated from the
+## *_min values at 0% to the *_max values at 100%. `cone_range`/
+## `cone_angle_degrees` below are the live computed values (read by
+## is_point_within_cone() and the visual mesh) -- don't edit those
+## directly, tune the min/max exports instead.
+@export var cone_range_min := 6.0
+@export var cone_range_max := 35.0
+@export var cone_angle_min := 25.0
+@export var cone_angle_max := 80.0
 
-var cone_range: float = cone_range_at_0pct
-var cone_angle_degrees: float = cone_angle_at_0pct
+var cone_range: float = cone_range_min
+var cone_angle_degrees: float = cone_angle_min
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var muzzle: Marker3D = $VisualRoot/MuzzlePoint
 @onready var burst: CPUParticles3D = $VisualRoot/Burst
 @onready var flash: ColorRect = $UILayer/Flash
 @onready var feedback_label: Label = $UILayer/FeedbackLabel
+@onready var reticle_dot: Label = $UILayer/ReticleDot
+@onready var charge_label: Label = $UILayer/ChargeLabel
 @onready var influence_cone: MeshInstance3D = $InfluenceCone
 
 var _rest_position: Vector3
@@ -60,10 +67,21 @@ var _label_tween: Tween
 var _flash_tween: Tween
 
 var _recruiting_held: bool = false
-var _attack_press_target: Vector3 = Vector3.ZERO
-var _attack_press_time_msec: int = 0
 var _recruit_burst_timer: float = 0.0
 const RECRUIT_BURST_INTERVAL := 0.5
+
+## -- Aim tracking (reticle/outline) --
+## Whatever the camera is currently looking at, re-resolved every frame so
+## the reticle always reflects what a Send Mob release would target right
+## now -- see agents/mob-selector-notes.md. Non-null only when the hit
+## object is in the "destructible" group; everything else (ground, walls,
+## empty air, non-interactable props) falls back to null, shown as the
+## yellow-ball reticle.
+var _aim_target: Node3D = null
+
+## -- Send Mob hold-to-charge --
+var _send_held: bool = false
+var _send_press_time_msec: int = 0
 
 
 func _ready() -> void:
@@ -72,6 +90,7 @@ func _ready() -> void:
 	flash.color = Color(1, 1, 1, 0)
 	feedback_label.text = ""
 	feedback_label.modulate.a = 0.0
+	charge_label.text = ""
 	influence_cone.visible = false
 	GameState.grabuge_changed.connect(_on_grabuge_changed)
 	_on_grabuge_changed(GameState.grabuge)
@@ -80,8 +99,17 @@ func _ready() -> void:
 ## Pulses the recruit particle burst at the horn's mouth every
 ## RECRUIT_BURST_INTERVAL seconds while the cone is active -- subtle
 ## "sound-wave" feedback per vision.md's megaphone description, using the
-## existing one-shot burst rather than a new effect.
+## existing one-shot burst rather than a new effect. Also re-resolves the aim
+## reticle every frame and, while Send Mob is held, updates the live charge
+## percentage readout.
 func _process(delta: float) -> void:
+	_update_aim_target()
+
+	if _send_held:
+		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
+		var percentage: float = _current_send_percentage(held_msec)
+		charge_label.text = "%d%%" % roundi(percentage * 100.0)
+
 	if not _recruiting_held:
 		return
 	_recruit_burst_timer -= delta
@@ -95,21 +123,49 @@ func _unhandled_input(event: InputEvent) -> void:
 		_start_recruit()
 	elif event.is_action_released(&"recruit"):
 		_stop_recruit()
-	elif event.is_action_pressed(&"attack_command"):
-		_attack_press_time_msec = Time.get_ticks_msec()
-		_attack_press_target = _raycast_target()
-	elif event.is_action_released(&"attack_command"):
-		var held_msec: int = Time.get_ticks_msec() - _attack_press_time_msec
-		if held_msec >= regroup_hold_threshold_msec:
-			_do_regroup()
-		else:
-			_do_attack_command(_attack_press_target)
+	elif event.is_action_pressed(&"send_mob"):
+		_send_held = true
+		_send_press_time_msec = Time.get_ticks_msec()
+	elif event.is_action_released(&"send_mob"):
+		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
+		_send_held = false
+		charge_label.text = ""
+		_do_send_mob(_current_send_percentage(held_msec), _aim_target)
 
 
 ## True while the player is holding the recruit input and the influence cone
 ## is showing. CrowdController polls this each physics frame.
 func is_recruiting_held() -> bool:
 	return _recruiting_held
+
+
+## Maps a hold duration to a commit percentage (0-1): linear ramp from
+## `send_tap_floor_percentage` up to 1.0 over `send_ramp_duration_msec`, per
+## agents/mob-selector-notes.md ("start linear ... tune by feel").
+func _current_send_percentage(held_msec: int) -> float:
+	var ramp_t: float = clamp(float(held_msec) / float(send_ramp_duration_msec), 0.0, 1.0)
+	return lerp(send_tap_floor_percentage, 1.0, ramp_t)
+
+
+## Re-raycasts along the camera's look direction every frame and updates
+## `_aim_target` + the reticle visuals. Clears the outline on whatever was
+## previously targeted before (possibly) placing it on something new, since
+## only one object should ever be outlined at a time.
+func _update_aim_target() -> void:
+	var hit_target: Node3D = _raycast_destructible()
+
+	if hit_target == _aim_target:
+		return
+
+	if _aim_target != null and is_instance_valid(_aim_target) and _aim_target.has_method("set_targeted"):
+		_aim_target.set_targeted(false)
+
+	_aim_target = hit_target
+
+	if _aim_target != null and _aim_target.has_method("set_targeted"):
+		_aim_target.set_targeted(true)
+
+	reticle_dot.visible = _aim_target == null
 
 
 ## True if `point` (world space) falls inside the recruitment cone right now
@@ -145,37 +201,31 @@ func _stop_recruit() -> void:
 	influence_cone.visible = false
 
 
-func _do_attack_command(target: Vector3) -> void:
+## Fires the one unified Send Mob command. `target` non-null means the
+## reticle was outlining an interactable at release time (À L'ATTAQUE! on
+## that object); null means the yellow-ball fallback (Regroup to player) --
+## per agents/mob-selector-notes.md, both are "send this % of the mob to a
+## position," so this is the single place that decides the cosmetic
+## feedback, not two separate code paths.
+func _do_send_mob(percentage: float, target: Node3D) -> void:
 	_play_raise_shake()
-	_flash_screen()
-	_spawn_attack_marker(target)
-	_show_feedback("A L'ATTAQUE !", Color(0.95, 0.2, 0.2))
-	attack_command_triggered.emit(target)
-
-
-func _do_regroup() -> void:
-	_play_raise_shake()
-	_show_feedback("REGROUPEZ-VOUS !", Color(0.3, 0.6, 0.95))
-	regroup_triggered.emit()
+	var percent_text: String = "%d%%" % roundi(percentage * 100.0)
+	if target != null:
+		_flash_screen()
+		_spawn_attack_marker(target.global_position)
+		_show_feedback("A L'ATTAQUE ! (%s)" % percent_text, Color(0.95, 0.2, 0.2))
+	else:
+		_show_feedback("REGROUPEZ-VOUS ! (%s)" % percent_text, Color(0.3, 0.6, 0.95))
+	send_mob_triggered.emit(percentage, target)
 
 
 ## Recomputes cone_range/cone_angle_degrees from the current Grabuge value
-## (piecewise-linear across the 0/50/100% keyframes) and rebuilds the mesh.
+## (0-100%, linearly interpolated from *_min to *_max) and rebuilds the mesh.
 func _on_grabuge_changed(value: float) -> void:
-	cone_range = _piecewise_lerp(value, cone_range_at_0pct, cone_range_at_50pct, cone_range_at_100pct)
-	cone_angle_degrees = _piecewise_lerp(value, cone_angle_at_0pct, cone_angle_at_50pct, cone_angle_at_100pct)
+	var t: float = clamp(value, 0.0, 100.0) / 100.0
+	cone_range = lerp(cone_range_min, cone_range_max, t)
+	cone_angle_degrees = lerp(cone_angle_min, cone_angle_max, t)
 	_update_cone_shape()
-
-
-## Linear interpolation across two segments (0-50, 50-100) instead of one
-## straight 0-100 lerp, since the balancing table's three keyframes aren't
-## collinear (e.g. range goes 6 -> 18 -> 35, a steeper slope in the second
-## half).
-func _piecewise_lerp(value: float, at_0: float, at_50: float, at_100: float) -> float:
-	var clamped: float = clamp(value, 0.0, 100.0)
-	if clamped <= 50.0:
-		return lerp(at_0, at_50, clamped / 50.0)
-	return lerp(at_50, at_100, (clamped - 50.0) / 50.0)
 
 
 ## Builds the cone mesh from the current `cone_range`/`cone_angle_degrees`.
@@ -214,6 +264,31 @@ func _raycast_target() -> Vector3:
 	if result:
 		return result.position
 	return origin + direction * ray_range
+
+
+## Same raycast as `_raycast_target()`, but returns the hit collider itself
+## (not just a point) when it's a "destructible"-group interactable, or null
+## otherwise -- the reticle only ever outlines something interactable, never
+## bare geometry.
+func _raycast_destructible() -> Node3D:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return null
+
+	var origin: Vector3 = cam.global_transform.origin
+	var direction: Vector3 = -cam.global_transform.basis.z
+
+	var space_state := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(
+			origin, origin + direction * ray_range, ray_collision_mask)
+	var result := space_state.intersect_ray(query)
+	if not result:
+		return null
+
+	var collider: Object = result.collider
+	if collider is Node3D and collider.is_in_group(&"destructible"):
+		return collider
+	return null
 
 
 func _play_raise_shake() -> void:

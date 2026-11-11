@@ -1,7 +1,9 @@
-# Mob Selector + Send-% Spec (design, not yet implemented)
+# Mob Selector + Send-% Spec
 
-Status: **spec only**, written per direct instruction before any code
-changes. Supersedes the click/hold-duration split described in
+Status: **implemented** (first pass). Originally written as spec-only per
+direct instruction before any code changes; the "Implementation" section at
+the bottom records what actually landed and what's still unverified
+visually. Supersedes the click/hold-duration split described in
 `agents/crowd-swarm-notes.md` ("Input change: ... Right-click
 ('attack_command') now distinguishes a short click ... from a hold") and
 the `attack_command_triggered`/`regroup_triggered` two-signal contract in
@@ -111,3 +113,75 @@ sent:
   group (e.g. a future bus/plaza/barricade target per vision.md's
   "Secondary Mechanics") or left as-is for now — out of scope until those
   target types exist.
+
+## Implementation
+
+- **Input rebind** (`project.godot`): `recruit` action moved to right mouse
+  button (was left), the old `attack_command` action renamed `send_mob` and
+  moved to left mouse button (was right). No new input actions added.
+- **`addons/fps_controller/Megaphone.gd`**: the two signals
+  (`attack_command_triggered`, `regroup_triggered`) collapsed into one
+  `send_mob_triggered(percentage: float, target: Node3D)`. `_process()` now
+  re-raycasts every frame (`_raycast_destructible()`, same raycast as the
+  existing `_raycast_target()` but returns the hit `Node3D` only if
+  `is_in_group("destructible")`) to track `_aim_target`, calling
+  `set_targeted(true/false)` on whichever `DestructibleProp` is
+  gaining/losing the aim so only one is ever outlined. While `send_mob` is
+  held, percentage ramps linearly from `send_tap_floor_percentage` (0.1) to
+  1.0 over `send_ramp_duration_msec` (1200ms) — read live by a new
+  `ChargeLabel` showing e.g. "45%". Release calls the single
+  `_do_send_mob(percentage, target)`, which branches only on cosmetic
+  feedback (flash + red marker for an attack, blue label for the
+  regroup-fallback) before emitting the one signal.
+- **`addons/fps_controller/Megaphone.tscn`**: added `ReticleDot` (small
+  centered yellow Label, `"●"`) and `ChargeLabel` (centered percentage
+  readout) under `UILayer`. `ReticleDot` is hidden whenever `_aim_target`
+  is non-null (the object's own outline is the indicator instead).
+- **`scripts/destructible_prop.gd` / `scenes/destructible_prop.tscn`**: new
+  `Outline` `MeshInstance3D` sibling of `HealthBar`/`DumpsterModel` — a
+  `BoxMesh` ~15% larger than the collision box, translucent additive-yellow
+  unshaded material, `cull_mode = DISABLED`. Hidden by default;
+  `DestructibleProp.set_targeted(bool)` toggles it. This is the "cheap
+  bounding-box outline" option from the open questions above, not a
+  shader-based silhouette — swap it later if it doesn't read well.
+- **`scripts/crowd_controller.gd`**: single `_on_send_mob(percentage,
+  target)` replaces the old `_on_attack_command`/`_on_regroup` pair and the
+  proximity-based `_find_destructible_near()` (no longer needed — the
+  reticle already identifies the exact target node, so
+  `attack_target_pick_radius` was removed as dead config). New
+  `_send_pointer: int` + `_take_ring_slice(count)` implement the rotating
+  selection: takes `count = round(percentage * recruited.size())` NPCs
+  starting at the pointer (wrapping), advances the pointer by `count`.
+  `target != null` → selected NPCs `enter_charge()` toward the target's
+  position (unchanged scatter/damage logic otherwise); `target == null` →
+  selected NPCs `enter_regroup()` toward the player.
+- `scripts/npc.gd` untouched — `enter_charge()`/`enter_regroup()` already
+  matched this contract.
+
+### Verification
+
+```
+/Applications/Godot.app/Contents/MacOS/Godot --path . --headless --quit-after 10
+```
+
+Clean: no parse/script errors (checked explicitly by grepping the log for
+error/parse markers, since the usual leaked-RID/ObjectDB headless-teardown
+noise documented elsewhere in `agents/` would otherwise mask a real error).
+Also did a one-off `print_tree_pretty()` in `scenes/test_map.gd`'s `_ready()`
+(reverted after) to confirm, per CLAUDE.md's rule on verifying live scene
+trees: `Outline` is correctly nested as a sibling under each
+`DestructibleProp` instance (not duplicated or misplaced), and
+`ReticleDot`/`ChargeLabel` are correctly nested under
+`Megaphone/UILayer` alongside the existing `Flash`/`FeedbackLabel`.
+
+**Not verified — no display access in this environment:** how the outline
+actually looks (whether a 15%-larger unshaded box reads as a "contour" or
+just a glowing halo), reticle dot visibility/placement, whether the 1200ms
+ramp and 10% tap floor feel right, and whether swapping which mouse button
+does what feels natural. **Someone needs to run `task run`**: confirm right
+‑click now recruits and left-click is Send Mob, aim at the dumpster and
+confirm it outlines (and the yellow dot disappears), hold left-click and
+watch the `%` readout climb, release while aiming at the dumpster vs. aiming
+at empty space/wall and confirm attack vs. regroup fires correctly, and try
+three consecutive ~50% sends to confirm the rotating pointer actually
+alternates which half of the mob goes each time.

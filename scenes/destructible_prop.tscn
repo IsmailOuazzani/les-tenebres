@@ -22,6 +22,18 @@ albedo_color = Color(0.25, 0.85, 0.3, 1)
 billboard_mode = 1
 no_depth_test = true
 
+[sub_resource type="BoxMesh" id="BoxMesh_outline"]
+size = Vector3(1.265, 0.9637, 1.702)
+
+[sub_resource type="StandardMaterial3D" id="Material_outline"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.2, 0.45)
+transparency = 1
+cull_mode = 2
+emission_enabled = true
+emission = Color(1, 0.85, 0.2, 1)
+emission_energy_multiplier = 1.0
+
 [node name="DestructibleProp" type="StaticBody3D"]
 collision_layer = 1
 collision_mask = 1
@@ -33,6 +45,12 @@ shape = SubResource("BoxShape3D_dumpster")
 
 [node name="DumpsterModel" parent="." instance=ExtResource("1_dumpster")]
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
+
+[node name="Outline" type="MeshInstance3D" parent="."]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.03, 0.419, 0)
+mesh = SubResource("BoxMesh_outline")
+surface_material_override/0 = SubResource("Material_outline")
 
 [node name="HealthBar" type="Node3D" parent="."]
 visible = false

@@ -36,9 +36,6 @@ class_name CrowdController
 @export var regroup_spread_radius: float = 2.0
 
 ## -- Destructible props (PoC) --
-## How close an attack-command point needs to land to a "destructible"-group
-## prop for that prop to become the active attack target.
-@export var attack_target_pick_radius: float = 2.5
 ## How close an attacking NPC needs to be to the active attack target to
 ## contribute damage. Kept comfortably >= charge_spread_radius (plus a
 ## margin for the target's own footprint) so NPCs that arrive at their
@@ -51,6 +48,13 @@ class_name CrowdController
 @export var attack_damage_per_second: float = 1.0
 
 var recruited: Array[Node3D] = []
+
+## Rotating cursor into `recruited`, per agents/mob-selector-notes.md: a
+## partial-percentage send takes its slice starting here (wrapping around
+## the list like a ring) and advances this by however many NPCs it just
+## took, so repeated same-percentage sends keep rotating through different
+## NPCs instead of always drawing the same slice.
+var _send_pointer: int = 0
 
 var _player: Node3D
 var _npc_spawner: Node
@@ -76,8 +80,7 @@ func _physics_process(delta: float) -> void:
 		# instead of failing once and giving up.
 		_megaphone = _find_megaphone()
 		if _megaphone != null:
-			_megaphone.attack_command_triggered.connect(_on_attack_command)
-			_megaphone.regroup_triggered.connect(_on_regroup)
+			_megaphone.send_mob_triggered.connect(_on_send_mob)
 		else:
 			return
 
@@ -137,46 +140,59 @@ func _recruit(npc: Node3D) -> void:
 	GameState.recruit_npc()
 
 
-func _on_attack_command(target_position: Vector3) -> void:
-	_attack_target = _find_destructible_near(target_position)
-	if _attack_target != null:
+## Single handler for the unified Send Mob command, per
+## agents/mob-selector-notes.md: `target` non-null (the reticle was
+## outlining a "destructible"-group interactable) means attack that object;
+## null (yellow-ball fallback) means regroup to the player. Either way,
+## `percentage` of `recruited` is selected via the rotating ring slice below
+## and reassigned -- NPCs not selected keep doing whatever they were already
+## doing.
+func _on_send_mob(percentage: float, target: Node3D) -> void:
+	if recruited.is_empty():
+		return
+
+	var count: int = clampi(roundi(percentage * recruited.size()), 0, recruited.size())
+	if count <= 0:
+		return
+	var selected: Array = _take_ring_slice(count)
+
+	if target != null:
+		_attack_target = target
 		_attack_target.destroyed.connect(_on_attack_target_destroyed, CONNECT_ONE_SHOT)
+		var target_position: Vector3 = target.global_position
+		for npc in selected:
+			var destination: Vector3 = _scatter_point(target_position, charge_spread_radius)
+			var delay: float = randf_range(0.0, charge_reaction_delay_max)
+			npc.enter_charge(destination, delay)
+	else:
+		if _player == null:
+			return
+		var player_pos: Vector3 = _player.global_position
+		for npc in selected:
+			var destination: Vector3 = _scatter_point(player_pos, regroup_spread_radius)
+			npc.enter_regroup(destination)
 
-	for npc in recruited:
-		var destination: Vector3 = _scatter_point(target_position, charge_spread_radius)
-		var delay: float = randf_range(0.0, charge_reaction_delay_max)
-		npc.enter_charge(destination, delay)
 
-
-## Finds the closest "destructible"-group prop within attack_target_pick_radius
-## of `point`, or null if none are close enough -- lets an attack command
-## pick a nearby destructible target without the megaphone's raycast needing
-## to know anything about destructible props itself.
-func _find_destructible_near(point: Vector3) -> Node3D:
-	var closest: Node3D = null
-	var closest_dist: float = attack_target_pick_radius
-	for node in get_tree().get_nodes_in_group(&"destructible"):
-		if node is Node3D:
-			var dist: float = (node as Node3D).global_position.distance_to(point)
-			if dist <= closest_dist:
-				closest = node
-				closest_dist = dist
-	return closest
+## Takes `count` NPCs from `recruited` starting at `_send_pointer`, treating
+## the list as a ring (wraps past the end back to index 0), then advances
+## `_send_pointer` by `count` so the *next* send starts exactly where this
+## one left off -- per agents/mob-selector-notes.md's worked example, this
+## is what makes three consecutive 50% sends rotate [0,N/2) -> [N/2,N) ->
+## [0,N/2) instead of always re-picking the same slice.
+func _take_ring_slice(count: int) -> Array:
+	var total: int = recruited.size()
+	var slice: Array = []
+	for i in range(count):
+		slice.append(recruited[(_send_pointer + i) % total])
+	_send_pointer = (_send_pointer + count) % total
+	return slice
 
 
 ## Clears the active attack target once it's destroyed, so recruited NPCs
-## stop dealing damage to a freed node and a new attack command is needed to
-## pick the next target.
+## stop dealing damage to a freed node and a new Send Mob command is needed
+## to pick the next target.
 func _on_attack_target_destroyed() -> void:
 	_attack_target = null
-
-
-func _on_regroup() -> void:
-	if _player == null:
-		return
-	for npc in recruited:
-		var destination: Vector3 = _scatter_point(_player.global_position, regroup_spread_radius)
-		npc.enter_regroup(destination)
 
 
 ## Picks a random point within `radius` of `center`, per vision.md's

@@ -19,6 +19,7 @@ var current_health: float
 
 @onready var _health_bar: Node3D = $HealthBar
 @onready var _fill: MeshInstance3D = $HealthBar/Fill
+@onready var _outline: MeshInstance3D = $Outline
 
 var _dying: bool = false
 
@@ -27,6 +28,14 @@ func _ready() -> void:
 	current_health = max_health
 	add_to_group(&"destructible")
 	_health_bar.visible = false
+	_outline.visible = false
+
+
+## Called by Megaphone every frame the player's aim raycast is/isn't hitting
+## this prop -- per agents/mob-selector-notes.md, the reticle outlines
+## whatever interactable is in view. Purely visual, no gameplay effect.
+func set_targeted(active: bool) -> void:
+	_outline.visible = active
 
 
 ## Called by CrowdController each physics frame for every attacking NPC in
