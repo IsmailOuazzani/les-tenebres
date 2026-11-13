@@ -48,7 +48,7 @@ var _bob_time: float = 0.0
 
 func _ready() -> void:
 	home_position = global_position
-	_tint_random()
+	_tint_body()
 	_enter_idle()
 
 
@@ -243,10 +243,10 @@ func _update_visuals(delta: float) -> void:
 		mesh_root.position.y = lerp(mesh_root.position.y, 0.0, delta * 8.0)
 
 
-func _tint_random() -> void:
+func _tint_body() -> void:
 	var body_mesh: MeshInstance3D = get_node_or_null("MeshRoot/Body")
 	if body_mesh == null:
 		return
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color.from_hsv(randf(), 0.55, 0.85)
+	material.albedo_color = Color(0.2, 0.4, 0.9)
 	body_mesh.material_override = material
