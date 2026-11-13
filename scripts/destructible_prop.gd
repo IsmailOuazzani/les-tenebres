@@ -17,8 +17,7 @@ signal destroyed
 
 var current_health: float
 
-@onready var _health_bar: Node3D = $HealthBar
-@onready var _fill: MeshInstance3D = $HealthBar/Fill
+@onready var _health_bar: ProgressBar3D = $HealthBar
 @onready var _outline: MeshInstance3D = $Outline
 
 var _dying: bool = false
@@ -27,6 +26,8 @@ var _dying: bool = false
 func _ready() -> void:
 	current_health = max_health
 	add_to_group(&"destructible")
+	_health_bar.max_value = max_health
+	_health_bar.value = max_health
 	_health_bar.visible = false
 	_outline.visible = false
 
@@ -47,14 +48,7 @@ func take_damage(amount: float) -> void:
 
 	current_health = max(current_health - amount, 0.0)
 	_health_bar.visible = true
-
-	# Fill's QuadMesh is centered on its own origin, so scaling scale.x alone
-	# shrinks it toward the middle from both edges -- barely visible until
-	# the bar is nearly empty. Shift position.x alongside the scale so the
-	# left edge stays fixed and it visibly depletes from the right instead.
-	var fraction: float = current_health / max_health
-	_fill.scale.x = fraction
-	_fill.position.x = -0.5 * (1.0 - fraction)
+	_health_bar.value = current_health
 
 	if current_health <= 0.0:
 		_die()
