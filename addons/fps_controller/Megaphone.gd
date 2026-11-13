@@ -245,31 +245,10 @@ func _update_cone_shape() -> void:
 	influence_cone.position = Vector3(0, 0, -cone_range * 0.5)
 
 
-## Raycasts from the active camera along its look direction. Returns the hit
-## point, or a point `ray_range` meters out along the look direction if the
-## ray hits nothing (or there is no active camera), so callers always get a
-## usable Vector3.
-func _raycast_target() -> Vector3:
-	var cam := get_viewport().get_camera_3d()
-	if cam == null:
-		return global_position - global_transform.basis.z * ray_range
-
-	var origin: Vector3 = cam.global_transform.origin
-	var direction: Vector3 = -cam.global_transform.basis.z
-
-	var space_state := get_world_3d().direct_space_state
-	var query := PhysicsRayQueryParameters3D.create(
-			origin, origin + direction * ray_range, ray_collision_mask)
-	var result := space_state.intersect_ray(query)
-	if result:
-		return result.position
-	return origin + direction * ray_range
-
-
-## Same raycast as `_raycast_target()`, but returns the hit collider itself
-## (not just a point) when it's a "destructible"-group interactable, or null
-## otherwise -- the reticle only ever outlines something interactable, never
-## bare geometry.
+## Raycasts from the active camera along its look direction, returning the
+## hit collider itself (not just a point) when it's a "destructible"-group
+## interactable, or null otherwise -- the reticle only ever outlines
+## something interactable, never bare geometry.
 func _raycast_destructible() -> Node3D:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:

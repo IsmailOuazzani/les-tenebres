@@ -47,7 +47,14 @@ func take_damage(amount: float) -> void:
 
 	current_health = max(current_health - amount, 0.0)
 	_health_bar.visible = true
-	_fill.scale.x = current_health / max_health
+
+	# Fill's QuadMesh is centered on its own origin, so scaling scale.x alone
+	# shrinks it toward the middle from both edges -- barely visible until
+	# the bar is nearly empty. Shift position.x alongside the scale so the
+	# left edge stays fixed and it visibly depletes from the right instead.
+	var fraction: float = current_health / max_health
+	_fill.scale.x = fraction
+	_fill.position.x = -0.5 * (1.0 - fraction)
 
 	if current_health <= 0.0:
 		_die()

@@ -17,12 +17,6 @@ class_name CrowdController
 @export var player_path: NodePath
 @export var npc_spawner_path: NodePath
 
-## How far from the player to even bother checking civilians against the
-## cone. Should comfortably cover the megaphone's max range so no
-## recruitable civilian is skipped; kept independent of the cone's own range
-## so this stays correct even if cone_range is tuned later.
-@export var recruit_check_radius: float = 25.0
-
 ## Charging: how far (meters) a charging NPC's assigned destination can land
 ## from the commanded point, so the mob spreads around the target instead of
 ## stacking on one tile (vision.md: "NPCs should spread around the
@@ -91,11 +85,8 @@ func _physics_process(delta: float) -> void:
 	if not _megaphone.is_recruiting_held():
 		return
 
-	var player_pos: Vector3 = _player.global_position
 	for npc in _npc_spawner.spawned_npcs:
 		if npc in recruited:
-			continue
-		if npc.global_position.distance_to(player_pos) > recruit_check_radius:
 			continue
 		if _megaphone.is_point_within_cone(npc.global_position):
 			_recruit(npc)

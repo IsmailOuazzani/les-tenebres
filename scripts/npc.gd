@@ -23,7 +23,6 @@ enum State { IDLE, WANDER, FOLLOW, CHARGE, REGROUP }
 @export var charge_arrival_distance: float = 1.0
 @export var separation_radius: float = 1.2
 @export var separation_weight: float = 1.8
-@export var charge_reaction_delay_max: float = 0.4
 
 var state: State = State.IDLE
 var home_position: Vector3
