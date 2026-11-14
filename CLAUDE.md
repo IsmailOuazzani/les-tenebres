@@ -12,6 +12,8 @@ Godot 4.7 project. See `vision.md` for the game concept, core mechanics, and des
 
 **Rule:** Multiple agents may be working in this repo at the same time (parallel sessions, worktrees, etc.). Don't assume you're the only one touching files — check `git status`/`git diff` for unexpected changes before overwriting work, avoid clobbering edits that aren't yours, and don't run destructive or repo-wide operations (resets, force-pushes, mass reformatting) without confirming they won't stomp on another agent's in-flight changes.
 
+**Rule:** Whenever the user asks about a core change (to the game concept, core mechanics, or design pillars), ask if they want it added to `vision.md`.
+
 ## Running the game
 
 Use the Taskfile (`task` CLI):
