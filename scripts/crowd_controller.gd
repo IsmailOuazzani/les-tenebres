@@ -55,6 +55,11 @@ var _attack_target: Node3D = null
 func _ready() -> void:
 	_player = get_node_or_null(player_path)
 	_npc_spawner = get_node_or_null(npc_spawner_path)
+	# Lets Megaphone find this node by group instead of an exported NodePath --
+	# Megaphone lives nested inside Player.tscn (under Camera), so it can't
+	# reach a sibling-of-Player node like CrowdController via a cross-scene
+	# path override the way test_map.tscn wires HUD's exports.
+	add_to_group(&"crowd_controller")
 
 	if _player == null:
 		push_warning("CrowdController: player_path did not resolve, FOLLOW will do nothing.")
@@ -119,6 +124,14 @@ func get_neighbors(npc: Node3D, radius: float) -> Array:
 		if npc.global_position.distance_to(other.global_position) <= radius:
 			neighbors.append(other)
 	return neighbors
+
+
+## Live headcount of currently-recruited NPCs -- read by Megaphone while
+## Send Mob is charging, to show how many NPCs the current hold percentage
+## would commit. Distinct from GameState.crowd_count (an "ever recruited"
+## counter that never decreases); see remove_recruit()'s comment above.
+func get_recruited_count() -> int:
+	return recruited.size()
 
 
 func _recruit(npc: Node3D) -> void:

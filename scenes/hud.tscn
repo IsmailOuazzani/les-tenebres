@@ -1,6 +1,10 @@
-[gd_scene load_steps=2 format=3 uid="uid://chudmeta001"]
+[gd_scene load_steps=6 format=3 uid="uid://chudmeta001"]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://addons/compass/entities/compassbar.tscn" id="2_compassbar"]
+[ext_resource type="Script" path="res://scripts/compass_markers.gd" id="3_compassmarkers"]
+[ext_resource type="PackedScene" path="res://scenes/snap_feed.tscn" id="4_snapfeed"]
+[ext_resource type="Theme" path="res://themes/main_theme.tres" id="5_theme"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_script")
@@ -11,8 +15,9 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
+theme = ExtResource("5_theme")
 
-[node name="Margin" type="MarginContainer" parent="Root"]
+[node name="StatsPanel" type="PanelContainer" parent="Root"]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -20,50 +25,123 @@ anchor_right = 1.0
 offset_left = -260.0
 offset_top = 16.0
 offset_right = -16.0
-offset_bottom = 90.0
+offset_bottom = 150.0
+mouse_filter = 2
+theme_type_variation = &"PanelContainerDefaultFlat"
+
+[node name="Margin" type="MarginContainer" parent="Root/StatsPanel"]
+layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
+theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_bottom = 10
 
-[node name="VBox" type="VBoxContainer" parent="Root/Margin"]
+[node name="VBox" type="VBoxContainer" parent="Root/StatsPanel/Margin"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 6
 
-[node name="CrowdLabel" type="Label" parent="Root/Margin/VBox"]
+[node name="CrowdLabel" type="Label" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Protesters: 1"
 horizontal_alignment = 2
 
-[node name="GrabugeLabel" type="Label" parent="Root/Margin/VBox"]
+[node name="GrabugeLabel" type="Label" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Grabuge: 0%"
 horizontal_alignment = 2
 
-[node name="GrabugeBar" type="ProgressBar" parent="Root/Margin/VBox"]
+[node name="GrabugeBar" type="ProgressBar" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"ProgressBarPrimary"
 custom_minimum_size = Vector2(0, 18)
 min_value = 0.0
 max_value = 100.0
 value = 0.0
 show_percentage = false
 
-[node name="HealthLabel" type="Label" parent="Root/Margin/VBox"]
+[node name="HealthLabel" type="Label" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Health: 100"
 horizontal_alignment = 2
 
-[node name="HealthBar" type="ProgressBar" parent="Root/Margin/VBox"]
+[node name="HealthBar" type="ProgressBar" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_type_variation = &"ProgressBarSuccess"
 custom_minimum_size = Vector2(0, 18)
 min_value = 0.0
 max_value = 100.0
 value = 100.0
 show_percentage = false
+
+[node name="CompassAnchor" type="Control" parent="Root"]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -140.0
+offset_top = 16.0
+offset_right = 140.0
+offset_bottom = 44.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="CompassBar" parent="Root/CompassAnchor" instance=ExtResource("2_compassbar")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 0.0
+offset_bottom = 0.0
+texture_filter = 1
+
+[node name="CompassMarkers" type="Control" parent="Root/CompassAnchor"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("3_compassmarkers")
+compass_bar_path = NodePath("../CompassBar")
+
+[node name="SnapFeedMargin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 316.0
+offset_bottom = 280.0
+mouse_filter = 2
+
+[node name="SnapFeed" parent="Root/SnapFeedMargin" instance=ExtResource("4_snapfeed")]
+layout_mode = 2
+
+[node name="HotbarMargin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -76.0
+offset_right = 200.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="Hotbar" type="HBoxContainer" parent="Root/HotbarMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1

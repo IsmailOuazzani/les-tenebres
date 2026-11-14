@@ -26,9 +26,8 @@ class_name Croissant
 ## check over a volume is forgiving about exactly where on the target it
 ## lands.
 ##
-## The model here is a placeholder (bent primitive meshes, same spirit as
-## npc.gd's capsule+sphere civilians) -- swap VisualRoot/CroissantModel for a
-## real asset (e.g. Kenney's CC0 Food Kit) whenever one's on hand.
+## The model is Kenney's CC0 Food Kit croissant.glb (assets/kenney_food_kit/),
+## instanced as VisualRoot/CroissantModel.
 
 @export var hit_damage := 15.0
 @export var swing_duration := 0.22

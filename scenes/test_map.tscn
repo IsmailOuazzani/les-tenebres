@@ -1584,5 +1584,7 @@ player_path = NodePath("../Player")
 
 [node name="HUD" parent="." instance=ExtResource("28_hud")]
 player_health_path = NodePath("../Player/HealthComponent")
+weapon_switcher_path = NodePath("../Player/Head/Camera/WeaponSwitcher")
+player_path = NodePath("../Player")
 
 [node name="GameOver" parent="." instance=ExtResource("29_gmovr")]

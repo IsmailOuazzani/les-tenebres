@@ -10,6 +10,11 @@ class_name WeaponSwitcher
 ## weapon itself. Add a third weapon by appending to weapon_paths and giving
 ## it the same two methods; no change needed here.
 
+## Emitted whenever the equipped weapon changes (including once at startup)
+## so UI (see scripts/hud.gd's hotbar) can mirror the active slot without
+## polling.
+signal weapon_switched(index: int)
+
 @export var weapon_paths: Array[NodePath] = []
 
 var _weapons: Array[Node] = []
@@ -22,6 +27,7 @@ func _ready() -> void:
 
 	for i in _weapons.size():
 		_weapons[i].call(&"activate" if i == _active_index else &"deactivate")
+	weapon_switched.emit(_active_index)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -31,9 +37,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		_switch_to(1)
 
 
+## Display names for the hotbar, in slot order -- just the weapon nodes' own
+## names (Megaphone, Croissant, ...) so adding a weapon to weapon_paths shows
+## up automatically.
+func get_weapon_names() -> Array[String]:
+	var names: Array[String] = []
+	for weapon in _weapons:
+		names.append(weapon.name)
+	return names
+
+
+func get_active_index() -> int:
+	return _active_index
+
+
 func _switch_to(index: int) -> void:
 	if index == _active_index or index >= _weapons.size():
 		return
 	_weapons[_active_index].call(&"deactivate")
 	_active_index = index
 	_weapons[_active_index].call(&"activate")
+	weapon_switched.emit(_active_index)

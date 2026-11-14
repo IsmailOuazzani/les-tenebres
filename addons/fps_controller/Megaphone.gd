@@ -85,6 +85,14 @@ var _aim_point: Vector3 = Vector3.ZERO
 ## -- Send Mob hold-to-charge --
 var _send_held: bool = false
 var _send_press_time_msec: int = 0
+## Lazily resolved via the &"crowd_controller" group (see
+## scripts/crowd_controller.gd's _ready()) rather than an exported NodePath,
+## since Megaphone lives nested inside Player.tscn and can't reach a
+## sibling-of-Player node through a cross-scene path override. Read only to
+## show the live "how many NPCs would this commit" count on charge_label
+## while Send Mob is held -- CrowdController itself decides the actual
+## commit when send_mob_triggered fires.
+var _crowd_controller: Node = null
 
 
 func _ready() -> void:
@@ -112,7 +120,7 @@ func _process(delta: float) -> void:
 	if _send_held:
 		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
 		var percentage: float = _current_send_percentage(held_msec)
-		charge_label.text = "%d%%" % roundi(percentage * 100.0)
+		charge_label.text = "%d%% (%d)" % [roundi(percentage * 100.0), _current_selected_count(percentage)]
 
 	if not _recruiting_held:
 		return
@@ -174,6 +182,18 @@ func deactivate() -> void:
 func _current_send_percentage(held_msec: int) -> float:
 	var ramp_t: float = clamp(float(held_msec) / float(send_ramp_duration_msec), 0.0, 1.0)
 	return lerp(send_tap_floor_percentage, 1.0, ramp_t)
+
+
+## Mirrors CrowdController._on_send_mob()'s count math so the live readout
+## while charging matches exactly what releasing Send Mob right now would
+## commit.
+func _current_selected_count(percentage: float) -> int:
+	if _crowd_controller == null:
+		_crowd_controller = get_tree().get_first_node_in_group(&"crowd_controller")
+	if _crowd_controller == null:
+		return 0
+	var total: int = _crowd_controller.get_recruited_count()
+	return clampi(roundi(percentage * total), 0, total)
 
 
 ## Re-raycasts along the camera's look direction every frame and updates

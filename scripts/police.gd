@@ -215,4 +215,5 @@ func _on_health_changed(current: float, max_value: float) -> void:
 
 func _on_died() -> void:
 	destroyed.emit()
+	GameState.record_police_defeat()
 	queue_free()

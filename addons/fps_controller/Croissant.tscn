@@ -1,14 +1,7 @@
-[gd_scene load_steps=6 format=3 uid="uid://ccroissant001"]
+[gd_scene load_steps=5 format=3 uid="uid://ccroissant001"]
 
 [ext_resource type="Script" path="res://addons/fps_controller/Croissant.gd" id="1_script"]
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_segment"]
-radius = 0.045
-height = 0.16
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_croissant"]
-albedo_color = Color(0.8, 0.55, 0.25, 1)
-roughness = 0.75
+[ext_resource type="PackedScene" path="res://assets/kenney_food_kit/croissant.glb" id="2_model"]
 
 [sub_resource type="SphereMesh" id="SphereMesh_crumb"]
 radius = 0.02
@@ -37,21 +30,10 @@ shape = SubResource("SphereShape3D_hit")
 position = Vector3(0.28, -0.3, -0.55)
 rotation_degrees = Vector3(15, -20, 0)
 
-[node name="SegmentA" type="MeshInstance3D" parent="VisualRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.11, 0, 0.015)
-rotation_degrees = Vector3(0, -30, 0)
-mesh = SubResource("CapsuleMesh_segment")
-surface_material_override/0 = SubResource("StandardMaterial3D_croissant")
-
-[node name="SegmentB" type="MeshInstance3D" parent="VisualRoot"]
-mesh = SubResource("CapsuleMesh_segment")
-surface_material_override/0 = SubResource("StandardMaterial3D_croissant")
-
-[node name="SegmentC" type="MeshInstance3D" parent="VisualRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.11, 0, 0.015)
-rotation_degrees = Vector3(0, 30, 0)
-mesh = SubResource("CapsuleMesh_segment")
-surface_material_override/0 = SubResource("StandardMaterial3D_croissant")
+[node name="CroissantModel" parent="VisualRoot" instance=ExtResource("2_model")]
+position = Vector3(0, -0.1, 0)
+rotation_degrees = Vector3(0, 0, 90)
+scale = Vector3(0.6, 0.6, 0.6)
 
 [node name="CrumbBurst" type="CPUParticles3D" parent="VisualRoot"]
 position = Vector3(0, 0, -0.1)
