@@ -36,6 +36,11 @@ func _process(delta: float) -> bool:
 			if _elapsed > 4.0:
 				_phase = 3
 				_check_gameplay()
+				_restart()
+		3:
+			if _elapsed > 7.0:
+				_phase = 4
+				_check_restart()
 				_finish()
 	return false
 
@@ -151,6 +156,32 @@ func _check_gameplay() -> void:
 		print("    Grabuge=%.2f crowd_count=%d live=%d" % [
 			game_state.grabuge, game_state.crowd_count, game_state.live_crowd_count
 		])
+
+
+## Exercises the single-player game-over restart path, which is still
+## `GameState.reset()` + `reload_current_scene()` -- unchanged behavior, but
+## now the player is spawned by a script instead of being baked into the
+## scene, so a reload has to re-run the whole spawn handshake.
+func _restart() -> void:
+	print("--- restarting the match (single-player game-over path) ---")
+	var game_state: Node = get_root().get_node_or_null("GameState")
+	game_state.reset()
+	reload_current_scene()
+
+
+func _check_restart() -> void:
+	var map: Node = current_scene
+	_expect(map != null and map.name == "TestMap", "match scene reloaded")
+	if map == null:
+		return
+	var player: Node = map.get_node_or_null("Players/1")
+	_expect(player != null, "player re-spawned after a restart")
+	_expect(map.get_node("NPCSpawner").get_child_count() > 0,
+			"civilians re-spawned after a restart")
+	var hud: Node = map.get_node_or_null("HUD")
+	_expect(hud != null and hud.is_bound(), "HUD re-bound after a restart")
+	var game_state: Node = get_root().get_node_or_null("GameState")
+	_expect(game_state.crowd_count >= 1, "GameState reset cleanly (crowd_count=%d)" % game_state.crowd_count)
 
 
 func _expect(condition: bool, label: String) -> void:

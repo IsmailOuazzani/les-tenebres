@@ -51,6 +51,7 @@ tasks:
 
   _export:macos:check-templates:
     internal: true
+    silent: true
     desc: Fail loudly if the Godot executable or its export templates are missing
     cmds:
       - |
@@ -77,6 +78,7 @@ tasks:
 
   _export:macos:verify:
     internal: true
+    silent: true
     desc: Fail loudly unless the exported ZIP contains a complete, playable .app
     cmds:
       - |

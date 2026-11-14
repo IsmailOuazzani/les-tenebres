@@ -11,6 +11,13 @@ config_version=5
 [application]
 
 config/name="les tenebres"
+; The macOS export names the bundle, its executable and its .pck after the
+; project name, and there is no per-preset override -- so the distributed
+; artifact is renamed here with a platform feature tag. This is what makes
+; `task export:macos` produce ProtestSimulator.app rather than
+; "les tenebres.app" (see agents/multiplayer-notes.md > macOS export).
+; Side effect: the window title reads "ProtestSimulator" on macOS.
+config/name.macos="ProtestSimulator"
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
@@ -127,3 +134,8 @@ weapon_2={
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+; Required by the Universal 2 / arm64 macOS export: Godot refuses to export
+; for arm64 unless textures are also imported in ETC2/ASTC. Without this,
+; `task export:macos` fails with "Cannot export for universal or arm64 if
+; ETC2 ASTC texture format is disabled."
+textures/vram_compression/import_etc2_astc=true

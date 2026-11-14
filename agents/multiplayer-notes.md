@@ -278,16 +278,29 @@ proportionate for LAN co-op, and documented rather than accidental.
   non-empty**. That last one matters: a hand-written `SceneReplicationConfig`
   in a `.tscn` that Godot fails to parse comes out empty and replicates
   nothing *with no error*, so it is asserted explicitly rather than inferred
-  from a clean log.
+  from a clean log. Finally it exercises the single-player game-over restart
+  (`GameState.reset()` + `reload_current_scene()`) and re-checks the spawn
+  handshake, since the player is now spawned by a script rather than baked
+  into the scene.
 * `task test:lan` — two real Godot processes over `127.0.0.1:7000`
   (`tools/lan_loopback_test.sh`, driving `scripts/_debug_net_host.gd` and
   `scripts/_debug_net_client.gd`). Covers peer connection, the
   synchronized-load handshake, both characters spawning with the correct
   authority split, remote-player interpolation, civilian/police spawn
-  replication, a **client** recruiting into the shared crowd and issuing a
-  Send Mob command that lands server-side, replicated Grabuge/crowd counters,
-  server-side death → 5 s → respawn seen as replicated state by the owner,
-  and client-disconnect despawn with recruited protesters preserved.
+  replication, a **client** recruiting ~27 civilians into the shared crowd
+  and issuing a Send Mob command that lands server-side (14 protesters
+  entered CHARGE), replicated Grabuge/crowd counters, server-side death →
+  5 s → respawn seen as replicated state by the owner, and
+  client-disconnect despawn with recruited protesters preserved.
+
+  Two lessons about *writing* that test: the harness has to keep Grabuge
+  topped up (otherwise the shared meter collapses within seconds of one
+  recruit, fires game over, pauses the tree, and the rest of the run
+  measures a paused game), and it has to cap concurrent police (a
+  Grabuge-pinned spawn rate wipes a small test crowd, making every later
+  assertion hostage to combat outcomes). Assertions are written against
+  invariants — "the local HealthComponent tracks the replicated value", "the
+  crowd was not wiped" — not against exact survival numbers.
 
 ### Still needs a human with windows
 
@@ -299,7 +312,48 @@ proportionate for LAN co-op, and documented rather than accidental.
 
 ---
 
-## 9. Gotchas worth remembering
+## 9. macOS export
+
+`task export:macos` → `dist/ProtestSimulator-macOS.zip` (Universal 2,
+release, ad-hoc signed, notarization off, networking entitlements on). The
+preset lives in `export_presets.cfg` as `[preset.0] name="macOS"`.
+
+Three non-obvious things were needed to make this work:
+
+1. **`config/name.macos="ProtestSimulator"` in `project.godot`.** The macOS
+   exporter names the bundle, its executable and its `.pck` after
+   `application/config/name`, and there is no per-preset override — but
+   `get_project_setting()` resolves platform feature tags, so a `.macos`
+   override renames the artifact. Required to produce `ProtestSimulator.app`
+   rather than `les tenebres.app`. Side effect: the window title reads
+   "ProtestSimulator" on macOS, including from the editor.
+2. **`textures/vram_compression/import_etc2_astc=true`.** Godot refuses to
+   export for `universal`/`arm64` otherwise: *"Cannot export for universal or
+   arm64 if ETC2 ASTC texture format is disabled."* Costs a full texture
+   reimport and a larger `.godot` cache.
+3. **`export/distribution_type=0` (Testing), not Distribution.**
+   Distribution expects a Developer ID; Testing is the mode that permits the
+   built-in ad-hoc signature (`codesign/codesign=1`,
+   `codesign/identity="-"`) with notarization disabled.
+
+**Not verified end to end**: this sandbox has no export templates installed
+(`~/Library/Application Support/Godot/export_templates/4.7.2.stable/` does
+not exist), so the exporter cannot run. The preset itself *is* validated —
+after fixing (2), a direct `--export-release` invocation reports the missing
+template as its only remaining configuration error, which means every other
+preset option passed Godot's validation. The Taskfile's template check and
+archive verification have both been exercised (the check fails loudly with
+the exact expected path).
+
+Unrelated pre-existing issue surfaced by the export pass: the megaphone
+textures are referenced as `assets/megaphone/textures/...` but stored as
+`assets/megaphone/Textures/...`. Harmless on case-insensitive macOS, but
+Godot warns it "will not open when exported to other case-sensitive
+platforms".
+
+---
+
+## 10. Gotchas worth remembering
 
 1. `Node.multiplayer` is **null** very early in startup (before the SceneTree
    builds its MultiplayerAPI). A `--script` harness that hosts from

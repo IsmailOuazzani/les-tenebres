@@ -5,6 +5,9 @@
 # task run / run-headless output
 /logs/
 
+# task export:macos artifacts
+/dist/
+
 # Agent worktrees
 .claude/
 

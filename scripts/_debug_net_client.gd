@@ -39,6 +39,8 @@ var _done: bool = false
 var _last_tick: float = 0.0
 var _saw_death: bool = false
 var _saw_respawn: bool = false
+var _saw_live_crowd: bool = false
+var _civilian_cursor: int = 0
 var _failures: Array[String] = []
 
 
@@ -65,13 +67,24 @@ func _process(delta: float) -> bool:
 	if not _joined:
 		return false
 
-	if not _recruited and _elapsed > RECRUIT_AT_SEC:
-		_recruited = true
-		_start_recruiting()
+	# Hold the megaphone down and walk along the civilian cluster for a
+	# couple of seconds, so a handful of protesters join rather than one --
+	# a one-protester crowd makes every later assertion hostage to whether a
+	# cop happened to kill it.
+	if _elapsed > RECRUIT_AT_SEC and _elapsed < SEND_MOB_AT_SEC:
+		if not _recruited:
+			_recruited = true
+			_start_recruiting()
+		else:
+			_walk_to_next_civilian()
 
 	if not _commanded and _elapsed > SEND_MOB_AT_SEC:
 		_commanded = true
 		_send_mob()
+
+	var game_state_node: Node = get_root().get_node_or_null("GameState")
+	if game_state_node != null and game_state_node.live_crowd_count > 0:
+		_saw_live_crowd = true
 
 	if _elapsed - _last_tick > 1.0:
 		_last_tick = _elapsed
@@ -133,6 +146,21 @@ func _start_recruiting() -> void:
 	Input.parse_input_event(event)
 
 
+## Keeps the recruit input held (never released) while hopping to the next
+## replicated civilian, sweeping the megaphone circle across the cluster.
+func _walk_to_next_civilian() -> void:
+	var player: Node3D = _local_player()
+	var map: Node = current_scene
+	if player == null or map == null:
+		return
+	var civilians: Array = map.get_node("NPCSpawner").get_children()
+	if civilians.is_empty():
+		return
+	_civilian_cursor += 1
+	var target: Node3D = civilians[_civilian_cursor % civilians.size()]
+	player.global_position = target.global_position + Vector3(0.0, 1.0, 0.0)
+
+
 ## Issues an "À L'ATTAQUE!" order through the same handler the megaphone's
 ## `send_mob_triggered` signal calls, which on a client forwards it to the
 ## server's CrowdController via RPC.
@@ -141,8 +169,11 @@ func _send_mob() -> void:
 	if player == null:
 		return
 	var destination: Vector3 = player.global_position + Vector3(8.0, 0.0, 0.0)
-	player._on_send_mob_triggered(1.0, null, destination)
-	print("[client] sent 100%% of the crowd to ", str(destination.round()))
+	# Half the crowd, so the rest stays in FOLLOW -- charging protesters pick
+	# fights with police and a 100% send can wipe the whole crowd before the
+	# later phases run.
+	player._on_send_mob_triggered(0.5, null, destination)
+	print("[client] sent 50%% of the crowd to ", str(destination.round()))
 
 
 func _report() -> void:
@@ -192,8 +223,18 @@ func _report() -> void:
 		_expect(_saw_respawn, "server-side respawn replicated to the owning client")
 		_expect(local_player.net_alive, "client is alive again after respawning")
 		var local_health: Node = local_player.get_node("HealthComponent")
-		_expect(is_equal_approx(local_health.current_health, local_health.max_health),
-				"client's local HealthComponent mirrors the replicated full health")
+		print("[client] local HealthComponent current=%.2f max=%.2f dead=%s net_health=%.2f" % [
+			local_health.current_health, local_health.max_health,
+			str(local_health.is_dead()), local_player.net_health
+		])
+		# The invariant is "the local HealthComponent tracks the replicated
+		# value", NOT "health is full": police keep attacking the respawned
+		# player, so asserting full health here is a flaky test, not a
+		# stronger one.
+		_expect(is_equal_approx(local_health.current_health, local_player.net_health),
+				"client's local HealthComponent mirrors the replicated health")
+		_expect(local_health.current_health > 0.0 and not local_health.is_dead(),
+				"respawned client is back in play")
 		_expect(current_scene.get_node("GameOver").visible == false,
 				"a player death did not trigger the game-over screen (spec 4.4)")
 
@@ -209,8 +250,15 @@ func _report() -> void:
 		var remote_cam: Camera3D = remote_player.get_node_or_null("Head/Camera")
 		_expect(remote_cam != null and not remote_cam.current,
 				"remote player's camera is inactive on this peer")
+		# A remote player's third-person body is deliberately hidden while
+		# they are down waiting to respawn, so only assert visibility when
+		# the replicated alive flag says they are in play.
 		var body: Node3D = remote_player.get_node_or_null("Body")
-		_expect(body != null and body.visible, "remote player has a visible 3D body")
+		_expect(body != null, "remote player has a third-person body node")
+		if body != null and remote_player.net_alive:
+			_expect(body.visible, "living remote player's 3D body is visible")
+		else:
+			print("[client] host is currently down; body hidden as expected")
 
 	var npc_root: Node = map.get_node("NPCSpawner")
 	var npc_count: int = npc_root.get_child_count()
@@ -241,7 +289,10 @@ func _report() -> void:
 	# GameState's state push landed.
 	_expect(game_state.crowd_count > 1,
 			"replicated shared crowd_count reflects this client's recruiting")
-	_expect(game_state.live_crowd_count > 0, "replicated live crowd headcount arrived")
+	# Latched over the whole run: the live headcount can legitimately fall
+	# back to zero if police kill every recruited protester, so assert that
+	# a non-zero value *arrived*, not that it is still non-zero now.
+	_expect(_saw_live_crowd, "replicated live crowd headcount arrived")
 	_expect(game_state.grabuge > 0.0, "replicated shared Grabuge arrived")
 
 	var hud: Node = map.get_node_or_null("HUD")
