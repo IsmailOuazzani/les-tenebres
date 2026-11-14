@@ -230,7 +230,7 @@ func play_mob_roar(committed_count: int) -> void:
 		layers = 8
 	layers = mini(layers, max_simultaneous_voices)
 
-	var player_pos: Vector3 = _crowd_ambience_player.global_position
+	var player_pos: Vector3 = Vector3.ZERO
 	var cam := get_viewport().get_camera_3d()
 	if cam != null:
 		player_pos = cam.global_transform.origin

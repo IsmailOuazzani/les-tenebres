@@ -8,3 +8,4 @@
 - ramasser les paves et les lancer
 - canons a eau pour les barriades 
 - parcous jusqau president,. PVE de overwatch, les policier c junkrat
+- what are the people protesting for? those can be powerups
