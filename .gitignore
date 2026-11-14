@@ -11,3 +11,6 @@
 # Downloaded music (yt-dlp) - not safe to commit to this public repo, see agents/soundtrack-notes.md
 /assets/audio/music/
 /.venv-ytdlp/
+
+# Non-redistributable source textures for paris_building_pack
+/Documents/
