@@ -5,11 +5,16 @@ class_name Megaphone
 ##
 ## This node is purely player-facing: it owns the held prop, the recruitment
 ## ground-circle indicator, the aim reticle/outline, raise/shake animation,
-## and the signal below. It does NOT know about NPCs or the crowd --
-## CrowdController (scripts/crowd_controller.gd) polls `is_recruiting_held()`
-## / `is_point_within_recruit_range()` and listens for `send_mob_triggered`
-## itself rather than this script reaching into NPCs. See `agents/megaphone-notes.md`
-## and `agents/mob-selector-notes.md` for the full integration contract.
+## and the signal below. It does NOT know about NPCs or the crowd -- it only
+## exposes `is_recruiting_held()` and emits `send_mob_triggered`, and
+## scripts/player.gd routes both to the server-authoritative CrowdController
+## (directly on the listen server, by RPC on a client). See
+## `agents/megaphone-notes.md` and `agents/mob-selector-notes.md` for the
+## gameplay contract, and `agents/multiplayer-notes.md` for the routing.
+##
+## Only the locally owned player's megaphone runs: every entry point is
+## guarded by `is_multiplayer_authority()`, because the aim raycast and the
+## recruitment circle are resolved from *this peer's* camera.
 ##
 ## Checking `is_in_group("destructible")` on the raycast hit below is the one
 ## exception to "doesn't know about NPCs/crowd" -- it's a visual-only check

@@ -3,8 +3,8 @@ extends CanvasLayer
 ## Live HUD showing crowd count, Grabuge, and (per agents/police-notes.md)
 ## player health. Crowd/Grabuge are driven entirely by the GameState
 ## autoload (see agents/grabuge-notes.md); health instead reads directly off
-## the player's own HealthComponent via `player_health_path`, since health
-## isn't global state the way Grabuge is.
+## the bound player's own HealthComponent, since health isn't global state the
+## way Grabuge is.
 
 ## ## Multiplayer
 ##

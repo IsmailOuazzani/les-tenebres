@@ -87,7 +87,7 @@ func _ready() -> void:
 	add_to_group(&"police")
 	# Also a "destructible" -- per vision.md's "Police are a Send Mob target
 	# like any destructible object," the aim reticle/outline and Send Mob's
-	# direct-attack path (see Megaphone.gd / CrowdController._on_send_mob)
+	# direct-attack path (see Megaphone.gd / CrowdController.apply_send_mob)
 	# both key off this group, same as scripts/destructible_prop.gd.
 	add_to_group(&"destructible")
 	_apply_collider_ratio()
