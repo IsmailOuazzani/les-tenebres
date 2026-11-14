@@ -130,10 +130,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_start_recruit()
 	elif event.is_action_released(&"recruit"):
 		_stop_recruit()
-	elif event.is_action_pressed(&"send_mob"):
+	elif event.is_action_pressed(&"primary_action"):
 		_send_held = true
 		_send_press_time_msec = Time.get_ticks_msec()
-	elif event.is_action_released(&"send_mob"):
+	elif event.is_action_released(&"primary_action"):
 		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
 		_send_held = false
 		charge_label.text = ""
