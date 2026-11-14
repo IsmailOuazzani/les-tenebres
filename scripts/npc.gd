@@ -85,6 +85,16 @@ var _anim: AnimationPlayer
 
 var _attack_timer: float = 0.0
 
+## The cop currently in melee range, if any -- recomputed every physics
+## frame (not just on the attack-interval tick) purely so _update_visuals()
+## knows whether to play a punch animation. Null whenever this protester
+## isn't actively fighting a cop this frame.
+var _melee_target: Node3D = null
+
+## Alternates Punch_Left/Punch_Right each time a hit actually lands, so
+## repeated melee doesn't look like the same single-arm swing on a loop.
+var _punch_alternate: bool = false
+
 
 func _ready() -> void:
 	home_position = global_position
@@ -148,6 +158,7 @@ func _physics_process(delta: float) -> void:
 	# them somewhere (CHARGE) -- a FOLLOW-state crowd just standing near the
 	# player doesn't engage, so cops beeline for the player instead of
 	# getting dragged into combat by proximity alone. See vision.md.
+	_melee_target = null
 	if crowd_controller != null and state == State.CHARGE:
 		_process_police_combat(delta)
 
@@ -157,16 +168,17 @@ func _physics_process(delta: float) -> void:
 ## intervals" is implemented as a per-attacker cooldown instead of a
 ## continuous rate.
 func _process_police_combat(delta: float) -> void:
+	_melee_target = _find_nearest_cop()
+
 	_attack_timer -= delta
 	if _attack_timer > 0.0:
 		return
-
-	var target: Node3D = _find_nearest_cop()
-	if target == null:
+	if _melee_target == null:
 		return
 
 	_attack_timer = attack_interval
-	var cop_health: HealthComponent = target.get_node_or_null("HealthComponent")
+	_punch_alternate = not _punch_alternate
+	var cop_health: HealthComponent = _melee_target.get_node_or_null("HealthComponent")
 	if cop_health != null:
 		cop_health.take_damage(damage_per_second * attack_interval)
 
@@ -364,7 +376,9 @@ func enter_charge_at_target(target: Node3D, offset: Vector3, reaction_delay: flo
 func _update_visuals(_delta: float) -> void:
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
 	var target_anim: StringName
-	if horizontal_speed <= 0.05:
+	if _melee_target != null:
+		target_anim = &"Punch_Right" if _punch_alternate else &"Punch_Left"
+	elif horizontal_speed <= 0.05:
 		target_anim = &"Idle"
 	elif state == State.CHARGE:
 		target_anim = &"Run"

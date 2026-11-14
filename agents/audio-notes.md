@@ -2,7 +2,9 @@
 
 Implements the sound-effects spec for Protest Simulator. **Phase 1 ("core
 feedback") is fully implemented** with real, license-verified assets.
-Phases 2-4 (interactions, Grabuge/UI, personality/polish) are **not**
+One Phase-3 item -- the Snap feed notification sounds (section 11) -- is
+also done, since it was requested directly. Everything else in Phases 2-4
+(interactions, Grabuge/game-over, target UI, personality/polish) is **not**
 implemented yet -- see "Deferred (Phases 2-4)" below. No Paris/city
 atmosphere audio was added, per the spec's explicit exclusion.
 
@@ -45,6 +47,15 @@ atmosphere audio was added, per the spec's explicit exclusion.
   `CrowdController.get_recruited_count()` + `GameState.grabuge`, independent
   axes per the spec's "10 protesters at 90% Grabuge sounds excited but
   small; 300 at 90% sounds enormous; 300 at 10% sounds tired" examples.
+- `scripts/snap_feed.gd`: every `_push_system()`/`_push_user()` call now
+  tags a `kind` ("ordinary" / "funny" / "important") and calls
+  `AudioManager.play_feed_notification(kind)`. Disruption and police-defeat
+  messages are "important" (always plays, bypasses throttle); recruit
+  batches and ambient chatter/flavor are "ordinary"; nonsense one-liners are
+  "funny". `AudioManager.notification_min_interval` (0.35s default) gates
+  ordinary/funny sounds so a high-Grabuge flood of feed messages doesn't
+  turn into a wall of beeping -- see spec section 11's throttling
+  requirement.
 
 ## Asset manifest
 
@@ -72,6 +83,10 @@ where looped, and loudness-normalized with `ffmpeg` (`loudnorm`/
 | `audio/crowd/cheers/crowd_cheer_burst.wav` | Rapid-recruit collective cheer, disruption success | [freesound 397434](https://freesound.org/people/FoolBoyMedia/sounds/397434/) | FoolBoyMedia | CC0 |
 | `audio/crowd/voices/mob_roar_burst.wav` | Mob response "AAAAAAAH!" | [freesound 563011](https://freesound.org/people/florianreichelt/sounds/563011/) | florianreichelt | CC0 |
 | `audio/crowd/crowd_ambience_protest.ogg` | Crowd ambience, Layer A | [freesound 210104](https://freesound.org/people/felix.blume/sounds/210104/) | felix.blume | CC0 |
+| `audio/ui/notifications/notif_default.wav` | Feed: ordinary message (default) | [freesound 242502](https://freesound.org/people/GabrielAraujo/sounds/242502/) | GabrielAraujo | CC0 |
+| `audio/ui/notifications/notif_alt.wav` | Feed: ordinary message (alt variation) | [freesound 740423](https://freesound.org/people/AnthonyRox/sounds/740423/) | AnthonyRox | CC0 |
+| `audio/ui/notifications/notif_funny.wav` | Feed: funny/nonsense message | [freesound 669921](https://freesound.org/people/el_boss/sounds/669921/) (one pop trimmed from the multi-sample pack) | el_boss | CC0 |
+| `audio/ui/notifications/notif_important.wav` | Feed: important notification (Grabuge/disruption/police) | [freesound 624599](https://freesound.org/people/eqylizer/sounds/624599/) | eqylizer | CC0 |
 
 **`attack_shout_placeholder.wav` is NOT a French recording.** It's the
 same generic "Men Shouting Hey" clip the spec itself names as a temporary
@@ -103,8 +118,9 @@ assets" instruction rather than silently skipped:
   `GameState.grabuge_changed` exists and is a clean hook for this later.
 - Game over sting (section 10) -- `GameState.game_over` exists and is a
   clean hook for this later.
-- Snap feed notification sounds (section 11) and target-acquisition UI
-  sounds (section 12) -- need Kenney UI Audio assets, not downloaded.
+- Target-acquisition UI sounds (section 12) -- need Kenney UI Audio assets,
+  not downloaded. (Snap feed notification sounds, section 11, are now done
+  -- see above.)
 - Failure/comedy stingers (section 13).
 - The debug/testing panel (section 18).
 

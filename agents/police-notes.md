@@ -191,3 +191,35 @@ since it was called out as a must-hold invariant.
 Not verified in-engine: does a charging protester actually catch up to a
 cop that keeps moving away, and does targeting cop A while cop B is nearby
 leave cop B chasing the player undisturbed.
+
+## Update: protester punch animation on melee
+
+Direct request: protesters fighting cops only ever played Walk/Run/Idle
+(`scripts/npc.gd`'s `_update_visuals()`) -- no visual feedback that a
+melee hit was actually landing, unlike cops which already play `Gun_Shoot`
+while in `FIGHT_PROTESTER`/`ATTACK_PLAYER` (`scripts/police.gd`'s
+`_update_visuals()`).
+
+No new asset needed -- every Quaternius character variant in
+`NPC.CHARACTER_VARIANTS` (plus `Swat.gltf`, used by cops) already ships
+`Punch_Left`/`Punch_Right` animations on the shared rig (confirmed via a
+one-off script parsing each `.gltf`'s `animations` list).
+
+`scripts/npc.gd`: `_process_police_combat()` now also computes
+`_melee_target` every physics frame (not just on the attack-interval
+tick, which only fires every `attack_interval` seconds) purely so
+`_update_visuals()` knows a fight is happening right now, even between
+damage ticks. `_melee_target` is reset to `null` at the top of
+`_physics_process()` before the `state == CHARGE` check, so it never
+goes stale once the protester stops fighting. Each time a hit actually
+lands, `_punch_alternate` flips, alternating `Punch_Left`/`Punch_Right`
+so repeated melee doesn't read as the same single-arm swing looping.
+`_update_visuals()` now checks `_melee_target != null` first, ahead of
+the existing Idle/Walk/Run logic.
+
+Verified via `--headless --quit-after 15`: clean, no parse/script errors.
+**Not verified visually** -- no display in this environment. Someone
+should run the game, Send Mob a cop, and confirm protesters visibly punch
+(not just slide/walk into) the cop while damage ticks, and that the
+Punch_Left/Punch_Right alternation doesn't look jittery at the default
+0.5s `attack_interval`.

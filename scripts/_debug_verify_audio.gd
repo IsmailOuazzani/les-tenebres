@@ -40,5 +40,9 @@ func _run() -> void:
 	audio_mgr.play_mob_roar(30)
 	audio_mgr.play_mob_roar(200)
 	audio_mgr.stop_megaphone_recruit()
+	audio_mgr.play_feed_notification("ordinary")
+	audio_mgr.play_feed_notification("ordinary") # should be throttled (no second pop)
+	audio_mgr.play_feed_notification("funny")
+	audio_mgr.play_feed_notification("important") # bypasses throttle
 	print("-- no errors thrown --")
 	quit(0)

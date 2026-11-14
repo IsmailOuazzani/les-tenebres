@@ -52,6 +52,17 @@ extends Node
 ## frame (just a lerp weight, not literal dB/sec).
 @export var crowd_crossfade_speed: float = 1.5
 
+## -- Snap feed notifications (spec section 11) --
+## Minimum gap between ORDINARY/FUNNY notification sounds -- at high Grabuge
+## the feed can receive several messages a second, and this is what keeps
+## that from turning into a wall of beeping. IMPORTANT notifications bypass
+## this gate entirely (spec: "priority for important event notifications").
+@export var notification_min_interval: float = 0.35
+@export var notification_pitch_variation: float = 0.05
+## Share of ordinary notifications that use the alt pop instead of the
+## default one, purely for variety (spec 11B: "use occasionally").
+@export var notification_alt_chance: float = 0.3
+
 # -- Sound registry (data-driven; swap files here, nothing else changes) --
 # See agents/audio-notes.md for the manifest (source/license/attribution).
 const SOUNDS: Dictionary = {
@@ -63,13 +74,17 @@ const SOUNDS: Dictionary = {
 	"crowd_cheer_burst": preload("res://audio/crowd/cheers/crowd_cheer_burst.wav"),
 	"mob_roar_burst": preload("res://audio/crowd/voices/mob_roar_burst.wav"),
 	"crowd_ambience_protest": preload("res://audio/crowd/crowd_ambience_protest.ogg"),
+	"notif_default": preload("res://audio/ui/notifications/notif_default.wav"),
+	"notif_alt": preload("res://audio/ui/notifications/notif_alt.wav"),
+	"notif_funny": preload("res://audio/ui/notifications/notif_funny.wav"),
+	"notif_important": preload("res://audio/ui/notifications/notif_important.wav"),
 }
 
 ## Events from the spec that are intentionally unimplemented this pass
 ## (Phases 2-4: barricades, vehicles, police combat, Grabuge
-## fanfares/warnings, game over, feed notifications, target UI, cartoon
-## physics). Logged once via push_warning the first time anything calls
-## play_missing() for a given key, so gaps are visible instead of silent.
+## fanfares/warnings, game over, target UI, cartoon physics). Logged once
+## via push_warning the first time anything calls play_missing() for a
+## given key, so gaps are visible instead of silent.
 var _warned_missing: Dictionary = {}
 
 # -- Pools --
@@ -90,6 +105,8 @@ var _recruit_timestamps: Array[float] = []
 
 var _crowd_controller: Node = null
 var _crowd_ambience_target_db: float = -80.0
+
+var _last_notification_time: float = -1000.0
 
 
 func _ready() -> void:
@@ -295,6 +312,45 @@ func _on_disruption_recorded(_total: int) -> void:
 
 
 # ---------------------------------------------------------------------------
+# Snap feed notifications (spec section 11)
+# ---------------------------------------------------------------------------
+
+## Called by scripts/snap_feed.gd whenever it pushes a message onto the
+## feed. `kind` is one of:
+##   "ordinary" -- routine messages (recruit batches, ambient chatter/flavor).
+##     Alternates default/alt pop for variety, gated by notification_min_interval.
+##   "funny"    -- the nonsense/joke lines. Distinct playful pop, same gate.
+##   "important" -- Grabuge milestones, disruptions, police events. Always
+##     plays (bypasses the throttle gate per spec 11D/14's priority rule).
+func play_feed_notification(kind: String) -> void:
+	if kind == "important":
+		_play_notification_sound("notif_important")
+		return
+
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now - _last_notification_time < notification_min_interval:
+		return
+	_last_notification_time = now
+
+	if kind == "funny":
+		_play_notification_sound("notif_funny")
+		return
+
+	var sound_key: String = "notif_alt" if randf() < notification_alt_chance else "notif_default"
+	_play_notification_sound(sound_key)
+
+
+func _play_notification_sound(sound_key: String) -> void:
+	var p := AudioStreamPlayer.new()
+	p.bus = "UI"
+	p.stream = SOUNDS[sound_key]
+	p.pitch_scale = 1.0 + randf_range(-notification_pitch_variation, notification_pitch_variation)
+	add_child(p)
+	p.finished.connect(p.queue_free)
+	p.play()
+
+
+# ---------------------------------------------------------------------------
 # Unimplemented-event reporting (spec section 2: "clearly identified
 # missing assets rather than silently skipping the feature")
 # ---------------------------------------------------------------------------
@@ -304,7 +360,7 @@ func _on_disruption_recorded(_total: int) -> void:
 ## anywhere (no Phase 2-4 integration points exist yet) -- kept here as the
 ## seam those phases should use. See agents/audio-notes.md for the full list
 ## (barricades, vehicles, police combat, cartoon physics, Grabuge
-## gain/warning/collapse, game over, feed notifications, target UI).
+## gain/warning/collapse, game over, target UI).
 func play_missing(event_key: String) -> void:
 	if _warned_missing.has(event_key):
 		return

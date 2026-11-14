@@ -17,12 +17,12 @@ class_name PoliceSpawner
 ## rate(g) = spawn_rate_min + (spawn_rate_max - spawn_rate_min) * (g / 100)^spawn_rate_exponent
 ## Same shape as NPCSpawner's trickle formula -- low and slow early on, only
 ## ramping up hard once Grabuge is high.
-@export var spawn_rate_min: float = 0.05
-@export var spawn_rate_max: float = 0.3
+@export var spawn_rate_min: float = 0.1
+@export var spawn_rate_max: float = 0.6
 @export var spawn_rate_exponent: float = 1.8
 ## Hard ceiling on concurrent live cops -- spawning pauses once this many
 ## are already out there, regardless of Grabuge.
-@export var max_concurrent_police: int = 8
+@export var max_concurrent_police: int = 16
 
 ## How far into the camera's forward cone (dot product of normalized
 ## horizontal vectors, -1..1) a candidate point counts as "in view" and

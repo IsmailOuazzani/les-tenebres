@@ -99,9 +99,9 @@ func _spawn_ambient_message() -> void:
 	if roll < 0.2:
 		_push_system(SnapFeedData.random_gameplay_flavor(_rng, GameState.grabuge, GameState.crowd_count))
 	elif roll < 0.5:
-		_push_user(SnapFeedData.random_chatter(_rng))
+		_push_user(SnapFeedData.random_chatter(_rng), "ordinary")
 	else:
-		_push_user(SnapFeedData.random_nonsense(_rng))
+		_push_user(SnapFeedData.random_nonsense(_rng), "funny")
 
 
 ## -- Real gameplay events: inject immediately + trigger a reaction burst -- ##
@@ -130,18 +130,18 @@ func _flush_recruit_batch() -> void:
 	if gained <= 0:
 		return
 	if gained == 1:
-		_push_system(SnapFeedData.random_recruit_message(_rng, GameState.crowd_count))
+		_push_system(SnapFeedData.random_recruit_message(_rng, GameState.crowd_count), "ordinary")
 	else:
-		_push_system(SnapFeedData.random_recruit_batch_message(_rng, gained, GameState.crowd_count))
+		_push_system(SnapFeedData.random_recruit_batch_message(_rng, gained, GameState.crowd_count), "ordinary")
 
 
 func _on_disruption_recorded(_total: int) -> void:
-	_push_system(SnapFeedData.random_destruction_message(_rng, int(GameState.DISRUPTION_GRABUGE_BASE)))
+	_push_system(SnapFeedData.random_destruction_message(_rng, int(GameState.DISRUPTION_GRABUGE_BASE)), "important")
 	_spawn_burst()
 
 
 func _on_police_defeated(grabuge_gain: float) -> void:
-	_push_system(SnapFeedData.random_police_defeat_message(_rng, int(grabuge_gain)))
+	_push_system(SnapFeedData.random_police_defeat_message(_rng, int(grabuge_gain)), "important")
 	_spawn_burst()
 
 
@@ -152,19 +152,24 @@ func _spawn_burst() -> void:
 		if not is_instance_valid(self):
 			return
 		if _rng.randf() < 0.5:
-			_push_user(SnapFeedData.random_chatter(_rng))
+			_push_user(SnapFeedData.random_chatter(_rng), "ordinary")
 		else:
-			_push_user(SnapFeedData.random_nonsense(_rng))
+			_push_user(SnapFeedData.random_nonsense(_rng), "funny")
 
 
 ## -- Message construction -- ##
 
-func _push_system(text: String) -> void:
+## `kind` ("ordinary" / "funny" / "important") selects which notification
+## pop plays -- see AudioManager.play_feed_notification(). Purely an audio
+## tag; doesn't affect the message's visuals.
+func _push_system(text: String, kind: String = "ordinary") -> void:
 	_push_item(_build_system_item(text))
+	AudioManager.play_feed_notification(kind)
 
 
-func _push_user(text: String) -> void:
+func _push_user(text: String, kind: String = "ordinary") -> void:
 	_push_item(_build_user_item(SnapFeedData.random_username(_rng), text))
+	AudioManager.play_feed_notification(kind)
 
 
 func _push_item(item: Control) -> void:

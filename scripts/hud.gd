@@ -22,6 +22,7 @@ extends CanvasLayer
 @onready var _compass_bar: TextureRect = %CompassBar
 @onready var _compass_markers: Control = %CompassMarkers
 @onready var _damage_flash: ColorRect = %DamageFlash
+@onready var _fps_label: Label = %FpsLabel
 
 ## Tracks the player's last-seen health so _on_player_health_changed can
 ## tell a hit (health went down) apart from a HUD refresh or healing.
@@ -79,6 +80,10 @@ func _ready() -> void:
 		# _physics_process -- re-enable it now that `parent` is set.
 		_compass_bar.set_physics_process(true)
 		_compass_markers.player = player
+
+
+func _process(_delta: float) -> void:
+	_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
 
 
 func _on_crowd_count_changed(value: int) -> void:
