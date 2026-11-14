@@ -100,6 +100,8 @@ func _try_hit() -> void:
 		if health:
 			health.take_damage(hit_damage)
 			hit_any = true
+			if body is Node3D:
+				BloodBurst.spawn(get_tree().current_scene, body.global_position + Vector3.UP * 0.9)
 		elif body.has_method("take_damage"):
 			body.take_damage(hit_damage)
 			hit_any = true

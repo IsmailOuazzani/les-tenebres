@@ -21,6 +21,12 @@ extends CanvasLayer
 @onready var _hotbar: HBoxContainer = %Hotbar
 @onready var _compass_bar: TextureRect = %CompassBar
 @onready var _compass_markers: Control = %CompassMarkers
+@onready var _damage_flash: ColorRect = %DamageFlash
+
+## Tracks the player's last-seen health so _on_player_health_changed can
+## tell a hit (health went down) apart from a HUD refresh or healing.
+var _last_player_health: float = -1.0
+var _damage_flash_tween: Tween
 
 ## Hotbar slot panels (and their two labels), one per weapon, in
 ## WeaponSwitcher's slot order -- built fresh in _ready() from
@@ -101,6 +107,20 @@ func _on_player_health_changed(current: float, max_value: float) -> void:
 		_health_bar.theme_type_variation = _HEALTH_VARIANT_LOW
 	else:
 		_health_bar.theme_type_variation = _HEALTH_VARIANT_OK
+
+	if _last_player_health >= 0.0 and current < _last_player_health:
+		_flash_damage()
+	_last_player_health = current
+
+
+## Red screen-edge flash on taking damage (see scripts/damage_flash.gdshader).
+func _flash_damage() -> void:
+	var material: ShaderMaterial = _damage_flash.material
+	if _damage_flash_tween:
+		_damage_flash_tween.kill()
+	material.set_shader_parameter("intensity", 0.6)
+	_damage_flash_tween = create_tween()
+	_damage_flash_tween.tween_property(material, "shader_parameter/intensity", 0.0, 0.35)
 
 
 ## Creates one square slot panel per weapon (key number + name, e.g. "1" /

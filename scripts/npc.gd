@@ -24,12 +24,22 @@ enum State { IDLE, WANDER, FOLLOW, CHARGE }
 @export var separation_weight: float = 1.8
 
 ## -- Police combat (only active once recruited, see agents/police-notes.md) --
-## How close a cop needs to be before this protester starts hitting it.
+## How close a cop needs to be before this protester starts hitting it. This
+## is the "damage area" referenced by collider_to_damage_ratio below.
 @export var attack_range: float = 1.5
 @export var damage_per_second: float = 5.0
 ## Damage is applied in discrete chunks on this interval rather than every
 ## frame, per the spec's "damage is applied at controlled intervals."
 @export var attack_interval: float = 0.5
+
+## -- Physical collider vs. damage area (see agents/crowd-swarm-notes.md) --
+## The CollisionShape3D capsule (used for physical separation in
+## move_and_slide, not combat) is sized as this fraction of attack_range
+## rather than given its own fixed radius. Keeping it well below 1.0 lets
+## recruited protesters pack tightly for a dense mob visual without
+## shrinking or growing attack_range, which stays the actual gameplay-
+## relevant "can I hit/be hit" distance.
+@export var collider_to_damage_ratio: float = 0.3
 
 var state: State = State.IDLE
 var home_position: Vector3
@@ -54,18 +64,32 @@ var crowd_controller: Node = null
 ## Rolled once at recruit time -- see agents/crowd-swarm-notes.md.
 var _speed_variance: float = 1.0
 
+## Pool of Quaternius "Individual Characters" glTF variants a protester can
+## randomly wear -- each is a self-contained rig + the same 24 shared
+## animations, see agents/prop-character-assets-research.md. Picked once per
+## NPC in _ready() so a crowd reads as a mix of civilians rather than clones.
+const CHARACTER_VARIANTS: Array[String] = [
+	"res://assets/quaternius_men/Punk.gltf",
+	"res://assets/quaternius_men/Farmer.gltf",
+	"res://assets/quaternius_men/Worker.gltf",
+	"res://assets/quaternius_men/Casual_Hoodie.gltf",
+	"res://assets/quaternius_men/Casual_2.gltf",
+	"res://assets/quaternius_men/Beach.gltf",
+]
+
 @onready var mesh_root: Node3D = $MeshRoot
 @onready var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 @onready var health: HealthComponent = $HealthComponent
 @onready var _health_bar: ProgressBar3D = $HealthBar
+var _anim: AnimationPlayer
 
-var _bob_time: float = 0.0
 var _attack_timer: float = 0.0
 
 
 func _ready() -> void:
 	home_position = global_position
-	_tint_body()
+	_spawn_random_character()
+	_apply_collider_ratio()
 	_enter_idle()
 
 	health.health_changed.connect(_on_health_changed)
@@ -73,6 +97,22 @@ func _ready() -> void:
 	_health_bar.max_value = health.max_health
 	_health_bar.value = health.current_health
 	_health_bar.visible = false
+
+
+## Shrinks the physical collision capsule to collider_to_damage_ratio *
+## attack_range, decoupling "how tightly bodies can pack" from "how close
+## you need to be to deal/take damage" -- see the export var comment above.
+func _apply_collider_ratio() -> void:
+	var collision_shape: CollisionShape3D = $CollisionShape3D
+	var capsule: CapsuleShape3D = collision_shape.shape
+	capsule.radius = attack_range * collider_to_damage_ratio
+
+
+func _spawn_random_character() -> void:
+	var variant_path: String = CHARACTER_VARIANTS[randi() % CHARACTER_VARIANTS.size()]
+	var character: Node3D = (load(variant_path) as PackedScene).instantiate()
+	mesh_root.add_child(character)
+	_anim = character.get_node("AnimationPlayer")
 
 
 func _physics_process(delta: float) -> void:
@@ -315,23 +355,15 @@ func enter_charge_at_target(target: Node3D, offset: Vector3, reaction_delay: flo
 	state_timer = reaction_delay
 
 
-func _update_visuals(delta: float) -> void:
-	# Small bob while walking so the placeholder mesh doesn't look like it's
-	# gliding. Purely cosmetic -- replace with real animation playback if/when
-	# a rigged character asset is swapped in (see agents/npc-wander-notes.md).
+func _update_visuals(_delta: float) -> void:
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
-	if horizontal_speed > 0.05:
-		_bob_time += delta * 8.0
-		mesh_root.position.y = abs(sin(_bob_time)) * 0.05
+	var target_anim: StringName
+	if horizontal_speed <= 0.05:
+		target_anim = &"Idle"
+	elif state == State.CHARGE:
+		target_anim = &"Run"
 	else:
-		_bob_time = 0.0
-		mesh_root.position.y = lerp(mesh_root.position.y, 0.0, delta * 8.0)
+		target_anim = &"Walk"
 
-
-func _tint_body() -> void:
-	var body_mesh: MeshInstance3D = get_node_or_null("MeshRoot/Body")
-	if body_mesh == null:
-		return
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.2, 0.4, 0.9)
-	body_mesh.material_override = material
+	if _anim.current_animation != target_anim:
+		_anim.play(target_anim)

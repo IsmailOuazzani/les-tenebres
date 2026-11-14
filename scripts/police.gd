@@ -19,6 +19,8 @@ signal destroyed
 @export var turn_speed: float = 6.0
 
 ## -- Combat tuning --
+## How close something needs to be before this cop deals damage to it. This
+## is the "damage area" referenced by collider_to_damage_ratio below.
 @export var attack_range: float = 1.5
 ## How close a recruited protester needs to get before this cop breaks off
 ## chasing/attacking the player to fight it instead. Also doubles as the
@@ -29,6 +31,13 @@ signal destroyed
 ## Damage lands in discrete chunks on this cooldown rather than every frame
 ## -- see agents/police-notes.md.
 @export var attack_interval: float = 0.5
+
+## -- Physical collider vs. damage area (see agents/crowd-swarm-notes.md) --
+## Same idea as NPC.collider_to_damage_ratio: the CollisionShape3D capsule
+## (physical separation only) is sized as this fraction of attack_range so a
+## cop can be packed into/surrounded by a dense mob without that mob's
+## actual engagement range changing.
+@export var collider_to_damage_ratio: float = 0.3
 
 var state: State = State.CHASE_PLAYER
 var player: Node3D = null
@@ -41,6 +50,7 @@ var _attack_timer: float = 0.0
 @onready var health: HealthComponent = $HealthComponent
 @onready var _health_bar: ProgressBar3D = $HealthBar
 @onready var _outline: MeshInstance3D = $Outline
+@onready var _anim: AnimationPlayer = $MeshRoot/Character/AnimationPlayer
 
 
 func _ready() -> void:
@@ -50,12 +60,21 @@ func _ready() -> void:
 	# direct-attack path (see Megaphone.gd / CrowdController._on_send_mob)
 	# both key off this group, same as scripts/destructible_prop.gd.
 	add_to_group(&"destructible")
+	_apply_collider_ratio()
 	health.health_changed.connect(_on_health_changed)
 	health.died.connect(_on_died)
 	_health_bar.max_value = health.max_health
 	_health_bar.value = health.current_health
 	_health_bar.visible = false
 	_outline.visible = false
+
+
+## Shrinks the physical collision capsule to collider_to_damage_ratio *
+## attack_range -- see the export var comment above.
+func _apply_collider_ratio() -> void:
+	var collision_shape: CollisionShape3D = $CollisionShape3D
+	var capsule: CapsuleShape3D = collision_shape.shape
+	capsule.radius = attack_range * collider_to_damage_ratio
 
 
 ## Called once by scripts/police_spawner.gd right after instantiating --
@@ -200,12 +219,18 @@ func _move_toward(direction: Vector3, delta: float) -> void:
 	mesh_root.rotation.y = lerp_angle(mesh_root.rotation.y, target_angle, turn_speed * delta)
 
 
-func _update_visuals(delta: float) -> void:
+func _update_visuals(_delta: float) -> void:
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
-	if horizontal_speed > 0.05:
-		mesh_root.position.y = abs(sin(Time.get_ticks_msec() / 125.0)) * 0.05
+	var target_anim: StringName
+	if state == State.ATTACK_PLAYER or state == State.FIGHT_PROTESTER:
+		target_anim = &"Gun_Shoot"
+	elif horizontal_speed <= 0.05:
+		target_anim = &"Idle"
 	else:
-		mesh_root.position.y = lerp(mesh_root.position.y, 0.0, delta * 8.0)
+		target_anim = &"Run"
+
+	if _anim.current_animation != target_anim:
+		_anim.play(target_anim)
 
 
 func _on_health_changed(current: float, max_value: float) -> void:

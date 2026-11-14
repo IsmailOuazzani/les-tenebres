@@ -371,3 +371,127 @@ confirmed no building-to-building or building-to-sidewalk overlaps.
 texture orientation/UV correctness, whether building "fronts" face the
 street, and whether the new layout reads well in person are all unconfirmed.
 Run `task run` and nudge as needed.
+
+## Update: fixed the building-void gap and a 3x-rescale collision bug
+
+The "roughly double the map" pass above pushed building rows out to
+`x=±36` purely to stop them overlapping each other post-3x-scale, without
+re-deriving their distance from the street. That left a 17-21m gap of pure
+invisible `GroundCollision` (no visual mesh at all) between the sidewalk
+(outer edge `x=±6`) and every building — looked like buildings floating in
+void next to a toy-sized street, confirmed by the user playing it.
+
+**Bug found while fixing this:** `BuildingWest_0`/`BuildingWest_2`/
+`BuildingEast_0` (the collision bodies for the original `paris-building-a/
+b/c`, reused from the pre-3x-scale pass) were still referencing their old
+**1x-size** `BoxShape3D`s (`BoxShape3D_8de4v`/`_f5sdk`/`_kin18`) even though
+the visual mesh above them had been scaled 3x. Only the 5 newer buildings
+(`w2/w4/e2/e3/e4`) got correctly-sized `BoxShape3D_paris3x_{A,B,C}` boxes.
+Net effect: the player could walk straight through most of three of the
+eight buildings. Fixed by repointing those three `CollisionShape3D`s at the
+matching `paris3x_*` shape.
+
+**Fix applied:** repositioned every building's `x` so its *front face*
+(not its center) sits flush against the sidewalk's outer edge (`x=±6`),
+using each building's own measured half-depth rather than a shared row
+centerline — this keeps a single straight street-wall line even though
+buildings A/B/C have different depths:
+
+- A (half-depth 6.705): `x = ±12.705`
+- B (half-depth 10.215): `x = ±16.215`
+- C (half-depth 6.555): `x = ±12.555`
+
+Also shrank `GroundCollision`'s box from `(112,1,132)` to `(60,1,132)` so
+there's no leftover invisible-collision void beyond the now-much-closer
+buildings.
+
+Verified via a headless script (`print`-based AABB overlap check over all
+8 buildings using their actual 3x dimensions) — zero overlaps, every
+building's near edge lands within rounding of `x=±6`. Full headless game
+boot (`task run-headless`) still exits clean, same pre-existing leak-on-quit
+noise as before, no new errors.
+
+**Not addressed:** the street/sidewalk itself is still a single Kenney
+road-tile width (one lane, one sidewalk tile each side, ~12m total
+cross-section) — narrow for buildings this tall. Widening it would mean
+retrofitting all 21 `road-straight` segments plus the crossroad/crossing
+intersection tiles, which is materially riskier and wasn't attempted this
+pass. Pulling the buildings in close may already fix most of the "feels
+small/empty" complaint since the proportions read very differently once
+there's no 17m gap; revisit street width specifically if it still feels
+cramped after eyeballing.
+
+**Not visually confirmed — CLAUDE.md now prohibits launching the windowed
+game from this session.** User needs to run `task run` themselves and
+report back: whether the street wall reads as intentional now, whether
+building fronts actually face the street (orientation was assumed
+unchanged, only position moved), and whether the remaining street width
+still feels too narrow.
+
+## Update: setback math error fix, selective street widening, dressing, atmosphere
+
+User played the first fix and said "way better, still a bit rough." Follow-up
+pass covering several things at once:
+
+**Bug in the previous pass's own fix:** the per-building setback used each
+building's measured **depth** (`d`, the along-street/Z dimension) where it
+should have used **width** (`w`, the street-perpendicular/X dimension) —
+confirmed against `BoxShape3D_paris3x_{A,B,C}`, whose `.x` component is `w*3`
+and `.z` is `d*3`. This left buildings A and C 2-3m short of actually flush
+(a residual gap), while B was accidentally fine since its `w`≈`d`. Recomputed
+correct half-widths: A=3.435, B=10.2, C=4.545 (was wrongly using
+6.705/10.215/6.555). All 8 building + collision nodes corrected.
+
+**Selective street widening:** rather than retrofit all 21 road segments and
+risk breaking the crossroad/crossing intersection tiles (no display access
+to verify), only the already-isolated extended arms (`road-straight-s0..s4`,
+`z=24..40`, and `-n0..n4`, `z=-24..-40` — pure repeated straight+sidewalk
+pairs, nothing else occupies that space) got a second road-straight tile on
+each side (`x=∓4`) and their sidewalks pushed out from `x=∓4` to `x=∓8`
+(outer edge `x=±6`→`±10`). The original intersection-adjacent street
+(`z=-20..20`, still the single-lane width) is untouched. Net result: the
+street is now single-lane near the intersection and 3-lanes-wide further out
+— a deliberate scope tradeoff, not an error, but genuinely not visually
+confirmed to look intentional rather than like a mistake. The two buildings
+on each side that sit in the widened zone (`z=±36`, i.e. `a`/`b`/`w4`/`e4`)
+were repositioned to the new `x=±10` sidewalk edge; the `z=±12` buildings
+(`c`/`w2`/`e2`/`e3`) stay at the original `x=±6` edge.
+
+**Considered and dropped: adding more buildings to fill the widened arms.**
+The arms are only 16m long (`z=24..40`) and these buildings need 13-20m of
+Z-depth each at 3x scale (the existing 24-unit pitch exists for exactly this
+reason) — there's no room to add a full building row there without
+overlapping the existing `z=36`/`z=-36` buildings. Did not attempt it.
+
+**Street-level dressing instead of more buildings:** added
+`detail-parasol-a/b.glb` and `detail-awning.glb` from the already-downloaded
+Kenney Commercial pack (previously unused — the pack also has
+`detail-overhang*`/`detail-awning-wide` if more variety is wanted later) as
+one prop per building frontage, at `scale 4` (same convention as the rest of
+the Kenney roadkit props). This is the "building variety" and "foliage/
+street clutter" asks addressed together — no tree/planter prop exists in
+either downloaded Kenney pack, and per CLAUDE.md's anti-custom-system rule,
+no new scatter system was hand-rolled for it; genuine foliage would need a
+new addon or asset pack, flagged as follow-up rather than faked. Also added
+4 more `light-square` lamps along the newly-widened sidewalks (previously
+bare past the original intersection).
+
+**Atmosphere:** the `ProceduralSkyMaterial` and `DirectionalLight3D` were
+untouched engine defaults (flat default blue sky, no sun glow, white
+unweighted light). Added warm horizon/ground colors and a tighter sun curve
+for a late-afternoon look, and gave the directional light a warm tint
+(`Color(1, 0.937, 0.835)`) at `energy 1.2`. Purely a `WorldEnvironment`/light
+property change, zero risk to anything else.
+
+**Verification done:** headless AABB overlap check across all 8 buildings
+(none), confirmed new road-straight/road-side tile positions in the widened
+rows (`x=±4` road, `x=±8` sidewalk — matches design), confirmed building
+near-edges land within float rounding of the intended `x=±6`/`±10` sidewalk
+edges, and `GroundCollision`'s box was widened again (`60`→`64` on X) since
+the B-type buildings in the widened zone now reach `x=30.4`, slightly past
+the previous `60`-wide box. Full headless boot: zero new errors.
+
+**Not visually confirmed (no display access):** the widen-then-narrow
+street-width transition at `z=20/24`, whether the parasol/awning props sit
+at a sensible height/orientation relative to the sidewalk and don't clip
+into buildings, and the new sky/light tuning. User needs to run `task run`.

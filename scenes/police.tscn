@@ -1,27 +1,14 @@
-[gd_scene load_steps=12 format=3 uid="uid://cpoliceenemy01"]
+[gd_scene load_steps=9 format=3 uid="uid://cpoliceenemy01"]
 
 [ext_resource type="Script" path="res://scripts/police.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/health_component.gd" id="2_health"]
 [ext_resource type="Script" path="res://addons/progress_bar_3d/progress_bar_3d.gd" id="3_progress_bar"]
 [ext_resource type="Shader" path="res://addons/progress_bar_3d/progress_bar_3d_unshaded_no_shadows_no_depth_test.gdshader" id="4_progress_bar_shader"]
+[ext_resource type="PackedScene" uid="uid://d3nxx8o1xisdu" path="res://assets/quaternius_men/Swat.gltf" id="5_character"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.35
 height = 1.6
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
-radius = 0.35
-height = 1.6
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
-albedo_color = Color(0.85, 0.1, 0.1, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_head"]
-radius = 0.22
-height = 0.44
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
-albedo_color = Color(0.85, 0.1, 0.1, 1)
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_outline"]
 radius = 0.42
@@ -61,15 +48,7 @@ shape = SubResource("CapsuleShape3D_body")
 
 [node name="MeshRoot" type="Node3D" parent="."]
 
-[node name="Body" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
-mesh = SubResource("CapsuleMesh_body")
-surface_material_override/0 = SubResource("StandardMaterial3D_body")
-
-[node name="Head" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-mesh = SubResource("SphereMesh_head")
-surface_material_override/0 = SubResource("StandardMaterial3D_head")
+[node name="Character" parent="MeshRoot" instance=ExtResource("5_character")]
 
 [node name="Outline" type="MeshInstance3D" parent="."]
 visible = false

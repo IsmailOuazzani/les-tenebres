@@ -119,9 +119,9 @@ const DESTRUCTION_TEMPLATES: Array[String] = [
 ]
 
 const POLICE_DEFEAT_TEMPLATES: Array[String] = [
-	"🚓 UN CRS AU TAPIS !",
-	"👮 FLIC NEUTRALISÉ, UN DE MOINS !",
-	"🛡️ LA FOULE VIENT DE METTRE UN CONDÉ KO",
+	"🚓 UN CRS AU TAPIS ! +%d GRABUGE",
+	"👮 FLIC NEUTRALISÉ, UN DE MOINS ! (+%d)",
+	"🛡️ LA FOULE VIENT DE METTRE UN CONDÉ KO (+%d GRABUGE)",
 ]
 
 
@@ -172,5 +172,6 @@ static func random_destruction_message(rng: RandomNumberGenerator, grabuge_gain:
 	return template % grabuge_gain
 
 
-static func random_police_defeat_message(rng: RandomNumberGenerator) -> String:
-	return POLICE_DEFEAT_TEMPLATES[rng.randi_range(0, POLICE_DEFEAT_TEMPLATES.size() - 1)]
+static func random_police_defeat_message(rng: RandomNumberGenerator, grabuge_gain: int) -> String:
+	var template: String = POLICE_DEFEAT_TEMPLATES[rng.randi_range(0, POLICE_DEFEAT_TEMPLATES.size() - 1)]
+	return template % grabuge_gain

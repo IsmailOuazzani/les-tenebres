@@ -119,6 +119,41 @@ and trash bins in one consistent, free-for-anything-licensed kit. Pair it with
 **Kenney — Car Kit** (https://kenney.nl/assets/car-kit, same license/visual style) for
 the bus, since both kits share Kenney's house style and will look cohesive side by side.
 
+## Status Update (2026-11-14): Quaternius swap completed
+
+- **Kenney Character Assets (https://kenney.itch.io/kenney-character-assets): link is dead/broken** — user tried to download and it's a no-go. Don't resend this link; if a Kenney character pack is wanted later, it needs a fresh search for a working mirror (e.g. kenney.nl itself, or opengameart.org).
+- **Quaternius Ultimate Modular Men Pack: downloaded** by the user via the Google Drive flow (the gated download `agents/npc-wander-notes.md` flagged as unscriptable headlessly — a human clicking through was the workaround). Pack landed in `~/Downloads/Ultimate Modular Men- Feb 2022-20261114T181648Z-1-001.zip`.
+- **Swap done.** Used the "Individual Characters/glTF" variants (self-contained, each already has its own skeleton + all 24 shared animations baked in, per `How To Use.txt` in the pack — no modular reassembly needed for this use case):
+  - `assets/quaternius_men/Punk.gltf` → protesters (`scenes/npc.tscn`)
+  - `assets/quaternius_men/Swat.gltf` → cops (`scenes/police.tscn`)
+  - `assets/quaternius_men/LICENSE.txt` copied alongside (CC0 1.0, no attribution required).
+  - Both files have 0 embedded images (flat per-part color materials baked into the glTF, no texture files to lose track of) — so the CLAUDE.md external-texture pitfall doesn't apply here.
+  - Verified via a headless debug script: visual AABB height ~1.85-1.97m (matches the old 1.6+0.35*2 capsule collider closely enough, no rescale needed), root origin at the feet (y≈0), `AnimationPlayer` resolves at `MeshRoot/Character/AnimationPlayer` in both scenes.
+  - `scripts/npc.gd` / `scripts/police.gd` `_update_visuals()` now calls `_anim.play(...)` (Idle/Walk/Run for NPCs, +Gun_Shoot while a cop is attacking) instead of the old vertical-bob hack; the capsule-tint `_tint_body()` was removed since the real character already has its own baked colors.
+  - Only `Punk` (protesters) and `Swat` (cops) were pulled in — the pack has 9 more individual characters (King, Worker, Suit, Farmer, Beach, Adventurer, Casual_Hoodie, Casual_2, Spacesuit) sitting unused in the zip if more crowd variety is wanted later.
+
+## Status Update (2026-11-14, part 2): protester model variety
+
+Per request, protesters no longer always wear `Punk` — `scripts/npc.gd` now picks
+randomly among 6 of the pack's "Individual Characters" glTF variants each time an
+NPC spawns (`CHARACTER_VARIANTS` constant): `Punk`, `Farmer`, `Worker`,
+`Casual_Hoodie`, `Casual_2`, `Beach`. All 5 new variants were extracted from the
+same already-downloaded zip and imported the same way as Punk/Swat (0 embedded
+images, self-contained skeleton + all 24 shared animations, confirmed via a
+headless debug script: `AnimationPlayer` is a direct child of each variant's root
+node in every case).
+
+`scenes/npc.tscn` no longer statically instances a character — `MeshRoot` is left
+empty in the scene file, and `npc.gd._spawn_random_character()` (called from
+`_ready()`) picks one variant via `load(...).instantiate()` and adds it as
+`MeshRoot`'s child at runtime, then resolves `_anim` from the instanced node's
+`AnimationPlayer` child. Cops (`scenes/police.tscn`) are unchanged — still always
+`Swat`, since cop variety wasn't asked for.
+
+Verified via a headless script that directly instantiates `npc.tscn` and calls
+`_ready()` 10 times: every spawn produced a valid character with a resolvable
+`AnimationPlayer`, and all 6 variants appeared across the sample.
+
 ## Open Items / Needs Follow-Up
 - Megaphone: license on the poly.pizza "Megaphone" model (by 4444ESOUSA) needs direct
   confirmation before use; otherwise a quick custom model is the safer bet for the

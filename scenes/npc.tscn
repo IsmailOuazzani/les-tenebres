@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://cnpcwander001"]
+[gd_scene load_steps=7 format=3 uid="uid://cnpcwander001"]
 
 [ext_resource type="Script" path="res://scripts/npc.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/health_component.gd" id="2_health"]
@@ -8,17 +8,6 @@
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.35
 height = 1.6
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
-radius = 0.35
-height = 1.6
-
-[sub_resource type="SphereMesh" id="SphereMesh_head"]
-radius = 0.22
-height = 0.44
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
-albedo_color = Color(0.92, 0.82, 0.7, 1)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_health"]
 resource_local_to_scene = true
@@ -44,15 +33,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 shape = SubResource("CapsuleShape3D_body")
 
 [node name="MeshRoot" type="Node3D" parent="."]
-
-[node name="Body" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
-mesh = SubResource("CapsuleMesh_body")
-
-[node name="Head" type="MeshInstance3D" parent="MeshRoot"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
-mesh = SubResource("SphereMesh_head")
-surface_material_override/0 = SubResource("StandardMaterial3D_head")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")

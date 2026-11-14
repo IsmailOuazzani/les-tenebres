@@ -1,0 +1,149 @@
+[gd_scene load_steps=16 format=3 uid="uid://cdestructbus01"]
+
+[ext_resource type="PackedScene" path="res://assets/kenney_car_kit/garbage-truck.glb" id="1_truck"]
+[ext_resource type="PackedScene" path="res://assets/kenney_car_kit/wheel-truck.glb" id="2_wheel"]
+[ext_resource type="PackedScene" path="res://assets/kenney_car_kit/debris-bumper.glb" id="3_bumper"]
+[ext_resource type="PackedScene" path="res://assets/kenney_car_kit/debris-door.glb" id="4_door"]
+[ext_resource type="Script" path="res://scripts/destructible_vehicle.gd" id="5_script"]
+[ext_resource type="Script" path="res://addons/progress_bar_3d/progress_bar_3d.gd" id="6_progress_bar"]
+[ext_resource type="Shader" path="res://addons/progress_bar_3d/progress_bar_3d_unshaded_no_shadows_no_depth_test.gdshader" id="7_progress_bar_shader"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(1.6, 1.775, 3.45)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_wheel"]
+radius = 0.3
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bumper"]
+size = Vector3(1.3, 0.4, 0.45)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_door"]
+size = Vector3(0.188, 0.9, 0.8)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_health"]
+resource_local_to_scene = true
+shader = ExtResource("7_progress_bar_shader")
+shader_parameter/background_color = Color(0.08, 0.08, 0.09, 1)
+shader_parameter/progress_color = Color(0.25, 0.85, 0.3, 1)
+shader_parameter/progress_value = 1.0
+shader_parameter/billboard_mode = 1
+
+[sub_resource type="QuadMesh" id="QuadMesh_health"]
+resource_local_to_scene = true
+material = SubResource("ShaderMaterial_health")
+size = Vector2(1.8, 0.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_outline"]
+size = Vector3(1.84, 2.04, 3.97)
+
+[sub_resource type="StandardMaterial3D" id="Material_outline"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.2, 0.45)
+transparency = 1
+cull_mode = 2
+emission_enabled = true
+emission = Color(1, 0.85, 0.2, 1)
+emission_energy_multiplier = 1.0
+
+[node name="DestructibleBus" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("5_script")
+max_health = 300.0
+debris_paths = [NodePath("WheelFL"), NodePath("WheelFR"), NodePath("WheelRL"), NodePath("WheelRR"), NodePath("BumperFront"), NodePath("DoorRight")]
+debris_despawn_time = 8.0
+debris_impulse_strength = 2.5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8875, 0)
+shape = SubResource("BoxShape3D_body")
+
+[node name="TruckModel" parent="." instance=ExtResource("1_truck")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+
+[node name="WheelFL" type="RigidBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 0.3, 1.2)
+freeze = true
+collision_layer = 1
+collision_mask = 1
+
+[node name="WheelModel" parent="WheelFL" instance=ExtResource("2_wheel")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WheelFL"]
+shape = SubResource("SphereShape3D_wheel")
+
+[node name="WheelFR" type="RigidBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 0.3, 1.2)
+freeze = true
+collision_layer = 1
+collision_mask = 1
+
+[node name="WheelModel" parent="WheelFR" instance=ExtResource("2_wheel")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WheelFR"]
+shape = SubResource("SphereShape3D_wheel")
+
+[node name="WheelRL" type="RigidBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 0.3, -1.2)
+freeze = true
+collision_layer = 1
+collision_mask = 1
+
+[node name="WheelModel" parent="WheelRL" instance=ExtResource("2_wheel")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WheelRL"]
+shape = SubResource("SphereShape3D_wheel")
+
+[node name="WheelRR" type="RigidBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 0.3, -1.2)
+freeze = true
+collision_layer = 1
+collision_mask = 1
+
+[node name="WheelModel" parent="WheelRR" instance=ExtResource("2_wheel")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WheelRR"]
+shape = SubResource("SphereShape3D_wheel")
+
+[node name="BumperFront" type="RigidBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.6)
+freeze = true
+collision_layer = 1
+collision_mask = 1
+
+[node name="BumperModel" parent="BumperFront" instance=ExtResource("3_bumper")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BumperFront"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+shape = SubResource("BoxShape3D_bumper")
+
+[node name="DoorRight" type="RigidBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 0, 0)
+freeze = true
+collision_layer = 1
+collision_mask = 1
+
+[node name="DoorModel" parent="DoorRight" instance=ExtResource("4_door")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DoorRight"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("BoxShape3D_door")
+
+[node name="Outline" type="MeshInstance3D" parent="."]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8875, 0)
+mesh = SubResource("BoxMesh_outline")
+surface_material_override/0 = SubResource("Material_outline")
+
+[node name="HealthBar" type="MeshInstance3D" parent="."]
+visible = false
+position = Vector3(0, 2.1, 0)
+mesh = SubResource("QuadMesh_health")
+script = ExtResource("6_progress_bar")
+size = Vector2(1.8, 0.2)
+value = 100.0
+min_value = 0.0
+max_value = 100.0
+background_color = Color(0.08, 0.08, 0.09, 1)
+progress_color = Color(0.25, 0.85, 0.3, 1)
+billboard_mode = 1

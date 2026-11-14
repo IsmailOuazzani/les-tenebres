@@ -12,9 +12,10 @@ signal grabuge_changed(new_value: float)
 signal crowd_count_changed(new_value: int)
 signal disruption_recorded(total: int)
 ## Emitted when a cop goes down (scripts/police.gd's _on_died()) -- consumed
-## by scripts/snap_feed.gd to inject a "police defeated" message. See
+## by scripts/snap_feed.gd to inject a "police defeated" message. Carries
+## the Grabuge amount just awarded so the feed can display it. See
 ## agents/snap-feed-notes.md.
-signal police_defeated
+signal police_defeated(grabuge_gain: float)
 signal game_over
 
 const GRABUGE_MAX: float = 100.0
@@ -24,6 +25,7 @@ const GRABUGE_MAX: float = 100.0
 const GRABUGE_DECAY_PER_SECOND: float = 0.75
 const RECRUIT_GRABUGE_BONUS: float = 2.0
 const DISRUPTION_GRABUGE_BASE: float = 15.0
+const POLICE_DEFEAT_GRABUGE_BASE: float = 20.0
 ## Debug key (see scenes/test_map.gd) bump amount, per the original spec's
 ## "G: Increase Grabuge by 20."
 const DEBUG_GRABUGE_BUMP: float = 20.0
@@ -86,11 +88,12 @@ func record_disruption(magnitude: float = 1.0) -> void:
 	add_grabuge(DISRUPTION_GRABUGE_BASE * magnitude)
 
 
-## Fired by Police._on_died() -- no Grabuge/health effect of its own (cops
-## don't currently reward Grabuge on death), just a notification point for
-## the snap feed. See agents/snap-feed-notes.md.
+## Fired by Police._on_died() -- raises Grabuge by POLICE_DEFEAT_GRABUGE_BASE
+## and notifies the snap feed with the amount awarded. See
+## agents/snap-feed-notes.md.
 func record_police_defeat() -> void:
-	police_defeated.emit()
+	add_grabuge(POLICE_DEFEAT_GRABUGE_BASE)
+	police_defeated.emit(POLICE_DEFEAT_GRABUGE_BASE)
 
 
 ## Alternate game-over trigger alongside Grabuge decay: the player's own

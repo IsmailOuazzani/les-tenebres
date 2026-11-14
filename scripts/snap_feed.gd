@@ -140,8 +140,8 @@ func _on_disruption_recorded(_total: int) -> void:
 	_spawn_burst()
 
 
-func _on_police_defeated() -> void:
-	_push_system(SnapFeedData.random_police_defeat_message(_rng))
+func _on_police_defeated(grabuge_gain: float) -> void:
+	_push_system(SnapFeedData.random_police_defeat_message(_rng, int(grabuge_gain)))
 	_spawn_burst()
 
 

@@ -1,17 +1,28 @@
 extends Node3D
 class_name PoliceSpawner
 
-## Spawns one scripts/police.gd enemy every `spawn_interval` seconds at a
-## random point around the player, per agents/police-notes.md. Deliberately
-## simple, mirroring scripts/npc_spawner.gd's one-shot scatter but on a
-## repeating timer and centered on the (moving) player instead of a fixed
-## point.
+## Spawns scripts/police.gd enemies at a random point around the player, per
+## agents/police-notes.md. Mirrors scripts/npc_spawner.gd's Grabuge-scaled
+## trickle spawning (agents/protester-spawning-notes.md) instead of a flat
+## timer, per vision.md's "Escalating City Response": a bigger, louder
+## protest draws a bigger police response, up to a cap, rather than the same
+## cop showing up on the same clock no matter what's happening.
 
 @export var police_scene: PackedScene
 @export var player_path: NodePath
-@export var spawn_interval: float = 10.0
 @export var spawn_radius_min: float = 12.0
 @export var spawn_radius_max: float = 18.0
+
+## Spawn rate (cops/sec) scales with Grabuge between these two bounds:
+## rate(g) = spawn_rate_min + (spawn_rate_max - spawn_rate_min) * (g / 100)^spawn_rate_exponent
+## Same shape as NPCSpawner's trickle formula -- low and slow early on, only
+## ramping up hard once Grabuge is high.
+@export var spawn_rate_min: float = 0.05
+@export var spawn_rate_max: float = 0.3
+@export var spawn_rate_exponent: float = 1.8
+## Hard ceiling on concurrent live cops -- spawning pauses once this many
+## are already out there, regardless of Grabuge.
+@export var max_concurrent_police: int = 8
 
 ## How far into the camera's forward cone (dot product of normalized
 ## horizontal vectors, -1..1) a candidate point counts as "in view" and
@@ -28,17 +39,31 @@ func _ready() -> void:
 	_player = get_node_or_null(player_path)
 	if _player == null:
 		push_warning("PoliceSpawner: player_path did not resolve, nothing will spawn.")
-	_timer = spawn_interval
 
 
 func _process(delta: float) -> void:
 	if _player == null or police_scene == null:
 		return
 
+	if _count_live_police() >= max_concurrent_police:
+		return
+
 	_timer -= delta
 	if _timer <= 0.0:
-		_timer = spawn_interval
 		_spawn_police()
+		_timer = 1.0 / max(_spawn_rate(GameState.grabuge), 0.001)
+
+
+func _count_live_police() -> int:
+	for i in range(spawned_police.size() - 1, -1, -1):
+		if not is_instance_valid(spawned_police[i]):
+			spawned_police.remove_at(i)
+	return spawned_police.size()
+
+
+func _spawn_rate(grabuge: float) -> float:
+	var t: float = clamp(grabuge / GameState.GRABUGE_MAX, 0.0, 1.0)
+	return spawn_rate_min + (spawn_rate_max - spawn_rate_min) * pow(t, spawn_rate_exponent)
 
 
 func _spawn_police() -> void:

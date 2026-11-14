@@ -40,8 +40,18 @@
 [ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/light-square.glb" id="36_lamp"]
 [ext_resource type="PackedScene" path="res://scenes/destructible_prop.tscn" id="37_dstrprop"]
 [ext_resource type="PackedScene" path="res://scenes/effects/SmokeFumigene.tscn" id="38_smoke"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_commercial/detail-parasol-a.glb" id="39_parasola"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_commercial/detail-parasol-b.glb" id="40_parasolb"]
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_commercial/detail-awning.glb" id="41_awning"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
+sky_top_color = Color(0.3, 0.5, 0.75, 1)
+sky_horizon_color = Color(0.85, 0.75, 0.62, 1)
+sky_curve = 0.2
+ground_horizon_color = Color(0.85, 0.75, 0.62, 1)
+ground_bottom_color = Color(0.3, 0.27, 0.23, 1)
+sun_angle_max = 30.0
+sun_curve = 0.15
 
 [sub_resource type="Sky" id="Sky_e6t1a"]
 sky_material = SubResource("ProceduralSkyMaterial_yq8tt")
@@ -717,7 +727,7 @@ blend_shape_mode = 0
 shadow_mesh = SubResource("ArrayMesh_uhg7c")
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_m8t5h"]
-size = Vector3(112, 1, 132)
+size = Vector3(64, 1, 132)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_8de4v"]
 size = Vector3(2.29, 4.76, 4.47)
@@ -777,6 +787,8 @@ environment = SubResource("Environment_5wrcu")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=243494170]
 transform = Transform3D(0.8137977, -0.4545195, 0.3620723, 0, 0.6225147, 0.7826239, -0.5811571, -0.6368793, 0.5064741, 0, 10, 0)
+light_color = Color(1, 0.937, 0.835, 1)
+light_energy = 1.2
 shadow_enabled = true
 
 [node name="MapGeometry" type="Node3D" parent="." unique_id=1142602295]
@@ -1162,13 +1174,13 @@ transform = Transform3D(-1.7484555e-07, 0, 4, 0, 4, 0, -4, 0, -1.7484555e-07, 0,
 mesh = SubResource("ArrayMesh_ged5y")
 
 [node name="paris-building-a" parent="MapGeometry/Visuals" instance=ExtResource("31_parisa")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -36, 0, 36)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -13.435, 0, 36)
 
 [node name="paris-building-c" parent="MapGeometry/Visuals" instance=ExtResource("33_parisc")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -36, 2.16, -12)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -10.545, 2.16, -12)
 
 [node name="paris-building-b" parent="MapGeometry/Visuals" instance=ExtResource("32_parisb")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 36, 0, 36)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 20.2, 0, 36)
 
 [node name="road-square2" type="Node3D" parent="MapGeometry/Visuals" unique_id=53719853 instance=ExtResource("18_cgrq0")]
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -4, 0, -44)
@@ -1254,14 +1266,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, 24)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s0" unique_id=2200000002]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-s0-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000003 instance=ExtResource("5_udium")]
+[node name="road-straight-s0-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000101 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, 24)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s0-w" unique_id=2200000102]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-s0-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000103 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 24)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s0-e" unique_id=2200000104]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-s0-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000003 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, 24)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s0-w" unique_id=2200000004]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-s0-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000005 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 24)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, 24)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s0-e" unique_id=2200000006]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1272,14 +1296,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, 28)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s1" unique_id=2200000008]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-s1-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000009 instance=ExtResource("5_udium")]
+[node name="road-straight-s1-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000105 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, 28)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s1-w" unique_id=2200000106]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-s1-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000107 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 28)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s1-e" unique_id=2200000108]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-s1-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000009 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, 28)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s1-w" unique_id=2200000010]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-s1-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000011 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 28)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, 28)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s1-e" unique_id=2200000012]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1290,14 +1326,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, 32)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s2" unique_id=2200000014]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-s2-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000015 instance=ExtResource("5_udium")]
+[node name="road-straight-s2-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000109 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, 32)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s2-w" unique_id=2200000110]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-s2-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000111 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 32)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s2-e" unique_id=2200000112]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-s2-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000015 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, 32)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s2-w" unique_id=2200000016]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-s2-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000017 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 32)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, 32)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s2-e" unique_id=2200000018]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1308,14 +1356,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, 36)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s3" unique_id=2200000020]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-s3-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000021 instance=ExtResource("5_udium")]
+[node name="road-straight-s3-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000113 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, 36)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s3-w" unique_id=2200000114]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-s3-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000115 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 36)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s3-e" unique_id=2200000116]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-s3-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000021 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, 36)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s3-w" unique_id=2200000022]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-s3-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000023 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 36)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, 36)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s3-e" unique_id=2200000024]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1326,14 +1386,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, 40)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s4" unique_id=2200000026]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-s4-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000027 instance=ExtResource("5_udium")]
+[node name="road-straight-s4-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000117 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, 40)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s4-w" unique_id=2200000118]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-s4-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000119 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 40)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-s4-e" unique_id=2200000120]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-s4-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000027 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, 40)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s4-w" unique_id=2200000028]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-s4-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000029 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, 40)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, 40)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-s4-e" unique_id=2200000030]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1344,14 +1416,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, -24)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n0" unique_id=2200000032]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-n0-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000033 instance=ExtResource("5_udium")]
+[node name="road-straight-n0-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000121 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, -24)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n0-w" unique_id=2200000122]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-n0-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000123 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -24)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n0-e" unique_id=2200000124]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-n0-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000033 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, -24)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n0-w" unique_id=2200000034]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-n0-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000035 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -24)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, -24)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n0-e" unique_id=2200000036]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1362,14 +1446,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, -28)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n1" unique_id=2200000038]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-n1-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000039 instance=ExtResource("5_udium")]
+[node name="road-straight-n1-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000125 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, -28)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n1-w" unique_id=2200000126]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-n1-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000127 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -28)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n1-e" unique_id=2200000128]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-n1-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000039 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, -28)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n1-w" unique_id=2200000040]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-n1-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000041 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -28)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, -28)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n1-e" unique_id=2200000042]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1380,14 +1476,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, -32)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n2" unique_id=2200000044]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-n2-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000045 instance=ExtResource("5_udium")]
+[node name="road-straight-n2-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000129 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, -32)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n2-w" unique_id=2200000130]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-n2-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000131 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -32)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n2-e" unique_id=2200000132]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-n2-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000045 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, -32)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n2-w" unique_id=2200000046]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-n2-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000047 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -32)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, -32)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n2-e" unique_id=2200000048]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1398,14 +1506,26 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, -36)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n3" unique_id=2200000050]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-n3-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000051 instance=ExtResource("5_udium")]
+[node name="road-straight-n3-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000133 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, -36)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n3-w" unique_id=2200000134]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-n3-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000135 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -36)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n3-e" unique_id=2200000136]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-n3-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000051 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, -36)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n3-w" unique_id=2200000052]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-n3-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000053 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -36)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, -36)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n3-e" unique_id=2200000054]
 mesh = SubResource("ArrayMesh_1dn8e")
@@ -1416,32 +1536,44 @@ transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 0, 0, -40)
 [node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n4" unique_id=2200000056]
 mesh = SubResource("ArrayMesh_2jhn2")
 
-[node name="road-side-n4-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000057 instance=ExtResource("5_udium")]
+[node name="road-straight-n4-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000137 instance=ExtResource("2_pmkf2")]
 transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -4, 0, -40)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n4-w" unique_id=2200000138]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-straight-n4-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000139 instance=ExtResource("2_pmkf2")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -40)
+
+[node name="road-straight" type="MeshInstance3D" parent="MapGeometry/Visuals/road-straight-n4-e" unique_id=2200000140]
+mesh = SubResource("ArrayMesh_2jhn2")
+
+[node name="road-side-n4-w" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000057 instance=ExtResource("5_udium")]
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, -8, 0, -40)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n4-w" unique_id=2200000058]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="road-side-n4-e" type="Node3D" parent="MapGeometry/Visuals" unique_id=2200000059 instance=ExtResource("5_udium")]
-transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 4, 0, -40)
+transform = Transform3D(-0, 0, 4, 0, 4, 0, -4, 0, -0, 8, 0, -40)
 
 [node name="road-side" type="MeshInstance3D" parent="MapGeometry/Visuals/road-side-n4-e" unique_id=2200000060]
 mesh = SubResource("ArrayMesh_1dn8e")
 
 [node name="paris-building-w2" parent="MapGeometry/Visuals" unique_id=2200000061 instance=ExtResource("32_parisb")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -36, 0, 12)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -16.2, 0, 12)
 
 [node name="paris-building-w4" parent="MapGeometry/Visuals" unique_id=2200000062 instance=ExtResource("31_parisa")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -36, 0, -36)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -13.435, 0, -36)
 
 [node name="paris-building-e2" parent="MapGeometry/Visuals" unique_id=2200000063 instance=ExtResource("33_parisc")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 36, 2.16, 12)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 10.545, 2.16, 12)
 
 [node name="paris-building-e3" parent="MapGeometry/Visuals" unique_id=2200000064 instance=ExtResource("31_parisa")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 36, 0, -12)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 9.435, 0, -12)
 
 [node name="paris-building-e4" parent="MapGeometry/Visuals" unique_id=2200000065 instance=ExtResource("32_parisb")]
-transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 36, 0, -36)
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 20.2, 0, -36)
 
 [node name="StreetProps" type="Node3D" parent="MapGeometry/Visuals"]
 
@@ -1480,6 +1612,44 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 6)
 [node name="TestDumpster3" parent="MapGeometry/Visuals" instance=ExtResource("37_dstrprop")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, -6)
 
+[node name="BuildingFrontage" type="Node3D" parent="MapGeometry/Visuals"]
+
+[node name="Frontage_a" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("39_parasola")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -9, 0, 36)
+
+[node name="Frontage_b" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("40_parasolb")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 9, 0, 36)
+
+[node name="Frontage_c" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("41_awning")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -5, 0, -12)
+
+[node name="Frontage_w2" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("41_awning")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -5, 0, 12)
+
+[node name="Frontage_w4" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("39_parasola")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -9, 0, -36)
+
+[node name="Frontage_e2" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("40_parasolb")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 5, 0, 12)
+
+[node name="Frontage_e3" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("39_parasola")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 5, 0, -12)
+
+[node name="Frontage_e4" parent="MapGeometry/Visuals/BuildingFrontage" instance=ExtResource("40_parasolb")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 9, 0, -36)
+
+[node name="Lamp5" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -8, 0, 28)
+
+[node name="Lamp6" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 8, 0, 28)
+
+[node name="Lamp7" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -8, 0, -28)
+
+[node name="Lamp8" parent="MapGeometry/Visuals/StreetProps" instance=ExtResource("36_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 8, 0, -28)
+
 [node name="SmokeFX" type="Node3D" parent="MapGeometry/Visuals"]
 
 [node name="Smoke1" parent="MapGeometry/Visuals/SmokeFX" instance=ExtResource("38_smoke")]
@@ -1500,22 +1670,22 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -8)
 shape = SubResource("BoxShape3D_m8t5h")
 
 [node name="BuildingWest_0" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=1456554804]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 7.14, 36)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.435, 7.14, 36)
 
 [node name="@CollisionShape3D@62" type="CollisionShape3D" parent="MapGeometry/Collision/BuildingWest_0" unique_id=356195959]
-shape = SubResource("BoxShape3D_8de4v")
+shape = SubResource("BoxShape3D_paris3x_A")
 
 [node name="BuildingWest_2" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=1398771913]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 8.88, -12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.545, 8.88, -12)
 
 [node name="@CollisionShape3D@64" type="CollisionShape3D" parent="MapGeometry/Collision/BuildingWest_2" unique_id=1183373970]
-shape = SubResource("BoxShape3D_f5sdk")
+shape = SubResource("BoxShape3D_paris3x_C")
 
 [node name="BuildingEast_0" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=126851312]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 11.025, 36)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.2, 11.025, 36)
 
 [node name="@CollisionShape3D@66" type="CollisionShape3D" parent="MapGeometry/Collision/BuildingEast_0" unique_id=886285909]
-shape = SubResource("BoxShape3D_kin18")
+shape = SubResource("BoxShape3D_paris3x_B")
 
 [node name="RampCollision" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=300705232]
 transform = Transform3D(1, 0, 0, 0, 0.887217, 0.461353, 0, -0.461353, 0.887217, 0, 1.04, -52)
@@ -1530,31 +1700,31 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -58)
 shape = SubResource("BoxShape3D_tyrw0")
 
 [node name="Building_paris-building-w2" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=2200000066]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 11.025, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.2, 11.025, 12)
 
 [node name="@CollisionShape3D@2200000067" type="CollisionShape3D" parent="MapGeometry/Collision/Building_paris-building-w2" unique_id=2200000067]
 shape = SubResource("BoxShape3D_paris3x_B")
 
 [node name="Building_paris-building-w4" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=2200000068]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 7.14, -36)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.435, 7.14, -36)
 
 [node name="@CollisionShape3D@2200000069" type="CollisionShape3D" parent="MapGeometry/Collision/Building_paris-building-w4" unique_id=2200000069]
 shape = SubResource("BoxShape3D_paris3x_A")
 
 [node name="Building_paris-building-e2" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=2200000070]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 8.88, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.545, 8.88, 12)
 
 [node name="@CollisionShape3D@2200000071" type="CollisionShape3D" parent="MapGeometry/Collision/Building_paris-building-e2" unique_id=2200000071]
 shape = SubResource("BoxShape3D_paris3x_C")
 
 [node name="Building_paris-building-e3" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=2200000072]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 7.14, -12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.435, 7.14, -12)
 
 [node name="@CollisionShape3D@2200000073" type="CollisionShape3D" parent="MapGeometry/Collision/Building_paris-building-e3" unique_id=2200000073]
 shape = SubResource("BoxShape3D_paris3x_A")
 
 [node name="Building_paris-building-e4" type="StaticBody3D" parent="MapGeometry/Collision" unique_id=2200000074]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 11.025, -36)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.2, 11.025, -36)
 
 [node name="@CollisionShape3D@2200000075" type="CollisionShape3D" parent="MapGeometry/Collision/Building_paris-building-e4" unique_id=2200000075]
 shape = SubResource("BoxShape3D_paris3x_B")
@@ -1571,6 +1741,7 @@ script = ExtResource("26_npcspw")
 npc_scene = ExtResource("27_npcscn")
 npc_count = 30
 spawn_radius = 14.0
+player_path = NodePath("../Player")
 
 [node name="CrowdController" type="Node" parent="."]
 script = ExtResource("30_crowdctl")

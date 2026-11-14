@@ -109,7 +109,9 @@ The final screen displays:
 
 **Mob Imitation:** NPCs copy funny player actions, such as sitting in the road or climbing on objects.
 
-**Escalating City Response:** As Grabuge rises, the city responds with more obstacles, traffic disruptions, and police barricades.
+**Escalating City Response:** As Grabuge rises, the city responds with more obstacles, traffic disruptions, and police barricades. Police spawn rate already scales with Grabuge this way (same trickle-rate formula as Civilian Spawning, capped at a max concurrent count); obstacles/traffic/barricades are still unimplemented.
+
+**Civilian Spawning:** Bystanders trickle in near the player over time, at a rate that scales up with Grabuge (a bigger, louder protest draws more onlookers) up to a cap, and despawn once too far from the player. Keeps recruits available for the whole run instead of a one-time pool that runs dry.
 
 **Police:** Cops beeline for the player by default and only engage the crowd once the player actively directs part of it at them — standing nearby isn't enough to draw them into a fight. Police are a Send Mob target like any destructible object — the player can aim and "À L'ATTAQUE!" a cop directly, not just march the crowd near one and hope for an intercept.
 

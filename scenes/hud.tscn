@@ -1,10 +1,18 @@
-[gd_scene load_steps=6 format=3 uid="uid://chudmeta001"]
+[gd_scene load_steps=8 format=3 uid="uid://chudmeta001"]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://addons/compass/entities/compassbar.tscn" id="2_compassbar"]
 [ext_resource type="Script" path="res://scripts/compass_markers.gd" id="3_compassmarkers"]
 [ext_resource type="PackedScene" path="res://scenes/snap_feed.tscn" id="4_snapfeed"]
 [ext_resource type="Theme" path="res://themes/main_theme.tres" id="5_theme"]
+[ext_resource type="Shader" path="res://scripts/damage_flash.gdshader" id="6_damageflash"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_damageflash"]
+shader = ExtResource("6_damageflash")
+shader_parameter/flash_color = Color(0.8, 0, 0, 1)
+shader_parameter/intensity = 0.0
+shader_parameter/inner_radius = 0.35
+shader_parameter/feather = 0.65
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_script")
@@ -145,3 +153,13 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 alignment = 1
+
+[node name="DamageFlash" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+material = SubResource("ShaderMaterial_damageflash")
+color = Color(1, 1, 1, 1)
