@@ -10,6 +10,11 @@ class_name Police
 
 enum State { CHASE_PLAYER, FIGHT_PROTESTER, ATTACK_PLAYER }
 
+## Emitted on death, mirroring scripts/destructible_prop.gd's contract --
+## lets CrowdController clear `_attack_target` (CONNECT_ONE_SHOT) when a
+## directly-targeted cop goes down, same as a destroyed prop.
+signal destroyed
+
 @export var move_speed: float = 3.5
 @export var turn_speed: float = 6.0
 
@@ -35,15 +40,22 @@ var _attack_timer: float = 0.0
 @onready var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 @onready var health: HealthComponent = $HealthComponent
 @onready var _health_bar: ProgressBar3D = $HealthBar
+@onready var _outline: MeshInstance3D = $Outline
 
 
 func _ready() -> void:
 	add_to_group(&"police")
+	# Also a "destructible" -- per vision.md's "Police are a Send Mob target
+	# like any destructible object," the aim reticle/outline and Send Mob's
+	# direct-attack path (see Megaphone.gd / CrowdController._on_send_mob)
+	# both key off this group, same as scripts/destructible_prop.gd.
+	add_to_group(&"destructible")
 	health.health_changed.connect(_on_health_changed)
 	health.died.connect(_on_died)
 	_health_bar.max_value = health.max_health
 	_health_bar.value = health.current_health
 	_health_bar.visible = false
+	_outline.visible = false
 
 
 ## Called once by scripts/police_spawner.gd right after instantiating --
@@ -51,6 +63,21 @@ func _ready() -> void:
 ## NodePath set in the editor like CrowdController does.
 func setup(player_node: Node3D) -> void:
 	player = player_node
+
+
+## Called by Megaphone every frame the player's aim raycast is/isn't hitting
+## this cop -- same contract as scripts/destructible_prop.gd's set_targeted().
+func set_targeted(active: bool) -> void:
+	_outline.visible = active
+
+
+## Called directly by CrowdController (as the active `_attack_target`) for
+## every recruited NPC within its attack_range -- same contract as
+## scripts/destructible_prop.gd's take_damage(). Delegates to the same
+## HealthComponent a cop's melee damage already goes through, so direct
+## Send Mob damage and protester melee share one health pool.
+func take_damage(amount: float) -> void:
+	health.take_damage(amount)
 
 
 func _physics_process(delta: float) -> void:
@@ -138,17 +165,20 @@ func _tick_attack(delta: float, target: Node3D) -> void:
 		target_health.take_damage(damage_per_second * attack_interval)
 
 
-## Only considers protesters the player has actively sent charging (CHARGE
-## state) -- a FOLLOW-state crowd just standing/holding ground near the
-## player doesn't count as "intercepting," so this cop keeps beelining for
-## the player instead of engaging by proximity alone. See vision.md.
+## Only considers protesters that may engage THIS cop specifically -- see
+## NPC.can_engage(). A FOLLOW-state crowd just standing/holding ground near
+## the player never counts, so this cop keeps beelining for the player
+## instead of engaging by proximity alone; and a protester charging
+## straight at a *different* targeted cop doesn't get dragged into fighting
+## this one just by passing close, so only the actually-selected cop(s)
+## engage. See vision.md.
 func _find_nearest_protester() -> Node3D:
 	var nearest: Node3D = null
 	var nearest_dist: float = interception_radius
 	for protester in get_tree().get_nodes_in_group(&"protester"):
 		if not is_instance_valid(protester):
 			continue
-		if not protester.is_charging():
+		if not protester.can_engage(self):
 			continue
 		var dist: float = global_position.distance_to(protester.global_position)
 		if dist <= nearest_dist:
@@ -184,4 +214,5 @@ func _on_health_changed(current: float, max_value: float) -> void:
 
 
 func _on_died() -> void:
+	destroyed.emit()
 	queue_free()

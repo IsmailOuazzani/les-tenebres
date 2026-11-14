@@ -36,6 +36,16 @@ var home_position: Vector3
 var target_position: Vector3
 var state_timer: float = 0.0
 
+## Set by enter_charge_at_target() when this charge is chasing a moving
+## object (e.g. a cop) rather than a fixed point -- null for a plain
+## move-to-point Send Mob command. When set, _process_charge() re-reads
+## `target_position` from this target's live position every frame instead
+## of the one-shot snapshot taken at command time, per direct feedback: a
+## cop that moves after being targeted was otherwise never caught because
+## protesters charged toward where it *used* to be.
+var _charge_target: Node3D = null
+var _charge_offset: Vector3 = Vector3.ZERO
+
 ## Set once by CrowdController.recruit(). Null while this NPC is still an
 ## unrecruited wandering civilian.
 var crowd_controller: Node = null
@@ -121,6 +131,8 @@ func _find_nearest_cop() -> Node3D:
 	for cop in get_tree().get_nodes_in_group(&"police"):
 		if not is_instance_valid(cop):
 			continue
+		if not can_engage(cop):
+			continue
 		var dist: float = global_position.distance_to(cop.global_position)
 		if dist <= nearest_dist:
 			nearest = cop
@@ -179,6 +191,12 @@ func _process_charge(delta: float) -> void:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		return
+
+	if _charge_target != null:
+		if is_instance_valid(_charge_target):
+			target_position = _charge_target.global_position + _charge_offset
+		else:
+			_charge_target = null
 
 	var to_target: Vector3 = target_position - global_position
 	to_target.y = 0.0
@@ -253,13 +271,23 @@ func recruit(controller: Node) -> void:
 	add_to_group(&"protester")
 
 
-## True only while actively charging toward a Send Mob destination -- the
-## one state that counts as "the player directed this NPC somewhere." Police
-## (scripts/police.gd) only intercept/engage protesters that pass this check,
-## so a FOLLOW-state crowd standing near the player doesn't drag cops into
-## combat just by proximity.
-func is_charging() -> bool:
-	return state == State.CHARGE
+## True only while this protester may fight `cop` specifically. Two cases
+## count as "the player directed this NPC at a fight":
+## - A plain move-to-point charge (`_charge_target == null`, e.g. the player
+##   sent the mob near a cop without targeting it directly) -- any cop can
+##   be engaged, per the original distance-based interception design.
+## - A charge aimed at a specific destructible (`_charge_target != null`,
+##   e.g. this cop was outlined and Send Mob-ed directly) -- only THAT cop
+##   can be engaged, so other cops the charging protester happens to pass
+##   near stay ignored. Per direct feedback: targeting one cop was pulling
+##   every other nearby cop into fighting the crowd too, even ones the
+##   player never selected.
+## Either way, a FOLLOW/WANDER/IDLE protester (not charging at all) never
+## engages -- see police.gd and the comment in _physics_process() above.
+func can_engage(cop: Node3D) -> bool:
+	if state != State.CHARGE:
+		return false
+	return _charge_target == null or _charge_target == cop
 
 
 ## Called by CrowdController to send this NPC charging toward a destination
@@ -269,7 +297,21 @@ func is_charging() -> bool:
 ## command (CrowdController doesn't distinguish the two at this level).
 func enter_charge(destination: Vector3, reaction_delay: float) -> void:
 	state = State.CHARGE
+	_charge_target = null
 	target_position = destination
+	state_timer = reaction_delay
+
+
+## Same as enter_charge(), but `target`'s live position (see
+## _process_charge()) drives the destination every frame instead of a
+## one-shot snapshot -- used for Send Mob commands aimed at a moving
+## "destructible" (currently only police). `offset` is the scattered
+## position relative to the target, per CrowdController's charge_spread_radius.
+func enter_charge_at_target(target: Node3D, offset: Vector3, reaction_delay: float) -> void:
+	state = State.CHARGE
+	_charge_target = target
+	_charge_offset = offset
+	target_position = target.global_position + offset
 	state_timer = reaction_delay
 
 

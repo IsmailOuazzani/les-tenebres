@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://cpoliceenemy01"]
+[gd_scene load_steps=12 format=3 uid="uid://cpoliceenemy01"]
 
 [ext_resource type="Script" path="res://scripts/police.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/health_component.gd" id="2_health"]
@@ -23,6 +23,19 @@ height = 0.44
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
 albedo_color = Color(0.85, 0.1, 0.1, 1)
 
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_outline"]
+radius = 0.42
+height = 1.74
+
+[sub_resource type="StandardMaterial3D" id="Material_outline"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.2, 0.45)
+transparency = 1
+cull_mode = 2
+emission_enabled = true
+emission = Color(1, 0.85, 0.2, 1)
+emission_energy_multiplier = 1.0
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_health"]
 resource_local_to_scene = true
 shader = ExtResource("4_progress_bar_shader")
@@ -37,7 +50,7 @@ material = SubResource("ShaderMaterial_health")
 size = Vector2(0.7, 0.1)
 
 [node name="Police" type="CharacterBody3D"]
-collision_layer = 4
+collision_layer = 5
 collision_mask = 5
 floor_snap_length = 0.5
 script = ExtResource("1_script")
@@ -57,6 +70,12 @@ surface_material_override/0 = SubResource("StandardMaterial3D_body")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("SphereMesh_head")
 surface_material_override/0 = SubResource("StandardMaterial3D_head")
+
+[node name="Outline" type="MeshInstance3D" parent="."]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+mesh = SubResource("CapsuleMesh_outline")
+surface_material_override/0 = SubResource("Material_outline")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")

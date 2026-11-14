@@ -118,3 +118,76 @@ Not verified in-engine (no display access here) -- someone should confirm:
 a cop beelines straight through/past a standing FOLLOW crowd without
 stopping, and only breaks off once a Send Mob charge lands a few protesters
 near it.
+
+## Update: police are now a direct Send Mob target
+
+Direct feedback: aiming at a cop didn't outline it like `destructible_prop`
+(trash etc.) does -- turned out cops were on physics layer 3 ("NPCs") only,
+and `Megaphone`'s aim raycast queries layer 1 ("Objects") by default, so the
+ray never even hit a cop. Per the updated vision.md ("Police are a Send Mob
+target like any destructible object"), fixed end to end:
+
+- `scenes/police.tscn`: `collision_layer` changed from `4` (NPCs only) to
+  `5` (NPCs | Objects) so the aim raycast can hit a cop at all. Added an
+  `Outline` capsule mesh (same yellow-highlight material/pattern as
+  `destructible_prop.tscn`'s Outline), hidden by default.
+- `scripts/police.gd`: joins the `"destructible"` group alongside the
+  existing `"police"` group; added `set_targeted(active)` (toggles the new
+  Outline) and `take_damage(amount)` (delegates to the existing
+  `HealthComponent`) matching `destructible_prop.gd`'s contract exactly, so
+  `Megaphone`'s reticle and `CrowdController`'s `_on_send_mob`/
+  `_process_attack_target_damage` need zero special-casing for cops. Added
+  a `destroyed` signal, emitted from `_on_died()` before `queue_free()`, so
+  `CrowdController`'s one-shot `_attack_target.destroyed` connection clears
+  correctly when a directly-targeted cop dies.
+
+Deliberately did *not* bypass the CHARGE-gated interception above: Send
+Mob-ing a cop doesn't fight it directly by itself, it just sends selected
+protesters charging toward the cop's position, which is exactly what makes
+them `is_charging()` and lets the existing interception/melee logic (plus
+CrowdController's passive attack-target damage tick) take over once they
+arrive. No new combat path, just a new way to aim the existing one.
+
+Not verified in-engine (no display access here) -- someone should confirm:
+the cop actually gets the yellow outline when aimed at, Send Mob-ing a cop
+spawns the attack marker/flash like any other target, and the cop's health
+bar ticks down correctly from both a direct charge and ordinary protester
+melee.
+
+## Update: charges now track a moving target; interception scoped per-cop
+
+Two more bugs from direct feedback, same session:
+
+1. **Charging at a cop that then moves** never actually caught it --
+   `CrowdController._on_send_mob` took a one-shot snapshot of
+   `target.global_position` at command time, so protesters charged toward
+   where the cop *used to be*. Fixed with a new `NPC.enter_charge_at_target
+   (target, offset, reaction_delay)` (alongside the existing
+   `enter_charge(destination, ...)` for plain move-to-point commands):
+   stores the target + a scatter offset, and `_process_charge()` re-reads
+   `target.global_position + offset` every frame instead of a static
+   `target_position`. `CrowdController` now calls this variant whenever
+   `_on_send_mob`'s `target` is non-null; stationary destructibles (props)
+   behave identically either way since their position never changes.
+
+2. **Targeting one cop pulled every other nearby cop into fighting the
+   crowd too**, even cops the player never selected -- `_find_nearest_
+   protester()`/`_find_nearest_cop()` only checked "is this protester
+   charging at all," not *which* cop/target it was actually sent at.
+   Replaced `NPC.is_charging()` with `NPC.can_engage(cop)`: true for a
+   plain move-to-point charge (`_charge_target == null` -- any cop may
+   still intercept, the original distance-based design for "directed near
+   a cop without selecting it"), but for a charge aimed at a specific
+   destructible (`_charge_target != null`) only *that* object counts, so a
+   protester charging at cop A no longer fights cop B just by passing near
+   it. Applied symmetrically on both sides (`Police._find_nearest_
+   protester()` and `NPC._find_nearest_cop()`).
+
+Newly spawned cops still default to `State.CHASE_PLAYER` (`PoliceSpawner.
+_spawn_police()` calls `setup(player)` right after instantiate, and that's
+the var's default) -- confirmed unaffected by either fix, just flagging
+since it was called out as a must-hold invariant.
+
+Not verified in-engine: does a charging protester actually catch up to a
+cop that keeps moving away, and does targeting cop A while cop B is nearby
+leave cop B chasing the player undisturbed.

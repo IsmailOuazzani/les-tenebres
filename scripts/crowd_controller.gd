@@ -155,14 +155,22 @@ func _on_send_mob(percentage: float, target: Node3D, point: Vector3) -> void:
 		return
 	var selected: Array = _take_ring_slice(count)
 
-	var destination_center: Vector3 = point
 	if target != null:
 		_attack_target = target
 		_attack_target.destroyed.connect(_on_attack_target_destroyed, CONNECT_ONE_SHOT)
-		destination_center = target.global_position
+
+		# Live-track the target instead of a one-shot position snapshot --
+		# per direct feedback, a cop that moves after being targeted was
+		# otherwise never caught because protesters charged toward where it
+		# *used* to be. See NPC.enter_charge_at_target().
+		for npc in selected:
+			var offset: Vector3 = _scatter_point(Vector3.ZERO, charge_spread_radius)
+			var delay: float = randf_range(0.0, charge_reaction_delay_max)
+			npc.enter_charge_at_target(target, offset, delay)
+		return
 
 	for npc in selected:
-		var destination: Vector3 = _scatter_point(destination_center, charge_spread_radius)
+		var destination: Vector3 = _scatter_point(point, charge_spread_radius)
 		var delay: float = randf_range(0.0, charge_reaction_delay_max)
 		npc.enter_charge(destination, delay)
 
