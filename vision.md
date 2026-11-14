@@ -77,6 +77,8 @@ The mob should feel like a living, slightly uncontrollable entity.
 
 NPCs should also imitate certain player actions where appropriate, creating emergent comedy.
 
+**Physical size vs. damage range are separate knobs.** How tightly bodies can pack together (for a dense mob look) and how close something needs to be to deal/take damage are deliberately independent — shrinking one doesn't shrink the other. See "Tweakable Parameters" below.
+
 ## Grabuge: the One Shared Resource
 
 **Grabuge** is the protest's single shared meter of chaos and excitement (0-100%). It replaces any separate publicity, enthusiasm, or patience-style meters — there is only one number to manage.
@@ -140,6 +142,12 @@ Build the smallest prototype that proves the central mechanic is fun.
 4. **Comedy through simulation.** Funny moments emerge from NPC physics and interactions, not scripted cutscenes.
 5. **Constant risk and reward.** Bigger disruptions raise Grabuge faster but risk scattering the crowd.
 6. **Replayability over narrative.** Short sandbox runs centered on beating your previous high score.
+
+## Tweakable Parameters
+
+Gameplay-relevant ratios/knobs worth knowing exist, without duplicating every number here (see each script for current defaults and `agents/crowd-swarm-notes.md` for rationale):
+
+- **Collider-to-damage ratio** (`NPC.collider_to_damage_ratio`, `Police.collider_to_damage_ratio`): physical collision size as a fraction of attack range. Lower = bodies can overlap/pack tighter for a denser mob visual, without changing when they can actually hit or be hit.
 
 ## The Core Design Test
 

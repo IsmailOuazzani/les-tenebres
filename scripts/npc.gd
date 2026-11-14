@@ -39,7 +39,7 @@ enum State { IDLE, WANDER, FOLLOW, CHARGE }
 ## recruited protesters pack tightly for a dense mob visual without
 ## shrinking or growing attack_range, which stays the actual gameplay-
 ## relevant "can I hit/be hit" distance.
-@export var collider_to_damage_ratio: float = 0.3
+@export var collider_to_damage_ratio: float = 0.15
 
 var state: State = State.IDLE
 var home_position: Vector3

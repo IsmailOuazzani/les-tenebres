@@ -37,7 +37,7 @@ signal destroyed
 ## (physical separation only) is sized as this fraction of attack_range so a
 ## cop can be packed into/surrounded by a dense mob without that mob's
 ## actual engagement range changing.
-@export var collider_to_damage_ratio: float = 0.3
+@export var collider_to_damage_ratio: float = 0.15
 
 var state: State = State.CHASE_PLAYER
 var player: Node3D = null

@@ -121,6 +121,7 @@ func _process(delta: float) -> void:
 		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
 		var percentage: float = _current_send_percentage(held_msec)
 		charge_label.text = "%d%% (%d)" % [roundi(percentage * 100.0), _current_selected_count(percentage)]
+		AudioManager.update_send_charge(percentage)
 
 	if not _recruiting_held:
 		return
@@ -141,10 +142,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"primary_action"):
 		_send_held = true
 		_send_press_time_msec = Time.get_ticks_msec()
+		AudioManager.start_send_charge()
 	elif event.is_action_released(&"primary_action"):
 		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
 		_send_held = false
 		charge_label.text = ""
+		AudioManager.stop_send_charge()
 		_do_send_mob(_current_send_percentage(held_msec), _aim_target, _aim_point)
 
 
@@ -256,11 +259,13 @@ func _start_recruit() -> void:
 	_update_recruit_circle_transform()
 	_recruit_burst_timer = 0.0
 	_show_feedback("RECRUITING...", Color(0.35, 0.9, 0.45))
+	AudioManager.start_megaphone_recruit()
 
 
 func _stop_recruit() -> void:
 	_recruiting_held = false
 	recruit_circle.visible = false
+	AudioManager.stop_megaphone_recruit()
 
 
 ## Fires the one unified Send Mob command. `target` non-null means the
@@ -271,6 +276,7 @@ func _stop_recruit() -> void:
 ## feedback, not two separate code paths.
 func _do_send_mob(percentage: float, target: Node3D, point: Vector3) -> void:
 	_play_raise_shake()
+	AudioManager.play_attack_command()
 	var percent_text: String = "%d%%" % roundi(percentage * 100.0)
 	if target != null:
 		_flash_screen()

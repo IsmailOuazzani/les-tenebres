@@ -104,3 +104,67 @@ looks right, need an eyeball pass via `task run`.
   only the agreed shortlist (street props, bus, glass) was done.
 - The one untextured normal-map surface on Paris Building A
   (`agents/map-dressing-notes.md`) is unrelated and untouched.
+
+## Update: Tier 1 batch (9 more props, still not placed in the map)
+
+Follow-up brainstorm surfaced a much bigger list of destructible candidates,
+split into "Tier 1" (zero new downloads -- models already sitting unused in
+`assets/`) and "Tier 2" (would need a new pack, e.g. Kenney Furniture Kit, or
+a statue). User asked for Tier 1 only. Nine more scenes, same two patterns
+as before (`destructible_prop.gd` for static props, `destructible_vehicle.gd`
+for vehicles with debris) -- no new scripts needed this round:
+
+**Static props** (Kenney 4x scale convention, from `kenney_city_kit_roads/`
+and `kenney_city_kit_commercial/`, all previously-unused models):
+- `scenes/destructible_fence.tscn` -- `construction-fence.glb`, 50 HP
+- `scenes/destructible_electricity_pole.tscn` -- `electricity-pole.glb`
+  (pole + crossbar, hence the wide bounding box), 200 HP
+- `scenes/destructible_lamp_post.tscn` -- `light-curved.glb`, 120 HP
+- `scenes/destructible_bridge_pillar.tscn` -- `bridge-pillar.glb`, 400 HP
+  (toughest of everything built so far, by design -- a structural pillar
+  should outlast a traffic cone)
+- `scenes/destructible_highway_sign.tscn` -- `sign-highway.glb`, 180 HP
+  (a 4m-wide overhead gantry sign at 4x scale, not a small roadside sign)
+- `scenes/destructible_awning.tscn` -- `detail-awning.glb`, 40 HP
+- `scenes/destructible_parasol.tscn` -- `detail-parasol-a.glb`, 25 HP
+  (flimsiest, same tier as the cone)
+
+**Vehicles** (`destructible_vehicle.gd`, Kenney Car Kit's real-world-ish
+scale convention, same 4-wheel + bumper + door debris recipe as the bus):
+- `scenes/destructible_sedan.tscn` -- `sedan.glb` + `wheel-default.glb`
+  (smaller wheel radius than the truck's `wheel-truck.glb`, same 0.3m
+  radius coincidentally), 120 HP
+- `scenes/destructible_ambulance.tscn` -- `ambulance.glb`, same wheel/debris
+  set, 250 HP
+
+`assets/kenney_car_kit/` gained `sedan.glb`, `ambulance.glb`, and
+`wheel-default.glb` (copied from the same already-downloaded Car Kit zip
+used for the bus -- no new download needed).
+
+Verified the same way as the first batch: a throwaway main-scene + Node
+script booted via `godot --headless --path . <scene> --quit-after 8`
+(plain `--script` mode can't resolve the `GameState` autoload), confirming
+all nine join the `"destructible"` group and fire `destroyed` on reaching
+zero health, zero new errors. Debug script/scene deleted after use.
+
+**Not visually confirmed** -- no display in this session.
+
+### Note on git history
+
+Partway through this session the repo's git log picked up commits (e.g.
+`72b39d2`, `f3a0bf2`) that bundle some of this work together with unrelated
+NPC/police/spawner changes that weren't made by this session. Per
+CLAUDE.md's "multiple agents may be working in this repo" warning, this
+looks like another concurrent agent's commit swept up this session's
+untracked files rather than anything done here -- this session never ran
+`git commit`. Flagging it rather than touching the history.
+
+### Still open (Tier 2, not built)
+
+- Kenney Furniture Kit (https://kenney.nl/assets/furniture-kit, CC0, ~140
+  models) -- benches, trash cans, more street furniture in one pull.
+- Statue (CC-BY Zsky vs. CC0 Quaternius Fox/Mannequin, per
+  `agents/prop-character-assets-research.md`).
+- Newsstand/phone booth/market stall -- found via Polyfork/Sketchfab but
+  licenses are mixed per-model there, needs individual verification before
+  use.

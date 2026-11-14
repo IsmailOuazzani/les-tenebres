@@ -138,6 +138,7 @@ func _recruit(npc: Node3D) -> void:
 	recruited.append(npc)
 	npc.recruit(self)
 	GameState.recruit_npc()
+	AudioManager.play_recruit_feedback(npc.global_position)
 
 
 ## Called by an NPC's own death handler (scripts/npc.gd's _on_died()) once a
@@ -167,6 +168,7 @@ func _on_send_mob(percentage: float, target: Node3D, point: Vector3) -> void:
 	if count <= 0:
 		return
 	var selected: Array = _take_ring_slice(count)
+	AudioManager.play_mob_roar(count)
 
 	if target != null:
 		_attack_target = target

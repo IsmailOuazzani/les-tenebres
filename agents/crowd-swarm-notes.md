@@ -153,3 +153,54 @@ before calling this stage done.**
   the generic uniform-disc scatter exists.
 - `vision.md` was intentionally not edited this pass (explicit instruction —
   "vision stays the vision").
+
+## Collider-to-damage ratio (2026-11-14)
+
+Per direct request: "reduce their collider box... ideally the damage area
+where they take damage remains the same, but collider is smaller so we can
+get better mob effects." The ask was specifically to decouple two things
+that happened to share one number before:
+
+- **Physical collider** (`CollisionShape3D`'s `CapsuleShape3D`, used only by
+  `move_and_slide()` for body-to-body/body-to-world separation) -- this is
+  what determines how tightly NPCs/cops can visually pack into a dense mob
+  before physics pushes them apart.
+- **Damage area** (`attack_range` on `NPC`/`Police`) -- a pure
+  `distance_to()` check in `_find_nearest_cop()` / `_find_nearest_protester()`
+  / `_process_attack_player()` etc. Never read the physical collider at all,
+  so it was already independent in code -- but there was no single tunable
+  expressing "how much smaller should the collider be than the damage area,"
+  and the old fixed `CapsuleShape3D.radius = 0.35` in each `.tscn` had no
+  relationship to `attack_range = 1.5` at all.
+
+**Implementation:** added `@export var collider_to_damage_ratio` to both
+`scripts/npc.gd` and `scripts/police.gd` (default `0.15`). A new
+`_apply_collider_ratio()`, called from `_ready()`, sets the capsule's
+`radius = attack_range * collider_to_damage_ratio` (currently `1.5 * 0.15 =
+0.225`, down from the old fixed `0.35`). `attack_range` itself is untouched,
+so combat distance feels exactly the same as before -- only physical packing
+density changed.
+
+**Pitfall hit and fixed:** `CollisionShape3D.shape` sub-resources defined
+inline in a `.tscn` are **shared by reference** across every instance of
+that scene (confirmed via a headless debug script: mutating one instance's
+capsule radius mutated a second instance's too). Since every NPC currently
+computes the exact same ratio value, this wasn't visibly broken, but it's a
+landmine the moment `attack_range` or `collider_to_damage_ratio` ever gets
+per-instance variance (the pack already does this for move speed via
+`_speed_variance`, so it's not a hypothetical). Fixed by duplicating the
+shape (`collision_shape.shape.duplicate()`) before mutating it in
+`_apply_collider_ratio()`, giving each instance its own independent
+`CapsuleShape3D`.
+
+Noted in `vision.md`'s new "Tweakable Parameters" section as a one-line
+pointer back here, per the rule that vision.md stays short.
+
+**Not verified visually** -- no display in this environment. Confirmed via
+headless scripts only: computed radius is correct (`0.225`), independent
+per-instance (no shared-resource regression), and a full headless boot shows
+no new script/compile errors. Someone should run the game and watch a
+charging mob to confirm the tighter packing actually reads as a denser,
+more satisfying "mob effect" and doesn't look like bodies are clipping
+through each other in a distracting way -- if `0.15` ends up too
+aggressive/too subtle, it's a one-line default change in both scripts.
