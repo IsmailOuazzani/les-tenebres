@@ -1,6 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://cnpcwander001"]
+[gd_scene load_steps=10 format=3 uid="uid://cnpcwander001"]
 
 [ext_resource type="Script" path="res://scripts/npc.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/health_component.gd" id="2_health"]
+[ext_resource type="Script" path="res://addons/progress_bar_3d/progress_bar_3d.gd" id="3_progress_bar"]
+[ext_resource type="Shader" path="res://addons/progress_bar_3d/progress_bar_3d_unshaded_no_shadows_no_depth_test.gdshader" id="4_progress_bar_shader"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.35
@@ -16,6 +19,19 @@ height = 0.44
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
 albedo_color = Color(0.92, 0.82, 0.7, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_health"]
+resource_local_to_scene = true
+shader = ExtResource("4_progress_bar_shader")
+shader_parameter/background_color = Color(0.08, 0.08, 0.09, 1)
+shader_parameter/progress_color = Color(0.25, 0.85, 0.3, 1)
+shader_parameter/progress_value = 1.0
+shader_parameter/billboard_mode = 1
+
+[sub_resource type="QuadMesh" id="QuadMesh_health"]
+resource_local_to_scene = true
+material = SubResource("ShaderMaterial_health")
+size = Vector2(0.7, 0.1)
 
 [node name="NPC" type="CharacterBody3D"]
 collision_layer = 4
@@ -37,3 +53,20 @@ mesh = SubResource("CapsuleMesh_body")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.75, 0)
 mesh = SubResource("SphereMesh_head")
 surface_material_override/0 = SubResource("StandardMaterial3D_head")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 25.0
+
+[node name="HealthBar" type="MeshInstance3D" parent="."]
+visible = false
+position = Vector3(0, 2.15, 0)
+mesh = SubResource("QuadMesh_health")
+script = ExtResource("3_progress_bar")
+size = Vector2(0.7, 0.1)
+value = 25.0
+min_value = 0.0
+max_value = 25.0
+background_color = Color(0.08, 0.08, 0.09, 1)
+progress_color = Color(0.25, 0.85, 0.3, 1)
+billboard_mode = 1

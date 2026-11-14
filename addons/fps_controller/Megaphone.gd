@@ -4,11 +4,11 @@ class_name Megaphone
 ## First-person megaphone viewmodel + click/hold-command hooks.
 ##
 ## This node is purely player-facing: it owns the held prop, the recruitment
-## influence cone, the aim reticle/outline, raise/shake animation, and the
-## signal below. It does NOT know about NPCs or the crowd --
+## ground-circle indicator, the aim reticle/outline, raise/shake animation,
+## and the signal below. It does NOT know about NPCs or the crowd --
 ## CrowdController (scripts/crowd_controller.gd) polls `is_recruiting_held()`
-## / `is_point_within_cone()` and listens for `send_mob_triggered` itself
-## rather than this script reaching into NPCs. See `agents/megaphone-notes.md`
+## / `is_point_within_recruit_range()` and listens for `send_mob_triggered`
+## itself rather than this script reaching into NPCs. See `agents/megaphone-notes.md`
 ## and `agents/mob-selector-notes.md` for the full integration contract.
 ##
 ## Checking `is_in_group("destructible")` on the raycast hit below is the one
@@ -18,10 +18,10 @@ class_name Megaphone
 ## Emitted when the player releases Send Mob (hold Left Click). `percentage`
 ## (0-1) is how much of the recruited mob to commit, per the hold-to-charge
 ## ramp. `target` is the destructible object the reticle was outlining at
-## release time, or null if the reticle was showing the yellow-ball fallback
-## -- per agents/mob-selector-notes.md, attack and regroup are the same
-## command; CrowdController decides what null vs. non-null means.
-signal send_mob_triggered(percentage: float, target: Node3D)
+## release time (attack it), or null if the reticle was showing the
+## yellow-ball fallback -- in which case `point` (the aim raycast's hit
+## point) is where to send the mob instead.
+signal send_mob_triggered(percentage: float, target: Node3D, point: Vector3)
 
 @export var ray_range := 50.0
 ## Physics layer mask used for the aim raycast. Defaults to layer 1
@@ -37,28 +37,25 @@ signal send_mob_triggered(percentage: float, target: Node3D)
 ## something (0-1).
 @export var send_tap_floor_percentage := 0.1
 
-## -- Recruitment influence cone --
-## Driven by GameState.grabuge (0-100%): linearly interpolated from the
-## *_min values at 0% to the *_max values at 100%. `cone_range`/
-## `cone_angle_degrees` below are the live computed values (read by
-## is_point_within_cone() and the visual mesh) -- don't edit those
-## directly, tune the min/max exports instead.
-@export var cone_range_min := 6.0
-@export var cone_range_max := 35.0
-@export var cone_angle_min := 25.0
-@export var cone_angle_max := 80.0
-
-var cone_range: float = cone_range_min
-var cone_angle_degrees: float = cone_angle_min
+## -- Recruitment range --
+## Fixed radius (meters) of the ground circle showing the player's area of
+## influence while recruiting. Not tied to GameState.grabuge for now.
+@export var recruit_radius := 2.0
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var muzzle: Marker3D = $VisualRoot/MuzzlePoint
 @onready var burst: CPUParticles3D = $VisualRoot/Burst
+@onready var ui_layer: CanvasLayer = $UILayer
 @onready var flash: ColorRect = $UILayer/Flash
 @onready var feedback_label: Label = $UILayer/FeedbackLabel
 @onready var reticle_dot: Label = $UILayer/ReticleDot
 @onready var charge_label: Label = $UILayer/ChargeLabel
-@onready var influence_cone: MeshInstance3D = $InfluenceCone
+@onready var recruit_circle: MeshInstance3D = $RecruitCircle
+
+## Whether this weapon is the one currently equipped. Owned by
+## WeaponSwitcher.gd (see addons/fps_controller/WeaponSwitcher.gd) via
+## activate()/deactivate() below -- Megaphone never decides this itself.
+var _is_active: bool = true
 
 var _rest_position: Vector3
 var _rest_rotation: Vector3
@@ -76,8 +73,14 @@ const RECRUIT_BURST_INTERVAL := 0.5
 ## now -- see agents/mob-selector-notes.md. Non-null only when the hit
 ## object is in the "destructible" group; everything else (ground, walls,
 ## empty air, non-interactable props) falls back to null, shown as the
-## yellow-ball reticle.
+## yellow-ball reticle -- `_aim_point` below is where the mob goes instead.
 var _aim_target: Node3D = null
+## The aim raycast's hit point (or a point `ray_range` out along the look
+## direction if the ray hits nothing), re-resolved every frame alongside
+## `_aim_target`. Used as the Send Mob destination whenever `_aim_target`
+## is null -- i.e. aiming at ground/world geometry sends the mob there
+## instead of back to the player.
+var _aim_point: Vector3 = Vector3.ZERO
 
 ## -- Send Mob hold-to-charge --
 var _send_held: bool = false
@@ -91,18 +94,19 @@ func _ready() -> void:
 	feedback_label.text = ""
 	feedback_label.modulate.a = 0.0
 	charge_label.text = ""
-	influence_cone.visible = false
-	GameState.grabuge_changed.connect(_on_grabuge_changed)
-	_on_grabuge_changed(GameState.grabuge)
+	recruit_circle.visible = false
+	_update_recruit_circle_shape()
 
 
 ## Pulses the recruit particle burst at the horn's mouth every
-## RECRUIT_BURST_INTERVAL seconds while the cone is active -- subtle
+## RECRUIT_BURST_INTERVAL seconds while recruiting is active -- subtle
 ## "sound-wave" feedback per vision.md's megaphone description, using the
 ## existing one-shot burst rather than a new effect. Also re-resolves the aim
 ## reticle every frame and, while Send Mob is held, updates the live charge
 ## percentage readout.
 func _process(delta: float) -> void:
+	if not _is_active:
+		return
 	_update_aim_target()
 
 	if _send_held:
@@ -112,6 +116,7 @@ func _process(delta: float) -> void:
 
 	if not _recruiting_held:
 		return
+	_update_recruit_circle_transform()
 	_recruit_burst_timer -= delta
 	if _recruit_burst_timer <= 0.0:
 		_recruit_burst_timer = RECRUIT_BURST_INTERVAL
@@ -119,6 +124,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _is_active:
+		return
 	if event.is_action_pressed(&"recruit"):
 		_start_recruit()
 	elif event.is_action_released(&"recruit"):
@@ -130,13 +137,35 @@ func _unhandled_input(event: InputEvent) -> void:
 		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
 		_send_held = false
 		charge_label.text = ""
-		_do_send_mob(_current_send_percentage(held_msec), _aim_target)
+		_do_send_mob(_current_send_percentage(held_msec), _aim_target, _aim_point)
 
 
-## True while the player is holding the recruit input and the influence cone
-## is showing. CrowdController polls this each physics frame.
+## True while the player is holding the recruit input and the ground
+## recruitment circle is showing. CrowdController polls this each physics frame.
 func is_recruiting_held() -> bool:
 	return _recruiting_held
+
+
+## Called by WeaponSwitcher.gd when the player equips this weapon.
+func activate() -> void:
+	_is_active = true
+	visual_root.visible = true
+	ui_layer.visible = true
+
+
+## Called by WeaponSwitcher.gd when the player switches away from this
+## weapon. Drops recruiting and clears any outline so neither lingers on an
+## object while the megaphone isn't even equipped.
+func deactivate() -> void:
+	_is_active = false
+	_stop_recruit()
+	_send_held = false
+	charge_label.text = ""
+	if _aim_target != null and is_instance_valid(_aim_target) and _aim_target.has_method("set_targeted"):
+		_aim_target.set_targeted(false)
+	_aim_target = null
+	visual_root.visible = false
+	ui_layer.visible = false
 
 
 ## Maps a hold duration to a commit percentage (0-1): linear ramp from
@@ -148,11 +177,30 @@ func _current_send_percentage(held_msec: int) -> float:
 
 
 ## Re-raycasts along the camera's look direction every frame and updates
-## `_aim_target` + the reticle visuals. Clears the outline on whatever was
-## previously targeted before (possibly) placing it on something new, since
-## only one object should ever be outlined at a time.
+## `_aim_target`/`_aim_point` + the reticle visuals. Clears the outline on
+## whatever was previously targeted before (possibly) placing it on
+## something new, since only one object should ever be outlined at a time.
 func _update_aim_target() -> void:
-	var hit_target: Node3D = _raycast_destructible()
+	var hit_target: Node3D = null
+	var hit_point: Vector3 = global_position - global_transform.basis.z * ray_range
+
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		var origin: Vector3 = cam.global_transform.origin
+		var direction: Vector3 = -cam.global_transform.basis.z
+		var space_state := get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(
+				origin, origin + direction * ray_range, ray_collision_mask)
+		var result := space_state.intersect_ray(query)
+		if result:
+			hit_point = result.position
+			var collider: Object = result.collider
+			if collider is Node3D and collider.is_in_group(&"destructible"):
+				hit_target = collider
+		else:
+			hit_point = origin + direction * ray_range
+
+	_aim_point = hit_point
 
 	if hit_target == _aim_target:
 		return
@@ -168,106 +216,77 @@ func _update_aim_target() -> void:
 	reticle_dot.visible = _aim_target == null
 
 
-## True if `point` (world space) falls inside the recruitment cone right now
-## -- a simple range + half-angle check against the active camera, decoupled
-## from the cone's visual mesh so recruitment logic doesn't depend on the
-## mesh being pixel-perfect.
-func is_point_within_cone(point: Vector3) -> bool:
+## True if `point` (world space) falls inside the recruitment radius right
+## now -- a flat, omnidirectional horizontal-distance check centered on the
+## player (ignores height), decoupled from the ground-circle visual mesh so
+## recruitment logic doesn't depend on the mesh being pixel-perfect.
+func is_point_within_recruit_range(point: Vector3) -> bool:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return false
 
 	var origin: Vector3 = cam.global_transform.origin
-	var to_point: Vector3 = point - origin
-	var distance: float = to_point.length()
-	if distance < 0.001 or distance > cone_range:
-		return false
-
-	var forward: Vector3 = -cam.global_transform.basis.z
-	var cos_angle: float = forward.normalized().dot(to_point / distance)
-	var half_angle_rad: float = deg_to_rad(cone_angle_degrees * 0.5)
-	return cos_angle >= cos(half_angle_rad)
+	var horizontal_delta := Vector2(point.x - origin.x, point.z - origin.z)
+	return horizontal_delta.length() <= recruit_radius
 
 
 func _start_recruit() -> void:
 	_recruiting_held = true
-	influence_cone.visible = true
+	recruit_circle.visible = true
+	_update_recruit_circle_transform()
 	_recruit_burst_timer = 0.0
 	_show_feedback("RECRUITING...", Color(0.35, 0.9, 0.45))
 
 
 func _stop_recruit() -> void:
 	_recruiting_held = false
-	influence_cone.visible = false
+	recruit_circle.visible = false
 
 
 ## Fires the one unified Send Mob command. `target` non-null means the
 ## reticle was outlining an interactable at release time (À L'ATTAQUE! on
-## that object); null means the yellow-ball fallback (Regroup to player) --
-## per agents/mob-selector-notes.md, both are "send this % of the mob to a
-## position," so this is the single place that decides the cosmetic
+## that object); null means the yellow-ball fallback, in which case `point`
+## (ground/world geometry under the reticle) is where the mob marches to
+## instead -- so this is the single place that decides the cosmetic
 ## feedback, not two separate code paths.
-func _do_send_mob(percentage: float, target: Node3D) -> void:
+func _do_send_mob(percentage: float, target: Node3D, point: Vector3) -> void:
 	_play_raise_shake()
 	var percent_text: String = "%d%%" % roundi(percentage * 100.0)
 	if target != null:
 		_flash_screen()
-		_spawn_attack_marker(target.global_position)
+		_spawn_marker(target.global_position)
 		_show_feedback("A L'ATTAQUE ! (%s)" % percent_text, Color(0.95, 0.2, 0.2))
 	else:
-		_show_feedback("REGROUPEZ-VOUS ! (%s)" % percent_text, Color(0.3, 0.6, 0.95))
-	send_mob_triggered.emit(percentage, target)
+		_spawn_marker(point)
+		_show_feedback("ALLEZ-Y ! (%s)" % percent_text, Color(0.3, 0.6, 0.95))
+	send_mob_triggered.emit(percentage, target, point)
 
 
-## Recomputes cone_range/cone_angle_degrees from the current Grabuge value
-## (0-100%, linearly interpolated from *_min to *_max) and rebuilds the mesh.
-func _on_grabuge_changed(value: float) -> void:
-	var t: float = clamp(value, 0.0, 100.0) / 100.0
-	cone_range = lerp(cone_range_min, cone_range_max, t)
-	cone_angle_degrees = lerp(cone_angle_min, cone_angle_max, t)
-	_update_cone_shape()
-
-
-## Builds the cone mesh from the current `cone_range`/`cone_angle_degrees`.
-func _update_cone_shape() -> void:
-	var mesh: CylinderMesh = influence_cone.mesh as CylinderMesh
+## Resizes the ground-ring mesh to the current `recruit_radius`.
+func _update_recruit_circle_shape() -> void:
+	var mesh: TorusMesh = recruit_circle.mesh as TorusMesh
 	if mesh == null:
 		return
-	var half_angle_rad: float = deg_to_rad(cone_angle_degrees * 0.5)
-	mesh.height = cone_range
-	mesh.top_radius = cone_range * tan(half_angle_rad)
-	mesh.bottom_radius = 0.0
-	# Cylinder is centered on its own origin; rotation_degrees=(-90,0,0) on
-	# the node (set in Megaphone.tscn) maps its -Y (bottom, now the apex
-	# since bottom_radius=0) to local -Z (forward). Shifting the node
-	# forward by half the height puts the apex at the camera (z=0) and the
-	# wide top out at cone_range.
-	influence_cone.position = Vector3(0, 0, -cone_range * 0.5)
+	const RING_THICKNESS := 0.3
+	mesh.outer_radius = recruit_radius
+	mesh.inner_radius = max(recruit_radius - RING_THICKNESS, 0.05)
 
 
-## Raycasts from the active camera along its look direction, returning the
-## hit collider itself (not just a point) when it's a "destructible"-group
-## interactable, or null otherwise -- the reticle only ever outlines
-## something interactable, never bare geometry.
-func _raycast_destructible() -> Node3D:
-	var cam := get_viewport().get_camera_3d()
-	if cam == null:
-		return null
-
-	var origin: Vector3 = cam.global_transform.origin
-	var direction: Vector3 = -cam.global_transform.basis.z
-
+## Keeps the ground ring centered under the player and flat on the floor,
+## independent of camera pitch/roll (Megaphone lives under Head/Camera, so
+## its own transform tilts with the player's look direction). Raycasts
+## straight down from the camera to find the floor; falls back to the
+## camera's own height if nothing is hit (e.g. mid-air).
+func _update_recruit_circle_transform() -> void:
+	var ground_point: Vector3 = global_position
 	var space_state := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(
-			origin, origin + direction * ray_range, ray_collision_mask)
+			global_position, global_position + Vector3.DOWN * 10.0, ray_collision_mask)
 	var result := space_state.intersect_ray(query)
-	if not result:
-		return null
-
-	var collider: Object = result.collider
-	if collider is Node3D and collider.is_in_group(&"destructible"):
-		return collider
-	return null
+	if result:
+		ground_point = result.position
+	recruit_circle.global_position = ground_point + Vector3(0, 0.02, 0)
+	recruit_circle.global_rotation = Vector3.ZERO
 
 
 func _play_raise_shake() -> void:
@@ -306,9 +325,10 @@ func _flash_screen() -> void:
 	_flash_tween.tween_property(flash, "color:a", 0.0, 0.3)
 
 
-## Drops a small, self-removing marker mesh at the hit point as a stand-in
-## for a future decal/VFX. Purely cosmetic — no gameplay meaning.
-func _spawn_attack_marker(target_position: Vector3) -> void:
+## Drops a small, self-removing marker mesh at the given point as a stand-in
+## for a future decal/VFX, for both attack and move-to-point Send Mob
+## commands. Purely cosmetic — no gameplay meaning.
+func _spawn_marker(target_position: Vector3) -> void:
 	var marker := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.25

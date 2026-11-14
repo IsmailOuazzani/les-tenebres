@@ -7,6 +7,14 @@ extends Node3D
 func _ready() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
+	# Player death (cops) is a second way to reach game-over besides Grabuge
+	# decay -- wired here rather than inside addons/fps_controller/Player.tscn
+	# so the vendored player scene doesn't need to know about GameState. See
+	# agents/police-notes.md.
+	var player_health: Node = get_node_or_null("Player/HealthComponent")
+	if player_health != null:
+		player_health.died.connect(GameState.trigger_player_death)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):

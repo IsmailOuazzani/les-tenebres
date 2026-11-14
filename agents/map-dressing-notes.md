@@ -37,7 +37,7 @@ whatever WAF/CDN fronts kenney.nl. The hex id is just `assets/<slug>` from the
 page URL, ASCII-hex-encoded, so this is reproducible for any Kenney asset page
 without needing a headless browser.
 
-## Where the assets live
+## Where the assets live (Kenney)
 
 - `assets/kenney_city_kit_roads/` — all 95 GLB models from the Roads pack
   (road tiles, bends, crossroads, sidewalks, ramps/slants, barricades, cones,
@@ -45,9 +45,14 @@ without needing a headless browser.
   (the shared texture atlas the GLBs reference by relative URI) and
   `LICENSE.txt`.
 - `assets/kenney_city_kit_commercial/` — all 41 GLB models from the
-  Commercial pack (14 full-detail buildings, 14 low-detail/background
-  buildings, awnings/overhangs/parasols), plus its own `Textures/colormap.png`
-  and `LICENSE.txt`.
+  Commercial pack. **As of the "Paris-only buildings" pass (see below), none
+  of the commercial building GLBs are instanced in `test_map.tscn` anymore**
+  — only the road-kit pieces (roads/sidewalks/crossings/square/slant/platform)
+  are still placed. The commercial building `.glb` files and their
+  `ext_resource`/mesh/material declarations are still present in the repo and
+  in the `.tscn` header (harmless, unreferenced by any node) but are no
+  longer part of the visible map. Left in place rather than surgically
+  stripped out of the `.tscn` header — see "What changed" below for why.
 
 Only the **GLB format** variant was kept (not the FBX/OBJ copies in the
 original zips) — GLB is Godot 4's best-supported import path and avoids an
@@ -85,129 +90,49 @@ Per `agents/fps-prototype-notes.md`, there's no display here, so the normal
 
 This triggers Godot's filesystem scan + importer, same as opening `task
 editor` would. Confirmed via `*.glb.import` sidecar files appearing next to
-every model (95 in roads, 41 in commercial) and zero `ERROR`/`WARNING` lines
-on the final clean run.
+every model and zero `ERROR`/`WARNING` lines on the final clean run.
 
-## How the map was rebuilt
+## How the map was rebuilt (original pass)
 
 Hand-writing ~100 `[node]` blocks with correct `Transform3D` math in the raw
-`.tscn` text was going to be slow and error-prone, so instead I wrote a
-one-off headless `SceneTree` script (`generate_map.gd`, deleted after use —
-not checked in) that:
-
-1. Builds the `TestMap` root, `WorldEnvironment` (same `ProceduralSkyMaterial`
-   sky + ambient settings as the old grey-box level), and `DirectionalLight3D`
-   exactly as before.
-2. Procedurally instances Kenney GLB scenes on a grid and packs the result
-   into `scenes/test_map.tscn` via `PackedScene.pack()` + `ResourceSaver.save()`.
-3. One important trap: `pack()` silently drops any node whose `owner` isn't
-   set to the scene root — my first attempt saved a 6-line file with just the
-   root node. Fix was a recursive `child.owner = root` pass over the whole
-   tree before packing.
+`.tscn` text was going to be slow and error-prone, so instead a one-off
+headless `SceneTree` script (`generate_map.gd`, deleted after use — not
+checked in) built the `TestMap` root, `WorldEnvironment`,
+`DirectionalLight3D`, procedurally instanced GLB scenes on a grid, and packed
+the result into `scenes/test_map.tscn` via `PackedScene.pack()` +
+`ResourceSaver.save()`.
 
 ### Scale and grid
 
-Measured a sample of GLBs with a small script (`AABB` of all `MeshInstance3D`
-children): every road/sidewalk tile is a 1×~0.02×1 flat quad centered on
-origin, and commercial buildings are roughly 0.85–1.6 (width) × 0.9–1.7
-(height) × 0.9–1.1 (depth) units. That's Kenney's authored-for-a-4x-scale-up
-convention (1 unit model = 4m in-game), which also makes buildings come out
-3.5–7m tall — reasonable next to the FPS controller's human-scale capsule.
-**Everything in the new map is instanced at `scale = Vector3(4,4,4)` with a
-4-world-unit grid pitch.**
+Every road/sidewalk tile is a 1×~0.02×1 flat quad centered on origin, and
+Kenney commercial buildings were roughly 0.85–1.6 (width) × 0.9–1.7 (height) ×
+0.9–1.1 (depth) units — Kenney's authored-for-a-4x-scale-up convention (1 unit
+model = 4m in-game). **Everything Kenney-sourced in the map is instanced at
+`scale = Vector3(4,4,4)` on a 4-world-unit grid pitch — this convention is
+unchanged by every later pass, including the map-doubling pass below, per an
+explicit "roads can stay the same size" instruction.**
 
-### Layout
+### Layout (original)
 
-A "+"-shaped two-street intersection centered on the origin:
-
-- Main street runs north–south along `x=0` (`road-straight`, a
-  `road-crossroad` at the intersection), long enough to comfortably cover the
-  player spawn at `(0,1,10)`.
-- A shorter east–west cross street at `z=0`.
-- `road-side` sidewalk tiles flank both streets; a couple of `road-crossing`
-  tiles mark pedestrian crossings near the intersection.
-- Two rows of commercial buildings (`building-a/c/e/g` west side,
-  `building-b/d/f/h` east side) line the main street behind the sidewalks,
-  plus two `low-detail-building` pieces further back for a bit of skyline.
-- North of the main street (negative Z, away from spawn) is a small plaza
-  (`road-square` plain pavement tiles) with a `road-slant-high` ramp up to a
-  `tile-high` platform and one more building framing it — this is the
-  elevation/collision sanity-check area, replacing the old ramp+stairs
-  cluster. I dropped the separate staircase; one ramp was enough to cover
-  "walkable with elevation change" per the task's either/or allowance.
+A "+"-shaped two-street intersection centered on the origin: main N–S street
+along `x=0` (`road-straight` + `road-crossroad` at the intersection), a
+shorter E–W cross street at `z=0`, `road-side` sidewalks flanking both,
+`road-crossing` tiles at the intersection, two rows of commercial buildings
+flanking the main street, and a small plaza (`road-square` + `road-slant-high`
+ramp + `tile-high` platform) north of the intersection (negative Z).
 
 ### Collision: decoupled from the visuals, deliberately
 
-The Kenney GLBs carry **no collision data** — they're pure visual meshes.
-Rather than hand-derive a `ConvexPolygonShape3D`/`ConcavePolygonShape3D` per
-tile/building (fragile, and impossible to eyeball-correct without a display),
-I used one flat invisible `StaticBody3D` + `BoxShape3D` as a single continuous
-walking surface under the entire street/plaza footprint (`GroundCollision`,
-world x ±28, z -45..25), plus one invisible box per building
-(`BuildingWest_0..3`, `BuildingEast_0..3`, `BuildingLowA/B`, `BuildingPlaza`)
-sized from the same AABB measurements used for scale, and a tilted invisible
-box + flat invisible box for the ramp/platform. All of these live under
-`MapGeometry/Collision/`; the real visuals live under `MapGeometry/Visuals/`
-and have zero physics presence. This means the collision guarantees are
-correct by construction (simple boxes I control) even though I can't verify
-the visual alignment is pixel-perfect.
-
-## Known issues / limitations
-
-- **No display in this environment — none of this has been visually
-  confirmed.** I cannot confirm that road/sidewalk/building rotations line up
-  correctly (I guessed a consistent rotation convention — default orientation
-  assumed east-west, +90° for north-south pieces — documented in
-  `generate_map.gd`'s history, now only in this note since the generator
-  script was a throwaway tool, not checked in), that textures look right, or
-  that the ramp's visual slope actually matches its invisible collision box's
-  tilt (off by a few degrees/centimeters by construction — walkability is
-  guaranteed, visual-to-collision pixel alignment is not). **Someone with a
-  display needs to run `task editor` or `task run` and eyeball it** —
-  expect to need to nudge a few rotations/positions once you can actually see
-  the result.
-- Collision is intentionally decoupled from visuals (see above) — if a later
-  pass wants per-piece mesh collision (e.g. for a building you can see
-  through a gap in), that's a deliberate simplification to revisit, not an
-  oversight.
-- Only GLB models were imported; FBX/OBJ copies from the zips were discarded
-  (not needed, GLB is sufcient for Godot 4).
-- The Roads pack's prop pieces (barricades, cones, lamps, signs, traffic
-  lights, construction fences/barriers) are all sitting in
-  `assets/kenney_city_kit_roads/` unused — didn't place any in the test map
-  to keep scope to "map/environment," but they're a natural next pass for
-  "protest barricade" dressing once gameplay agents land their pieces.
-  Tracked in `assets.md`.
-- KayKit City Builder Bits (optional variety pack) was not downloaded this
-  pass — see rationale above.
-- The old grey-box `test_map.tscn` is gone (overwritten, not kept as a
-  separate file) — if it's needed for comparison it's recoverable from git
-  history (this worktree's branch, pre-this-commit).
-
-## Verification done
-
-```
-/Applications/Godot.app/Contents/MacOS/Godot --path . --headless --quit-after 1
-/Applications/Godot.app/Contents/MacOS/Godot --path . --headless --quit-after 5
-```
-
-Both runs load the project and the main scene with **zero parse errors,
-script errors, or missing-resource errors**. There are harmless
-`RID allocations ... leaked at exit` / `ObjectDB instances were leaked at
-exit` messages on quit — I checked these also appear (in smaller numbers)
-when forcibly quitting the engine on *any* non-trivial scene after only a
-few frames under the headless dummy renderer; it's Godot's abrupt-quit
-cleanup path not finishing, not a defect in this scene. The old grey-box
-scene produced zero such messages because it was simple enough to finish
-tearing down inside the 1-frame window; this scene has far more
-mesh/material/texture resources in flight so the race is visible. Confirmed
-there is no actual `ERROR`/`WARNING` text containing "parse", "script error",
-"failed to load", "cannot open", "invalid", or "missing" in either run.
-
-I have **no display in this environment**, so movement feel, visual
-alignment, lighting, and whether the street actually looks like a Paris block
-(versus, say, a parking lot) are all unverified. Playtesting via `task run` is
-needed before calling this done-done.
+The Kenney GLBs carry **no collision data**. Rather than hand-derive
+per-tile collision shapes, the map uses one flat invisible `StaticBody3D` +
+`BoxShape3D` as a single continuous walking surface under the whole
+street/plaza footprint (`GroundCollision`), plus one invisible box per
+building sized from measured AABBs. All collision lives under
+`MapGeometry/Collision/`; visuals live under `MapGeometry/Visuals/` with zero
+physics presence. **This decoupling is what made every later pass (building
+swaps, 3x rescale, map doubling) tractable without touching any visual mesh
+data — only the box positions/sizes in `MapGeometry/Collision` need to track
+building moves.**
 
 ## Update: Paris Building Pack swap + street props
 
@@ -215,131 +140,234 @@ Swapped three of the generic Kenney commercial buildings for the **Free
 Paris 3 Building Pack** (CGTrader, https://www.cgtrader.com/free-3d-models/architectural/decoration/paris-3-building-pack,
 by designer `ponpadolen` — free, Royalty Free License, "free for personal
 and commercial use"). CGTrader requires an account login even for free
-downloads (no anonymous/guest path like Kenney or itch.io) — the user
-downloaded the zip manually and handed it off.
+downloads — the user downloaded the zip manually and handed it off.
 
 ### Where it lives / what's in it
 
 - `assets/paris_building_pack/BuildingA/`, `BuildingB/`, `BuildingC/` — one
-  FBX per building, each with a `TradeBuilding<X>1texs/` texture folder
-  staged alongside it (not the pack's original folder names — see gotcha
-  below).
-- The pack's **OBJ+MTL export is broken** — every `.mtl` material has
-  `Kd 0.00 0.00 0.00` (black) and zero texture references (`map_Kd` etc.),
-  a classic artifact of a Maya `aiStandardSurface` → OBJ export that didn't
-  translate PBR shader textures. Did not use the OBJ files at all; used the
-  FBX files instead, which do carry texture-path references.
-- Did **not** convert to GLB — no Blender install in this environment (see
-  `agents/megaphone-notes.md` for the same constraint). Godot 4.7's native
-  FBX importer loads these directly.
-
-### Import gotcha: FBX texture paths are absolute, from the original author's machine, and don't match the extracted folder names
-
-Each FBX references its textures by a path like
-`/TradeBuildingA1texs/BricksB.jpg` (originally
-`E:\...\TradeBuildingA1texs\BricksB.jpg` on a Windows machine, FBX stores it
-both as an absolute Windows path and a "relative" `/<folder>/<file>` form).
-Godot's FBX importer only tries that literal path reinterpreted as
-`res://<path>` — unlike the GLB importer (see the Kenney notes above), it
-does **not** fall back to searching the FBX's own directory by filename.
-Fix: for each building, created a `TradeBuilding<A|B|C>1texs/` folder next
-to its FBX (matching the exact folder name the FBX expects) and copied the
-extracted texture files into it under their *expected* filenames — the
-zip's actual folder/file names (`ShopMaterial/ShopAndRoofsABase.jpg`,
-`WallMaterial/WindowNormal.jpg`, `TopRoofMat/TopRoofBase.png`, etc., spread
-across half a dozen differently-named subfolders per building) don't match
-what the FBX asks for 1:1.
-
-**This matching was best-effort, not exact** — most names lined up exactly
-(`BricksB.jpg`, `WindowBase.jpg`, `ShopNormal.jpg`...), but a few didn't:
-`ShopAndRoofsBase.jpg` (FBX) vs `ShopAndRoofsABase.jpg` (zip, has an extra
-"A" — copied over the mismatch), and `RoofAuv_Shop_BaseColor.png`/
-`RoofAuv_Shop_Normal.png` (FBX, Building A's shop-roof UV) have **no
-matching file in the zip at all** — substituted the closest candidate
-(`TopRoofMat/TopRoofBase.png` / `TopRoofNormal.png`) as a guess. Building
-A's `TradeBuildingNormal.jpg` (FBX) was similarly unmatched; substituted
-`WallMaterial/WindowNormal.jpg`. **Not visually confirmed** — a few
-surfaces (roof/shop awning parts, mostly) on Building A may show the wrong
-texture or fall back to a default grey material. Buildings B and C had
-cleaner matches.
+  FBX per building. The pack's **OBJ+MTL export is broken** (black
+  materials, no texture refs) — a classic Maya `aiStandardSurface` → OBJ
+  export that didn't translate PBR shader textures. Used the FBX files
+  instead, which carry texture-path references. Did **not** convert to
+  GLB — no Blender install in this environment; Godot 4.7's native FBX
+  importer loads these directly.
 
 ### Geometry note: huge flat node hierarchy, but only one real mesh per building
 
-Each FBX imports as ~100-450 near-empty `Node3D` placeholder nodes
-(`pPlaneN`, `pCubeN`, `pCylinderN` — Maya's original per-object names) plus
-exactly **one** `MeshInstance3D` at the end of the list holding the entire
-building as a multi-surface merged mesh (Godot's FBX importer's default
-"merge meshes" behavior). Confirmed via a throwaway headless inspection
-script (not checked in) that walked each instantiated scene, found the
-`MeshInstance3D`, and accumulated its parent-chain transform by hand (the
-normal `Node3D.global_transform` API returned identity when queried from a
-bare `SceneTree._initialize()` script — nodes aren't reliably "inside tree"
-at that point in a `--script` run — so the script composed
-`parent.transform * child.transform` manually walking up `get_parent()`
-instead). The empty placeholder nodes are harmless (no mesh, no collision)
-but mean these scenes are much heavier node-count-wise than the single-mesh
-Kenney GLBs; fine for a prototype, worth flattening if this pack sees
-heavier use later.
+Each FBX imports as ~100-450 near-empty `Node3D` placeholder nodes (Maya's
+original per-object names) plus exactly **one** `MeshInstance3D` holding the
+entire building as a multi-surface merged mesh (Godot's FBX importer's
+default "merge meshes" behavior). Harmless but node-count-heavy; fine for a
+prototype.
 
-### Scale — already real-world/game scale, no 4x multiplier needed
+### Scale — already real-world/game scale, no 4x multiplier needed (at the time)
 
-Unlike the Kenney kit (authored at a small internal scale, needing the
-project's `scale = Vector3(4,4,4)` convention), this pack's FBX files
-already bake real-world-ish scale into their node transforms. Measured
-world-space bounding boxes (combined, accumulated-transform method above):
+Unlike the Kenney kit, this pack's FBX files already bake real-world-ish
+scale into their node transforms. Measured world-space bounding boxes:
 
 - Building A: ~2.29m (w) × 4.76m (h) × 4.47m (d)
 - Building B: ~6.80m (w) × 7.35m (h) × 6.81m (d)
 - Building C: ~3.03m (w) × 5.92m (h) × 4.37m (d)
 
 All in the same 3.5-7m height range as the Kenney commercial buildings they
-replaced, so no extra scaling was applied — each is instanced at
-`scale = Vector3(1,1,1)`.
-
-### Where they're placed
-
-Swapped in for `building-a2`/`building-b2`/`building-e2` at the same grid
-slots (west row `x=-8`, east row `x=8`, main-street `z` positions 16/16/0):
-`paris-building-a` (west, Building A), `paris-building-b` (east, Building
-B), `paris-building-c` (west, Building C, raised `y=0.72` since its local
-mesh origin sits 0.72m below its own ground plane — the other two sit
-almost exactly at `y=0` already). Matching invisible collision boxes
-(`BuildingWest_0`, `BuildingEast_0`, `BuildingWest_2` under
-`MapGeometry/Collision`) were resized to each building's measured
-footprint — same decoupled-collision pattern as the rest of the map, per
-the "Collision: decoupled from the visuals, deliberately" section above.
-Did not touch rotation (left at identity) — **unverified whether each
-building's "front" (shopfront/window side) actually faces the street**;
-same "no display, needs an eyeball pass" caveat as everything else in this
-file.
+replaced, so at the time no extra scaling was applied — each was instanced
+at `scale = Vector3(1,1,1)`. **This changed in the "3x scale + Paris-only"
+pass below.**
 
 ### Street props
 
-Placed a few of the previously-imported-but-unused Kenney Roads props near
-the main intersection (`MapGeometry/Visuals/StreetProps`): two
-`construction-barrier` + three `construction-cone` clustered just off the
-sidewalk near the plaza end of the main street (loose "protest barricade"
-dressing, not a full blockade), and four `light-square` lamp posts flanking
-the street at two points along the main stretch. Signs and bins from the
-same pack are still unplaced — left for a future pass.
+Placed Kenney Roads props near the main intersection
+(`MapGeometry/Visuals/StreetProps`): two `construction-barrier` + three
+`construction-cone` (loose "protest barricade" dressing), and four
+`light-square` lamp posts. Unaffected by the later passes below (they sit
+near the original intersection, far from the relocated building rows).
+
+## Update: Paris-only buildings, 3x scale, texture fix, map doubling
+
+Follow-up pass addressing four asks together: (1) remove every non-Paris
+building from the map, (2) fix the Paris buildings' textures (they were
+rendering as flat white/grey geometry), (3) scale the Paris buildings 3x,
+(4) roughly double the map's overall footprint by adding more road and
+building coverage, while leaving the Kenney road-kit tile *scale* ("roads
+can stay the same size") untouched.
+
+### Texture fix: FBX texture paths resolve relative to a baked absolute folder, not next to the FBX
+
+The previous pass's "best-effort" texture matching (copying texture files
+into `assets/paris_building_pack/Building<X>/TradeBuilding<X>1texs/`) turned
+out to fail **completely**, not just partially — inspecting the imported
+materials headlessly (`node.mesh.surface_get_material(i).albedo_texture`)
+showed every single surface across all three buildings was `null`
+(flat-white `StandardMaterial3D`). The reimport log confirmed why, once the
+stale `.import` caches were cleared and a fresh reimport forced:
+
+```
+ERROR: Can't open file from path 'res://Documents/再販売可能テクスチャ/TradeBuildingB1texs/Dormerwindow1.png'.
+WARNING: FBX: Image index '0' couldn't be loaded from path: ... because there was no data to load. Skipping it.
+```
+
+Godot's FBX importer does **not** reinterpret the FBX's absolute texture
+path as simply `res://<folder-name>/<file>` relative to the FBX's own
+location (that assumption, made in the previous pass, was wrong). Instead it
+preserves the *entire* captured path tail from the original author's machine
+— in this case a Mac path
+`/Users/eijimatsumoto/Documents/再販売可能テクスチャ/TradeBuilding<X>1texs/<file>`
+(Japanese: "resellable texture[s]" folder) — and tries to resolve it as
+`res://Documents/再販売可能テクスチャ/TradeBuilding<X>1texs/<file>`, i.e.
+relative to the **project root**, with that exact multi-segment prefix.
+
+Fix: created `Documents/再販売可能テクスチャ/TradeBuildingA1texs/`,
+`TradeBuildingB1texs/`, `TradeBuildingC1texs/` **at the project root** (not
+under `assets/`), and copied the already-correctly-named texture files there
+(moved them out of the old, wrong, per-building `assets/paris_building_pack/
+Building<X>/TradeBuilding<X>1texs/` locations). One cross-reference
+complication: Building C's FBX references textures from **both**
+`TradeBuildingC1texs/` (its own) and `TradeBuildingB1texs/` (reused from
+Building B's shared material set) — confirmed via `strings
+BuildingC.fbx | grep texs/`, and merged both buildings' contributions into
+the shared root `TradeBuildingB1texs/` folder.
+
+After moving the folders and forcing a clean reimport (deleted
+`Building{A,B,C}.fbx.import` + the corresponding `.godot/imported/*.scn`
+caches first — same "stale import cache" trap as the Kenney pass), a
+headless material inspection script confirmed every surface across all three
+buildings now has a non-null `albedo_texture` pointing at a real file, except
+one surface on Building A (`StandardMaterial3D_o3wlj`, a normal-map-only
+surface whose best-effort-matched source file was itself unresolvable in the
+original zip per the previous pass's notes) — that one remains a flat grey
+fallback. Not investigated further; minor and pre-existing.
+
+**Not visually confirmed** — no display in this environment. The texture
+*files* are now loading (verified via `albedo_texture` no longer `null`),
+but whether they look visually correct (UV mapping, orientation, the one
+untextured surface) needs an eyeball pass via `task run`.
+
+### Removing non-Paris buildings
+
+Removed these node pairs (instance + `MeshInstance3D` child) from
+`MapGeometry/Visuals`: `building-c2/-c`, `building-g2/-g`, `building-d2/-d`,
+`building-f2/-f`, `building-h2/-h`, `low-detail-building-a2/-a`,
+`low-detail-building-wide-a2/-wide-a`, and `@Node3D@84/building-a` (a
+duplicate Kenney `building-a` instance that was sitting out near the plaza).
+Removed the matching collision `StaticBody3D`s: `BuildingWest_1`,
+`BuildingWest_3`, `BuildingEast_1`, `BuildingEast_2`, `BuildingEast_3`,
+`BuildingLowA`, `BuildingLowB`, `BuildingPlaza`.
+
+**Did not** touch the `.tscn` header's `ext_resource`/`sub_resource`
+declarations for the removed Kenney commercial buildings (their GLB
+references, baked `ArrayMesh`/`StandardMaterial3D` sub-resources) — only the
+node instances placing them in the tree were removed. Godot does not error on
+declared-but-unreferenced resources; surgically stripping them out of a
+1.1MB generated file carried real risk (shared `StandardMaterial3D` /
+texture `ext_resource` IDs between still-used and now-unused mesh
+sub-resources) for no runtime benefit beyond file size. If someone wants the
+dead weight gone later, it's a mechanical cleanup, not a design decision.
+
+### 3x scale + repositioning
+
+Each Paris building's `Transform3D` basis went from identity (scale 1) to
+`scale 3` (diagonal 3,3,3). Building C's node-origin y-offset (0.72, a
+pre-existing compensation for its mesh's local origin sitting below its own
+ground plane) was rescaled to `0.72 * 3 = 2.16` to keep it sitting on the
+ground post-scale — basis scaling multiplies local offsets, but a node's own
+translation is in world units and has to be rescaled by hand to match.
+
+At 3x, footprints are large: Building B (the biggest) is ~20.4m × 22m × 20.4m.
+The original building rows (8 world units off the street centerline, 8 units
+apart along the street) could not fit buildings this size without
+overlapping each other or the sidewalks, so the whole row layout was
+redesigned:
+
+- Row centerline moved from `x=±8` to **`x=±36`** — far enough that even
+  Building B's 10.2m half-width clears the cross-street's farthest sidewalk
+  tile (at `x=20`, edge `x=22`) by ~3.8m, confirmed by direct calculation
+  (not visually).
+- Buildings per row went from 4 (mixed Paris/Kenney) to **4 Paris-only
+  slots**, spaced **24 units apart** along Z (`z = 36, 12, -12, -36`) instead
+  of the original 8. 24 units is enough gap for any adjacent pairing of the
+  three building types at 3x scale — confirmed by computing
+  `spacing - half_depth_1 - half_depth_2` for every adjacent pair on both
+  rows; the tightest was ~7.1m, most were 7-11m.
+- Building type assignment per slot (to avoid two identical huge buildings
+  sitting next to each other): west row z=36/12/-12/-36 → A/B/C/A; east row
+  z=36/12/-12/-36 → B/C/A/B. 8 building instances total (3 reused the
+  original `paris-building-a/-b/-c` node names and got repositioned in
+  place; 5 new instances added: `paris-building-w2`, `-w4`, `-e2`, `-e3`,
+  `-e4`).
+- Each building's collision `BoxShape3D` was resized to 3x its native
+  measured AABB and recentered at `height*3/2` above ground (same pattern as
+  the original pass, just with new box sub-resources
+  `BoxShape3D_paris3x_{A,B,C}` since the dimensions changed).
+
+**Not visually confirmed** — the 24-unit spacing and x=36 row offset are
+derived from measured AABBs and arithmetic, not from looking at the result.
+Someone with a display needs to run `task run` and confirm the buildings
+don't look absurdly far from the street, and that the spacing reads as a
+street block rather than scattered monoliths.
+
+### Map doubling (more road, no new intersections)
+
+To roughly double the map's footprint while leaving Kenney road-tile *scale*
+untouched ("roads can stay the same size" — tiles are still `scale 4,4,4` on
+the same 4-unit grid), extended the **main N–S street only**, in both
+directions, rather than also widening the E–W cross street — extending the
+cross street too would have pushed its own sidewalks out to intersect the
+relocated building rows at `x=±36` (confirmed by calculation: a cross-street
+extension reaching `x=36` would sit directly inside a building's footprint).
+Keeping the cross street at its original length (`x=-20..20`) avoids that
+conflict entirely.
+
+- **South arm**: added 5 more `road-straight` segments (`z = 24, 28, 32, 36,
+  40`) continuing south from the original street's `z=20` end, each flanked
+  by a pair of `road-side` sidewalk tiles (`x=±4`) — same tile types,
+  meshes, and rotation convention as the existing street, just more of them.
+- **North arm**: added 5 more `road-straight` segments (`z = -24, -28, -32,
+  -36, -40`) filling the gap between the original street's `z=-20` end and
+  the plaza, which was **relocated 20 units further north** (`z -24..-40` →
+  `z -44..-60` for the `road-square`/`road-slant-high`/`tile-high` plaza
+  cluster, and `RampCollision`/`PlatformCollision` shifted to match) to make
+  room. The new street segments and the relocated plaza are still exactly
+  4-unit-pitch adjacent (no gap, no overlap) — same spacing the original
+  layout used between its last straight tile and the plaza's first tile.
+- `GroundCollision` (the single invisible walking-surface box under
+  everything) was resized from `(56,1,70)` centered at `(0,-0.5,-10)` to
+  `(112,1,132)` centered at `(0,-0.5,-8)` — large enough to cover every new
+  road segment and every relocated/new building's footprint with margin,
+  confirmed by checking each feature's extreme X/Z against the new box
+  bounds.
+- Street props, dumpsters, smoke FX, lamps, and the player/NPC spawn points
+  were **not** moved — they all sit near the original intersection
+  (`z` roughly `-4..12`), far from the relocated building rows and street
+  extensions, so nothing new to overlap.
+
+**Not visually confirmed.** All of the above (no overlaps, correct ground
+coverage, correct tile adjacency) was checked by direct arithmetic on the
+transform values (AABB half-extents, tile pitch, box bounds) and by dumping
+positions from a headless script — not by looking at the rendered result.
+Someone with a display needs to run `task run` and eyeball: whether the much
+larger building setback (`x=36` vs the sidewalk's `x=8` edge) looks
+intentional ("plaza frontage") rather than like empty wasteland (there is no
+visible ground/pavement mesh filling that gap — only the invisible
+`GroundCollision` box holds the player up there, same as every other
+off-road patch in this map, pre-existing behavior not introduced by this
+pass), whether the doubled street still feels walkable/paced correctly, and
+whether the relocated plaza's ramp/platform still reads correctly at its new
+position.
 
 ### Verification done / not done
 
-Ran the same headless pipeline as every other pass in this repo: forced a
-reimport (`--headless --editor --quit-after 30`) then a full game load
-check (`--headless --quit-after 4`). **Zero errors, zero warnings** beyond
-the usual harmless leaked-RID/ObjectDB noise on abrupt shutdown.
+Ran the full headless pipeline: forced FBX reimport
+(`--headless --editor --quit-after 30`), then full game loads
+(`--headless --quit-after 5-8`), comparing error output against an unmodified
+backup of `test_map.tscn` to separate pre-existing issues (an unrelated
+`Array[Node]` type-assignment warning in `addons/fps_controller/
+WeaponSwitcher.gd`, untouched by this work) from anything new. **Zero new
+errors or warnings.** A headless script instantiated the scene and dumped
+every Paris building's and building-collision's position/scale, confirming
+they match the intended layout exactly, and a separate arithmetic check
+confirmed no building-to-building or building-to-sidewalk overlaps.
 
-**Not verified — no display access in this session** (see
-`agents/megaphone-notes.md` for why: a real monitor is attached to this
-machine, but the shell driving this work lacks macOS Screen Recording
-permission, and the user opted to eyeball the result themselves via `task
-run` rather than grant it). Specifically unconfirmed: whether the three
-Paris buildings actually look right next to the Kenney buildings (style
-clash, texture mismatches from the best-effort matching above, scale
-looking right in person vs. just on paper), whether their rotation puts the
-right face toward the street, whether they clip into the sidewalk/street
-geometry given their footprints don't perfectly match the Kenney buildings
-they replaced, and whether the new barricade/cone/lamp placements look
-reasonable rather than floating/clipped. Someone with eyes on the screen
-needs to run `task run` and nudge positions/rotations as needed.
+**Not verified — no display access in this session.** Visual appearance,
+texture orientation/UV correctness, whether building "fronts" face the
+street, and whether the new layout reads well in person are all unconfirmed.
+Run `task run` and nudge as needed.

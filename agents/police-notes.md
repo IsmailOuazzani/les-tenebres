@@ -1,0 +1,97 @@
+# Police Enemy System (MVP) -- Implementation Notes
+
+Status: **implemented**. Built from a direct spec for a minimal police
+enemy system (spawn one cop every 10s, three-state AI, protester combat, a
+reusable health component). Work was paused partway through for a live
+concurrent edit on `Player.tscn`/`Megaphone.gd`/`test_map.tscn` (a
+weapon-switching/Croissant feature landing in parallel); resumed and
+finished once that settled -- see "Wiring, now done" below.
+
+## What landed
+
+- **`scripts/health_component.gd`** (`HealthComponent`, a plain `Node`):
+  `max_health`/`current_health`, `take_damage(amount)`, `health_changed`,
+  `died`. Deliberately dumb -- no cooldown/interval logic of its own; every
+  caller (cop, protester) already ticks on its own attack-interval timer
+  before calling `take_damage()`, so "damage applied at controlled
+  intervals" lives at the call site, not in the component. Attached as a
+  child node literally named `HealthComponent` on any combat-capable scene
+  so callers can do `target.get_node_or_null("HealthComponent")` without
+  needing a typed reference.
+- **`scripts/police.gd`** / **`scenes/police.tscn`** (`Police`, red capsule
+  placeholder, same body shape as `scenes/npc.tscn`): `CHASE_PLAYER` /
+  `FIGHT_PROTESTER` / `ATTACK_PLAYER`, pure distance checks, re-evaluated
+  from scratch every physics frame in `_update_state()` -- protester
+  interception always wins over whatever else the cop was doing, per the
+  spec's "ATTACK_PLAYER ... Prioritize nearby protesters if they
+  intercept." No separate disengage radius: re-running the nearest-protester
+  search every frame using `interception_radius` for both engage and
+  disengage is simpler and still matches the spec ("no behavior trees").
+  40 HP, 6 dmg/sec, 1.5m attack range, 2.5m interception radius, all
+  `@export`ed per the spec's "expose values for easy balancing." `setup(player)`
+  is called once by the spawner right after `instantiate()` since cops are
+  spawned dynamically and can't get a `NodePath` wired up in the editor.
+- **`scripts/police_spawner.gd`** (`PoliceSpawner`, a `Node3D`): one cop
+  every `spawn_interval` (10s) in a ring around the player
+  (`spawn_radius_min`/`max`), preferring a point outside the active
+  camera's forward view cone (dot-product check against the camera's
+  horizontal forward vector) -- falls back to the last attempt if 20 tries
+  all land in view. Not yet instanced anywhere (see below).
+- **`scripts/npc.gd`** / **`scenes/npc.tscn`**: protesters get a
+  `HealthComponent` (25 HP) + the same billboard `ProgressBar3D` health bar
+  pattern as `scripts/destructible_prop.gd`, shown only once damaged.
+  `recruit()` now also does `add_to_group(&"protester")` -- only recruited
+  NPCs are valid cop-interception targets, per the spec's "**Existing
+  recruited protesters** should automatically damage nearby cops." Combat
+  itself (`_process_police_combat()`) runs every physics frame regardless
+  of steering state (FOLLOW/CHARGE), on its own 0.5s attack-interval timer,
+  independent of whatever state the NPC's movement is in -- per the spec's
+  "Protesters can intercept police by moving into their proximity," this is
+  passive/automatic, not a new NPC state. On death, calls the new
+  `CrowdController.remove_recruit(self)` (erases from `recruited`, reclamps
+  `_send_pointer`) before `queue_free()`.
+- **`scripts/crowd_controller.gd`**: added `remove_recruit(npc)` as the
+  counterpart to `_recruit()`, called from `npc.gd`'s death handler.
+
+## Wiring, now done
+
+1. **Player health.** `HealthComponent` (100 HP) added as a child of
+   `addons/fps_controller/Player.tscn`'s root, alongside the existing
+   `Megaphone`/`Sprint`/`Croissant`/`WeaponSwitcher` additions on top of the
+   vendored `MovementController` base scene.
+2. **`PoliceSpawner` wired into `scenes/test_map.tscn`** as a sibling of
+   `NPCSpawner`/`CrowdController`, `player_path = ../Player`, `police_scene
+   = res://scenes/police.tscn`.
+3. **Player death handling.** New `GameState.trigger_player_death()` (sets
+   `_game_over_fired`, emits `game_over` -- same terminal state Grabuge
+   decay reaches) connected from `scenes/test_map.gd`'s `_ready()` to
+   `Player/HealthComponent.died`, so the vendored `Player.tscn` doesn't need
+   to know about `GameState`.
+4. **Player HUD health readout** (nice-to-have, not in the DoD, but
+   otherwise cop damage would be invisible to the player). Added
+   `HealthLabel`/`HealthBar` to `scenes/hud.tscn`, a `player_health_path`
+   export on `hud.gd` wired to `../Player/HealthComponent` in
+   `test_map.tscn`, same pattern as the existing crowd-count/Grabuge
+   readouts.
+
+## Verified
+
+`task run-headless` equivalent (`--quit-after 12`, long enough to cross the
+10s spawn interval): clean, no parse/script/runtime errors. Per CLAUDE.md's
+rule on verifying live scene trees for anything added to a scene touched by
+a generator script, did a one-off `print_tree_pretty()` in
+`scenes/test_map.gd`'s `_ready()` (reverted after) and confirmed
+`Player/HealthComponent`, all 30 `NPC/HealthComponent`s, and the new
+`PoliceSpawner` node are correctly nested exactly once each -- not
+duplicated or misplaced.
+
+**Not verified -- no display access in this environment:** how the cop
+capsule/outline actually reads visually, whether 6 dmg/sec feels
+appropriately threatening against 100 HP, whether the spawn-outside-camera
+heuristic actually keeps cops from popping in right in front of the player,
+and whether protesters reliably peel off to fight an intercepting cop
+without visibly stalling the mob's charge. **Someone needs to run `task
+run`**: get recruits, let a cop catch up, confirm it either starts biting
+you or gets intercepted by your mob, and confirm a dead protester actually
+leaves `CrowdController.recruited` (e.g. a Send Mob command right after a
+protester death shouldn't try to move a freed node).

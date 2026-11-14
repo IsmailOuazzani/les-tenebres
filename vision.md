@@ -37,11 +37,11 @@ Repeat until the protest collapses.
 
 **The player decides WHERE the mob goes. The NPCs decide HOW to interact with the destination.**
 
-**Send Mob is one command, not two.** À L'ATTAQUE! and Regroup are the same
-underlying action — "send this share of the mob to a position" — the only
-difference is what that position resolves to: an aimed-at interactable
-object (outlined in the reticle), or the player when nothing interactable
-is in view (shown as a plain marker instead). See
+**Send Mob is one command, not two.** It's always "send this share of the
+mob to a position" — the only difference is what that position resolves
+to: an aimed-at interactable object (outlined in the reticle, À
+L'ATTAQUE!), or wherever the aim is pointing at ground/world geometry when
+nothing interactable is in view (shown as a plain marker instead). See
 `agents/mob-selector-notes.md` for the targeting/outline and send-percentage
 spec.
 

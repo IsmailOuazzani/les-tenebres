@@ -17,7 +17,7 @@ const GRABUGE_MAX: float = 100.0
 
 ## Balancing constants -- tweak here. Grabuge decays continuously regardless
 ## of what the player does; recruiting and disruptions push it back up.
-const GRABUGE_DECAY_PER_SECOND: float = 1.5
+const GRABUGE_DECAY_PER_SECOND: float = 0.75
 const RECRUIT_GRABUGE_BONUS: float = 2.0
 const DISRUPTION_GRABUGE_BASE: float = 15.0
 ## Debug key (see scenes/test_map.gd) bump amount, per the original spec's
@@ -80,6 +80,18 @@ func record_disruption(magnitude: float = 1.0) -> void:
 	total_disruptions += 1
 	disruption_recorded.emit(total_disruptions)
 	add_grabuge(DISRUPTION_GRABUGE_BASE * magnitude)
+
+
+## Alternate game-over trigger alongside Grabuge decay: the player's own
+## HealthComponent.died (wired in scenes/test_map.gd, since that's the one
+## non-vendored spot that already does similar debug-key-style wiring
+## without touching addons/fps_controller/Player.tscn). See
+## agents/police-notes.md.
+func trigger_player_death() -> void:
+	if _game_over_fired:
+		return
+	_game_over_fired = true
+	game_over.emit()
 
 
 ## Resets all state. Called by game_over.gd's restart handler -- autoloads

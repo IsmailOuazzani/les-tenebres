@@ -2,3 +2,9 @@
 - recrute policier undercover
 - smoke effect on screen
 - heatlh bar
+- manifestants speciaux gilets jaunes
+- map champs elysees
+- ultimate capacity, with the song
+- ramasser les paves et les lancer
+- canons a eau pour les barriades 
+- parcous jusqau president,. PVE de overwatch, les policier c junkrat

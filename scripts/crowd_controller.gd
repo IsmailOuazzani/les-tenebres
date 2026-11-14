@@ -4,15 +4,16 @@ class_name CrowdController
 ## Centralized crowd controller, per vision.md / agents/crowd-swarm-notes.md.
 ##
 ## Owns the list of recruited NPCs and issues crowd-level commands (recruit,
-## charge, regroup). Individual NPCs (scripts/npc.gd) only do local steering
-## (seek + separation) -- all strategic decisions (who gets recruited, where
-## the crowd scatters to) live here.
+## charge). Individual NPCs (scripts/npc.gd) only do local steering (seek +
+## separation) -- all strategic decisions (who gets recruited, where the
+## crowd scatters to) live here.
 ##
-## Recruitment is driven by the megaphone's influence cone: while the player
-## holds the recruit input, every unrecruited civilian inside the cone (per
-## Megaphone.is_point_within_cone) gets recruited. This controller polls the
-## cone each physics frame; it never reaches into NPC internals beyond the
-## small recruit()/enter_charge()/enter_regroup() contract on scripts/npc.gd.
+## Recruitment is driven by the megaphone's ground-circle range: while the
+## player holds the recruit input, every unrecruited civilian inside the
+## radius (per Megaphone.is_point_within_recruit_range) gets recruited. This
+## controller polls that radius each physics frame; it never reaches into
+## NPC internals beyond the small recruit()/enter_charge() contract on
+## scripts/npc.gd.
 
 @export var player_path: NodePath
 @export var npc_spawner_path: NodePath
@@ -23,11 +24,6 @@ class_name CrowdController
 ## destination rather than stacking on one point").
 @export var charge_spread_radius: float = 3.0
 @export var charge_reaction_delay_max: float = 0.4
-
-## Regrouping: how far from the player a regrouping NPC's destination can
-## land, so the crowd doesn't try to literally occupy the player's exact
-## position.
-@export var regroup_spread_radius: float = 2.0
 
 ## -- Destructible props (PoC) --
 ## How close an attacking NPC needs to be to the active attack target to
@@ -61,7 +57,7 @@ func _ready() -> void:
 	_npc_spawner = get_node_or_null(npc_spawner_path)
 
 	if _player == null:
-		push_warning("CrowdController: player_path did not resolve, FOLLOW/REGROUP will do nothing.")
+		push_warning("CrowdController: player_path did not resolve, FOLLOW will do nothing.")
 	if _npc_spawner == null:
 		push_warning("CrowdController: npc_spawner_path did not resolve, nothing to recruit.")
 
@@ -88,7 +84,7 @@ func _physics_process(delta: float) -> void:
 	for npc in _npc_spawner.spawned_npcs:
 		if npc in recruited:
 			continue
-		if _megaphone.is_point_within_cone(npc.global_position):
+		if _megaphone.is_point_within_recruit_range(npc.global_position):
 			_recruit(npc)
 
 
@@ -127,18 +123,30 @@ func get_neighbors(npc: Node3D, radius: float) -> Array:
 
 func _recruit(npc: Node3D) -> void:
 	recruited.append(npc)
-	npc.recruit(_player, self)
+	npc.recruit(self)
 	GameState.recruit_npc()
+
+
+## Called by an NPC's own death handler (scripts/npc.gd's _on_died()) once a
+## cop kills it, so `recruited` and the ring-slice pointer don't end up
+## pointing at a freed node. Doesn't touch GameState's crowd_count -- that's
+## a separate "ever recruited" counter, not a live headcount.
+func remove_recruit(npc: Node3D) -> void:
+	recruited.erase(npc)
+	if recruited.is_empty():
+		_send_pointer = 0
+	else:
+		_send_pointer = _send_pointer % recruited.size()
 
 
 ## Single handler for the unified Send Mob command, per
 ## agents/mob-selector-notes.md: `target` non-null (the reticle was
 ## outlining a "destructible"-group interactable) means attack that object;
-## null (yellow-ball fallback) means regroup to the player. Either way,
-## `percentage` of `recruited` is selected via the rotating ring slice below
-## and reassigned -- NPCs not selected keep doing whatever they were already
-## doing.
-func _on_send_mob(percentage: float, target: Node3D) -> void:
+## null (yellow-ball fallback) means march to `point` instead (wherever the
+## aim raycast hit ground/world geometry). Either way, `percentage` of
+## `recruited` is selected via the rotating ring slice below and reassigned
+## -- NPCs not selected keep doing whatever they were already doing.
+func _on_send_mob(percentage: float, target: Node3D, point: Vector3) -> void:
 	if recruited.is_empty():
 		return
 
@@ -147,21 +155,16 @@ func _on_send_mob(percentage: float, target: Node3D) -> void:
 		return
 	var selected: Array = _take_ring_slice(count)
 
+	var destination_center: Vector3 = point
 	if target != null:
 		_attack_target = target
 		_attack_target.destroyed.connect(_on_attack_target_destroyed, CONNECT_ONE_SHOT)
-		var target_position: Vector3 = target.global_position
-		for npc in selected:
-			var destination: Vector3 = _scatter_point(target_position, charge_spread_radius)
-			var delay: float = randf_range(0.0, charge_reaction_delay_max)
-			npc.enter_charge(destination, delay)
-	else:
-		if _player == null:
-			return
-		var player_pos: Vector3 = _player.global_position
-		for npc in selected:
-			var destination: Vector3 = _scatter_point(player_pos, regroup_spread_radius)
-			npc.enter_regroup(destination)
+		destination_center = target.global_position
+
+	for npc in selected:
+		var destination: Vector3 = _scatter_point(destination_center, charge_spread_radius)
+		var delay: float = randf_range(0.0, charge_reaction_delay_max)
+		npc.enter_charge(destination, delay)
 
 
 ## Takes `count` NPCs from `recruited` starting at `_send_pointer`, treating

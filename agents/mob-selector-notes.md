@@ -185,3 +185,23 @@ watch the `%` readout climb, release while aiming at the dumpster vs. aiming
 at empty space/wall and confirm attack vs. regroup fires correctly, and try
 three consecutive ~50% sends to confirm the rotating pointer actually
 alternates which half of the mob goes each time.
+
+## Update: yellow-ball fallback now moves the mob, doesn't regroup
+
+Per direct feedback: the yellow-ball fallback case ("aiming at anything
+else") no longer regroups the selected share to the player. Instead it
+sends them to march to wherever the aim raycast actually hit (ground,
+wall, whatever) — same `enter_charge()` mechanics as attacking an object,
+just with no `_attack_target` assigned, so they arrive and hold position
+rather than dealing damage to anything. The signal grew a third argument:
+`send_mob_triggered(percentage, target, point)`, where `point` is the aim
+raycast's hit point (now computed once per frame in `_update_aim_target()`
+alongside `_aim_target`, instead of the separate now-removed
+`_raycast_target()`/`_raycast_destructible()` pair).
+
+This made true regroup-to-player entirely unreachable (it was the *only*
+caller), so `enter_regroup()`/`State.REGROUP` in `scripts/npc.gd` and
+`regroup_spread_radius` in `scripts/crowd_controller.gd` were removed as
+dead code rather than left stubbed. If an explicit "call the mob back to
+me" command is wanted later, it needs a new, deliberate trigger (not the
+Send Mob fallback) — nothing currently exposes one.
