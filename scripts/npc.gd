@@ -102,10 +102,16 @@ func _ready() -> void:
 ## Shrinks the physical collision capsule to collider_to_damage_ratio *
 ## attack_range, decoupling "how tightly bodies can pack" from "how close
 ## you need to be to deal/take damage" -- see the export var comment above.
+## Duplicates the shape first: a CollisionShape3D's sub-resource shape is
+## shared by reference across every instance of this scene (confirmed via a
+## headless debug check), so mutating it in place would clobber every other
+## spawned NPC's collider the moment attack_range/collider_to_damage_ratio
+## ever varies per-instance.
 func _apply_collider_ratio() -> void:
 	var collision_shape: CollisionShape3D = $CollisionShape3D
-	var capsule: CapsuleShape3D = collision_shape.shape
+	var capsule: CapsuleShape3D = collision_shape.shape.duplicate()
 	capsule.radius = attack_range * collider_to_damage_ratio
+	collision_shape.shape = capsule
 
 
 func _spawn_random_character() -> void:

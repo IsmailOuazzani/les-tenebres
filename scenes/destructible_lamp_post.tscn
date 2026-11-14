@@ -1,0 +1,66 @@
+[gd_scene load_steps=10 format=3 uid="uid://cdestructlamp01"]
+
+[ext_resource type="PackedScene" path="res://assets/kenney_city_kit_roads/light-curved.glb" id="1_lamp"]
+[ext_resource type="Script" path="res://scripts/destructible_prop.gd" id="2_script"]
+[ext_resource type="Script" path="res://addons/progress_bar_3d/progress_bar_3d.gd" id="3_progress_bar"]
+[ext_resource type="Shader" path="res://addons/progress_bar_3d/progress_bar_3d_unshaded_no_shadows_no_depth_test.gdshader" id="4_progress_bar_shader"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lamp"]
+size = Vector3(0.2, 2.7, 0.9)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_health"]
+resource_local_to_scene = true
+shader = ExtResource("4_progress_bar_shader")
+shader_parameter/background_color = Color(0.08, 0.08, 0.09, 1)
+shader_parameter/progress_color = Color(0.25, 0.85, 0.3, 1)
+shader_parameter/progress_value = 1.0
+shader_parameter/billboard_mode = 1
+
+[sub_resource type="QuadMesh" id="QuadMesh_health"]
+resource_local_to_scene = true
+material = SubResource("ShaderMaterial_health")
+size = Vector2(1.0, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_outline"]
+size = Vector3(0.23, 3.105, 1.035)
+
+[sub_resource type="StandardMaterial3D" id="Material_outline"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.2, 0.45)
+transparency = 1
+cull_mode = 2
+emission_enabled = true
+emission = Color(1, 0.85, 0.2, 1)
+emission_energy_multiplier = 1.0
+
+[node name="DestructibleLampPost" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("2_script")
+max_health = 120.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.35)
+shape = SubResource("BoxShape3D_lamp")
+
+[node name="LampModel" parent="." instance=ExtResource("1_lamp")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
+
+[node name="Outline" type="MeshInstance3D" parent="."]
+visible = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.35)
+mesh = SubResource("BoxMesh_outline")
+surface_material_override/0 = SubResource("Material_outline")
+
+[node name="HealthBar" type="MeshInstance3D" parent="."]
+visible = false
+position = Vector3(0, 2.78, -0.35)
+mesh = SubResource("QuadMesh_health")
+script = ExtResource("3_progress_bar")
+size = Vector2(1.0, 0.14)
+value = 100.0
+min_value = 0.0
+max_value = 100.0
+background_color = Color(0.08, 0.08, 0.09, 1)
+progress_color = Color(0.25, 0.85, 0.3, 1)
+billboard_mode = 1

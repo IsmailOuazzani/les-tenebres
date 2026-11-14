@@ -1,7 +1,7 @@
 extends SceneTree
 
 func _init() -> void:
-	for path in ["res://scenes/npc.tscn", "res://scenes/police.tscn"]:
+	for path in ["res://scenes/npc.tscn"]:
 		var packed: PackedScene = load(path)
 		var a: Node = packed.instantiate()
 		a.call("_ready")

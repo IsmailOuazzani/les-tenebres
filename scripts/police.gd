@@ -70,11 +70,14 @@ func _ready() -> void:
 
 
 ## Shrinks the physical collision capsule to collider_to_damage_ratio *
-## attack_range -- see the export var comment above.
+## attack_range -- see the export var comment above. Duplicates the shape
+## first since it's shared by reference across every instance of this scene
+## -- see the matching comment in scripts/npc.gd.
 func _apply_collider_ratio() -> void:
 	var collision_shape: CollisionShape3D = $CollisionShape3D
-	var capsule: CapsuleShape3D = collision_shape.shape
+	var capsule: CapsuleShape3D = collision_shape.shape.duplicate()
 	capsule.radius = attack_range * collider_to_damage_ratio
+	collision_shape.shape = capsule
 
 
 ## Called once by scripts/police_spawner.gd right after instantiating --
