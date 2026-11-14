@@ -46,7 +46,18 @@ func _ready() -> void:
 	visual_root.visible = _is_active
 
 
+## How far from the attacking player the server will still accept a
+## client-reported melee hit. The overlap test itself runs on the attacker
+## (the HitArea only exists meaningfully where the swing is simulated), so
+## the server re-checks range before applying damage -- "trusted client melee
+## with a server-side range check", which is proportionate for LAN co-op. See
+## agents/multiplayer-notes.md.
+const SERVER_HIT_RANGE: float = 4.0
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if not is_multiplayer_authority():
+		return
 	if not _is_active:
 		return
 	if event.is_action_pressed(&"primary_action") and not _is_swinging():
@@ -89,23 +100,54 @@ func _play_swing() -> void:
 	_swing_tween.tween_property(visual_root, "rotation", _rest_rotation, swing_duration * 0.6)
 
 
-## Damages everything currently inside HitArea. Damage targeting mirrors
-## police.gd/npc.gd: hit a HealthComponent child if there is one
-## (player/police/protester), otherwise call take_damage() on the body
-## directly (destructible props).
+## Resolves the swing on the attacking client: collects everything currently
+## inside HitArea, plays the local cosmetic feedback, and hands the hit list
+## to the server to actually apply damage (damage is server-authoritative).
+## Targets are addressed by absolute scene path, which resolves identically
+## on every peer -- props are part of the statically loaded map scene and
+## NPCs/police are spawned by the server's MultiplayerSpawners.
 func _try_hit() -> void:
-	var hit_any := false
+	var target_paths: Array[String] = []
 	for body in hit_area.get_overlapping_bodies():
-		var health: HealthComponent = body.get_node_or_null("HealthComponent")
-		if health:
-			health.take_damage(hit_damage)
-			hit_any = true
-			if body is Node3D:
-				BloodBurst.spawn(get_tree().current_scene, body.global_position + Vector3.UP * 0.9)
-		elif body.has_method("take_damage"):
-			body.take_damage(hit_damage)
-			hit_any = true
+		if body.get_node_or_null("HealthComponent") == null and not body.has_method("take_damage"):
+			continue
+		target_paths.append(String(body.get_path()))
+		if body is Node3D:
+			BloodBurst.spawn(get_tree().current_scene, body.global_position + Vector3.UP * 0.9)
 
-	if hit_any:
+	if not target_paths.is_empty():
 		crumb_burst.restart()
 		crumb_burst.emitting = true
+
+	if NetworkManager.is_authoritative():
+		_apply_hit(target_paths)
+	else:
+		rpc_id(1, "_request_hit", target_paths)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_hit(target_paths: Array) -> void:
+	if not NetworkManager.is_authoritative():
+		return
+	# Only the peer that owns this croissant may swing it.
+	if multiplayer.get_remote_sender_id() != get_multiplayer_authority():
+		return
+	_apply_hit(target_paths)
+
+
+## Server-side damage application. Damage targeting mirrors police.gd/npc.gd:
+## hit a HealthComponent child if there is one (player/police/protester),
+## otherwise call take_damage() on the body directly (destructible props).
+func _apply_hit(target_paths: Array) -> void:
+	var attacker_position: Vector3 = global_position
+	for path in target_paths:
+		var body: Node = get_node_or_null(NodePath(String(path)))
+		if body == null or not is_instance_valid(body):
+			continue
+		if body is Node3D and body.global_position.distance_to(attacker_position) > SERVER_HIT_RANGE:
+			continue
+		var health: HealthComponent = body.get_node_or_null("HealthComponent")
+		if health != null:
+			health.take_damage(hit_damage)
+		elif body.has_method("take_damage"):
+			body.take_damage(hit_damage)

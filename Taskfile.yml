@@ -1,7 +1,11 @@
 version: "3"
 
 vars:
-  GODOT: /Applications/Godot.app/Contents/MacOS/Godot
+  # Override with GODOT_BIN=/path/to/godot for a different install.
+  GODOT: '{{.GODOT_BIN | default "/Applications/Godot.app/Contents/MacOS/Godot"}}'
+  # macOS export (see agents/multiplayer-notes.md and the README).
+  EXPORT_PRESET: macOS
+  EXPORT_ZIP: dist/ProtestSimulator-macOS.zip
 
 tasks:
   run:
@@ -20,3 +24,82 @@ tasks:
     desc: Open the project in the Godot editor
     cmds:
       - "{{.GODOT}} --path . -e"
+
+  verify:singleplayer:
+    desc: Headless smoke test of the single-player match bootstrap and replication wiring
+    cmds:
+      - mkdir -p logs
+      - "{{.GODOT}} --path . --headless --script res://scripts/_debug_verify_multiplayer.gd"
+
+  test:lan:
+    desc: Two headless Godot processes (listen server + client) replicating over 127.0.0.1:7000
+    cmds:
+      - bash tools/lan_loopback_test.sh
+
+  export:macos:
+    desc: Build a self-contained, ad-hoc-signed macOS release ZIP into dist/
+    cmds:
+      - task: _export:macos:check-templates
+      - mkdir -p dist
+      - |
+        set -euo pipefail
+        echo "== exporting preset '{{.EXPORT_PRESET}}' -> {{.EXPORT_ZIP}}"
+        rm -f "{{.EXPORT_ZIP}}"
+        "{{.GODOT}}" --headless --path . \
+          --export-release "{{.EXPORT_PRESET}}" "{{.EXPORT_ZIP}}"
+      - task: _export:macos:verify
+
+  _export:macos:check-templates:
+    internal: true
+    desc: Fail loudly if the Godot executable or its export templates are missing
+    cmds:
+      - |
+        set -euo pipefail
+        GODOT="{{.GODOT}}"
+        if [ ! -x "$GODOT" ]; then
+          echo "error: Godot executable not found at '$GODOT'." >&2
+          echo "       Install Godot 4.7 or set GODOT_BIN=/path/to/godot." >&2
+          exit 1
+        fi
+        VERSION="$("$GODOT" --headless --version | tr -d '\r' | tail -n1)"
+        # Export templates live in a version-stamped directory, e.g.
+        # ~/Library/Application Support/Godot/export_templates/4.7.2.stable/
+        TEMPLATE_VERSION="$(printf '%s' "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+(\.[0-9]+)?)\.(stable|beta[0-9]*|rc[0-9]*|dev[0-9]*).*/\1.\3/')"
+        TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/$TEMPLATE_VERSION"
+        if [ ! -f "$TEMPLATE_DIR/macos.zip" ]; then
+          echo "error: macOS export template missing for Godot $VERSION." >&2
+          echo "       Expected: $TEMPLATE_DIR/macos.zip" >&2
+          echo "       Install it from the editor (Editor > Manage Export Templates)" >&2
+          echo "       or download export_templates.tpz for $TEMPLATE_VERSION and unpack it there." >&2
+          exit 1
+        fi
+        echo "== export templates present: $TEMPLATE_DIR"
+
+  _export:macos:verify:
+    internal: true
+    desc: Fail loudly unless the exported ZIP contains a complete, playable .app
+    cmds:
+      - |
+        set -euo pipefail
+        ZIP="{{.EXPORT_ZIP}}"
+        if [ ! -f "$ZIP" ]; then
+          echo "error: export produced no archive at $ZIP." >&2
+          exit 1
+        fi
+        LISTING="$(unzip -Z1 "$ZIP")"
+        for required in \
+          "ProtestSimulator.app/Contents/MacOS/ProtestSimulator" \
+          "ProtestSimulator.app/Contents/Info.plist" \
+          "ProtestSimulator.app/Contents/Resources/ProtestSimulator.pck"
+        do
+          if ! printf '%s\n' "$LISTING" | grep -qx "$required"; then
+            echo "error: $ZIP is missing $required -- the .app would not be playable." >&2
+            echo "       Archive contents:" >&2
+            printf '%s\n' "$LISTING" | head -40 >&2
+            exit 1
+          fi
+        done
+        echo "== OK: $ZIP contains a complete ProtestSimulator.app"
+        echo "   $(du -h "$ZIP" | cut -f1) — distribute this file."
+        echo "   Note: ad-hoc signed, so first launch needs a Gatekeeper override."
+        echo "   See README.md > Running the exported application."

@@ -15,6 +15,10 @@ extends Node
 
 # Called every physics tick. 'delta' is constant
 func _physics_process(delta: float) -> void:
+	# Sprint reads Input and writes the controller's speed/FOV -- local
+	# player only. Remote players' motion is replicated, not simulated.
+	if not is_multiplayer_authority():
+		return
 	if can_sprint():
 		controller.speed = sprint_speed
 		cam.set_fov(lerp(cam.fov, normal_fov * fov_multiplier, delta * 8))

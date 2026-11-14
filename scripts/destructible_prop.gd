@@ -11,11 +11,35 @@ class_name DestructibleProp
 ## health, shows a floating billboard health bar once damaged, and destroys
 ## itself at zero.
 
+## ## Multiplayer
+##
+## Gameplay physics and destruction are **server-authoritative** (spec 2).
+## Props are part of the statically loaded map scene, so they exist at the
+## same node path on every peer and need no spawner -- they replicate their
+## own state with two RPCs instead:
+##
+##   * `_net_health()` -- unreliable-ordered, throttled to ~10 Hz. A frequent
+##     numeric stream feeding the floating health bar; dropping one is
+##     invisible because the next supersedes it.
+##   * `_net_destroy()` -- reliable, call_local. The significant world
+##     interaction event (spec 5). Every peer then runs its own `_die()`, so
+##     debris/shatter physics and the knock-over tween are simulated locally
+##     from one replicated trigger rather than streamed piece by piece.
+##
+## Scoring (`GameState.record_disruption`) happens only on the server, in
+## `_trigger_destruction()`, so one destroyed prop counts as one disruption no
+## matter how many players are watching it fall over.
+
 signal destroyed
 
 @export var max_health: float = 100.0
 
+## How often a damaged prop's health is pushed to clients, in milliseconds.
+const _HEALTH_PUSH_INTERVAL_MSEC: int = 100
+
 var current_health: float
+
+var _last_health_push_msec: int = 0
 
 @onready var _health_bar: ProgressBar3D = $HealthBar
 @onready var _outline: MeshInstance3D = $Outline
@@ -41,24 +65,65 @@ func set_targeted(active: bool) -> void:
 
 ## Called by CrowdController each physics frame for every attacking NPC in
 ## range -- `amount` is already pre-multiplied by delta, so this is just a
-## clamped subtraction + visual update.
+## clamped subtraction + visual update. Server-authoritative: a no-op on
+## clients, whose health value arrives via `_net_health()` instead.
 func take_damage(amount: float) -> void:
+	if not NetworkManager.is_authoritative():
+		return
 	if _dying or amount <= 0.0:
 		return
 
-	current_health = max(current_health - amount, 0.0)
+	_show_health(max(current_health - amount, 0.0))
+
+	if current_health <= 0.0:
+		_trigger_destruction()
+		return
+
+	var now: int = Time.get_ticks_msec()
+	if NetworkManager.is_multiplayer_session() \
+			and now - _last_health_push_msec >= _HEALTH_PUSH_INTERVAL_MSEC:
+		_last_health_push_msec = now
+		_net_health.rpc(current_health)
+
+
+func _show_health(value: float) -> void:
+	current_health = value
 	_health_bar.visible = true
 	_health_bar.value = current_health
 
-	if current_health <= 0.0:
-		_die()
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _net_health(value: float) -> void:
+	_show_health(value)
 
 
+## Server-side: scores the disruption once, then fans the destruction event
+## out to every peer so each runs its own `_die()` locally.
+func _trigger_destruction() -> void:
+	if _dying:
+		return
+	GameState.record_disruption(1.0)
+	if NetworkManager.is_multiplayer_session():
+		_net_destroy.rpc()
+	else:
+		_net_destroy()
+
+
+@rpc("authority", "call_local", "reliable")
+func _net_destroy() -> void:
+	if _dying:
+		return
+	_die()
+
+
+## Local destruction routine, run on every peer. Subclasses override this to
+## add debris (scripts/destructible_vehicle.gd) or shatter
+## (scripts/destructible_glass.gd); none of them do scoring or networking --
+## that is `_trigger_destruction()`'s job.
 func _die() -> void:
 	_dying = true
 	_health_bar.visible = false
 	destroyed.emit()
-	GameState.record_disruption(1.0)
 
 	# Quick "knocked over" sell -- scale to zero rather than just vanishing,
 	# so destruction reads as an event rather than a pop. Tip-over physics is

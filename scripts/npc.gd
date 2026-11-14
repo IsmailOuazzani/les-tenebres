@@ -8,8 +8,40 @@ extends CharacterBody3D
 ## CHARGE) from the controller instead of deciding anything itself -- per
 ## vision.md's crowd design, individual NPCs only do local steering, never
 ## strategy. See agents/crowd-swarm-notes.md for the full design.
+##
+## ## Multiplayer
+##
+## NPCs use **server-side simulation with client-side visual interpolation**
+## (spec 5). The listen server runs the whole state machine; clients run none
+## of it and instead interpolate toward the replicated transform snapshot and
+## play whatever animation state the server reports. That keeps the wire cost
+## per NPC to a ~10 Hz transform plus on-change gameplay state, rather than a
+## full state dump every physics frame -- which matters at the hundreds of
+## protesters vision.md calls for.
+##
+## Spawn/despawn is replicated by the MultiplayerSpawner that wraps
+## NPCSpawner (see scenes/test_map.tscn): the server instantiates and frees,
+## and the spawner mirrors both. `variant_index` travels in the spawn payload
+## so a given protester wears the same outfit on every peer.
 
 enum State { IDLE, WANDER, FOLLOW, CHARGE }
+
+## Replicated animation state (ints rather than clip-name strings, so it fits
+## in a small on-change delta packet).
+enum Anim { IDLE, WALK, RUN, PUNCH_LEFT, PUNCH_RIGHT }
+
+const _ANIM_NAMES: Array[StringName] = [
+	&"Idle", &"Walk", &"Run", &"Punch_Left", &"Punch_Right",
+]
+
+## How fast a client-side NPC chases its latest replicated snapshot
+## (exponential smoothing per second). Tuned against the ~10 Hz transform
+## stream: fast enough to keep up with a charging mob, slow enough that the
+## motion still reads as continuous rather than stepped.
+const INTERP_SPEED: float = 9.0
+## A snapshot further than this from the rendered position is treated as a
+## teleport (fresh spawn) and snapped instead of smoothed.
+const INTERP_SNAP_DISTANCE: float = 6.0
 
 @export var wander_radius: float = 6.0
 @export var move_speed: float = 4.0
@@ -40,6 +72,20 @@ enum State { IDLE, WANDER, FOLLOW, CHARGE }
 ## shrinking or growing attack_range, which stays the actual gameplay-
 ## relevant "can I hit/be hit" distance.
 @export var collider_to_damage_ratio: float = 0.15
+
+## -- Replicated state (authority = the listen server) --
+## Index into CHARACTER_VARIANTS. Chosen by the server and carried in the
+## MultiplayerSpawner payload so every peer dresses this protester the same.
+@export var variant_index: int = 0
+## Transform snapshot published by the server; clients interpolate toward it.
+@export var net_position: Vector3 = Vector3.ZERO
+@export var net_yaw: float = 0.0
+## Gameplay-visible state: which animation this protester is in (walking,
+## running, punching). Replicated on change rather than every frame.
+@export var net_anim: int = Anim.IDLE
+## Replicated health, so clients can show the floating health bar without
+## running any damage logic.
+@export var net_health: float = 25.0
 
 var state: State = State.IDLE
 var home_position: Vector3
@@ -98,7 +144,8 @@ var _punch_alternate: bool = false
 
 func _ready() -> void:
 	home_position = global_position
-	_spawn_random_character()
+	net_position = global_position
+	_spawn_character_variant()
 	_apply_collider_ratio()
 	_enter_idle()
 
@@ -107,6 +154,7 @@ func _ready() -> void:
 	_health_bar.max_value = health.max_health
 	_health_bar.value = health.current_health
 	_health_bar.visible = false
+	net_health = health.max_health
 
 
 ## Shrinks the physical collision capsule to collider_to_damage_ratio *
@@ -124,14 +172,65 @@ func _apply_collider_ratio() -> void:
 	collision_shape.shape = capsule
 
 
-func _spawn_random_character() -> void:
-	var variant_path: String = CHARACTER_VARIANTS[randi() % CHARACTER_VARIANTS.size()]
-	var character: Node3D = (load(variant_path) as PackedScene).instantiate()
+## Instances the outfit named by `variant_index`. The *choice* is made by
+## whoever spawns this NPC (the server, see scripts/npc_spawner.gd) and
+## travels in the spawn payload, so a protester is not a different person on
+## each client.
+func _spawn_character_variant() -> void:
+	var index: int = clampi(variant_index, 0, CHARACTER_VARIANTS.size() - 1)
+	var character: Node3D = (load(CHARACTER_VARIANTS[index]) as PackedScene).instantiate()
 	mesh_root.add_child(character)
 	_anim = character.get_node("AnimationPlayer")
 
 
+## Picks a random outfit index -- called by the spawner, not by the NPC, so
+## the result can be put on the wire (see `variant_index`).
+func random_variant_index() -> int:
+	return randi() % CHARACTER_VARIANTS.size()
+
+
 func _physics_process(delta: float) -> void:
+	# Clients do not simulate protesters at all: they interpolate the
+	# server's transform snapshot and mirror its gameplay state.
+	if not NetworkManager.is_authoritative():
+		_interpolate_snapshot(delta)
+		_apply_replicated_health()
+		_update_visuals(delta)
+		return
+
+	_simulate(delta)
+	_publish_snapshot()
+	_update_visuals(delta)
+
+
+## Wire -> render, client side. Exponential smoothing toward the latest
+## snapshot, with a snap guard for fresh spawns.
+func _interpolate_snapshot(delta: float) -> void:
+	var weight: float = clamp(delta * INTERP_SPEED, 0.0, 1.0)
+	if global_position.distance_to(net_position) > INTERP_SNAP_DISTANCE:
+		global_position = net_position
+	else:
+		global_position = global_position.lerp(net_position, weight)
+	mesh_root.rotation.y = lerp_angle(mesh_root.rotation.y, net_yaw, weight)
+	velocity = Vector3.ZERO
+
+
+func _apply_replicated_health() -> void:
+	if is_equal_approx(_health_bar.value, net_health):
+		return
+	_health_bar.value = net_health
+	_health_bar.visible = net_health < health.max_health
+
+
+## Server -> wire.
+func _publish_snapshot() -> void:
+	net_position = global_position
+	net_yaw = mesh_root.rotation.y
+	net_anim = _compute_anim()
+	net_health = health.current_health
+
+
+func _simulate(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	else:
@@ -152,7 +251,6 @@ func _physics_process(delta: float) -> void:
 			_process_charge(delta)
 
 	move_and_slide()
-	_update_visuals(delta)
 
 	# Recruited protesters only fight cops once the player has actively sent
 	# them somewhere (CHARGE) -- a FOLLOW-state crowd just standing near the
@@ -373,17 +471,23 @@ func enter_charge_at_target(target: Node3D, offset: Vector3, reaction_delay: flo
 	state_timer = reaction_delay
 
 
-func _update_visuals(_delta: float) -> void:
+## Server-side: derives the replicated animation state from this frame's
+## simulation. Separate from `_update_visuals()` so clients can drive the
+## same clips purely off `net_anim` without reproducing any of the logic.
+func _compute_anim() -> int:
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
-	var target_anim: StringName
 	if _melee_target != null:
-		target_anim = &"Punch_Right" if _punch_alternate else &"Punch_Left"
-	elif horizontal_speed <= 0.05:
-		target_anim = &"Idle"
-	elif state == State.CHARGE:
-		target_anim = &"Run"
-	else:
-		target_anim = &"Walk"
+		return Anim.PUNCH_RIGHT if _punch_alternate else Anim.PUNCH_LEFT
+	if horizontal_speed <= 0.05:
+		return Anim.IDLE
+	if state == State.CHARGE:
+		return Anim.RUN
+	return Anim.WALK
 
+
+## Plays whatever clip `net_anim` names. Identical on server and client --
+## the server writes `net_anim` from its simulation, clients receive it.
+func _update_visuals(_delta: float) -> void:
+	var target_anim: StringName = _ANIM_NAMES[clampi(net_anim, 0, _ANIM_NAMES.size() - 1)]
 	if _anim.current_animation != target_anim:
 		_anim.play(target_anim)

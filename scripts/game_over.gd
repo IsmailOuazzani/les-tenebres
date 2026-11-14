@@ -32,11 +32,26 @@ func _ready() -> void:
 	_restart_button.pressed.connect(_on_restart_pressed)
 
 
+## Game over is a shared, server-decided event in multiplayer (Grabuge is one
+## shared score), so every peer shows the same screen with the same stats --
+## the server ships its end-of-run numbers along with the event, see
+## GameState._apply_game_over(). Only the host can start the next round,
+## mirroring the lobby's "only the host can start the match" rule.
 func _on_game_over() -> void:
 	_populate_stats()
 	visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	get_tree().paused = true
+
+	if not NetworkManager.is_multiplayer_session():
+		_restart_button.text = "RESTART"
+		_restart_button.disabled = false
+	elif NetworkManager.is_host():
+		_restart_button.text = "BACK TO LOBBY"
+		_restart_button.disabled = false
+	else:
+		_restart_button.text = "WAITING FOR HOST..."
+		_restart_button.disabled = true
 
 
 func _populate_stats() -> void:
@@ -61,6 +76,12 @@ func _populate_stats() -> void:
 
 
 func _on_restart_pressed() -> void:
+	if NetworkManager.is_host():
+		# Sends every peer back to the lobby, where the host can start
+		# another match without relaunching the game (spec 3).
+		NetworkManager.return_to_lobby()
+		return
+
 	get_tree().paused = false
 	GameState.reset()
 	get_tree().reload_current_scene()

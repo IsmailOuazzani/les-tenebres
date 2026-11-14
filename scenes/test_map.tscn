@@ -1,7 +1,6 @@
 [gd_scene format=4]
 
 [ext_resource type="Script" path="res://scenes/test_map.gd" id="1_hmnbr"]
-[ext_resource type="PackedScene" path="res://addons/fps_controller/Player.tscn" id="21_fveia"]
 [ext_resource type="Script" path="res://scripts/npc_spawner.gd" id="26_npcspw"]
 [ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="27_npcscn"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="28_hud"]
@@ -46,8 +45,10 @@ shadow_enabled = true
 [node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1539687313]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
 
-[node name="Player" parent="." instance=ExtResource("21_fveia")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
+[node name="Players" type="Node3D" parent="."]
+
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../Players")
 
 [node name="NPCSpawner" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 10)
@@ -55,21 +56,21 @@ script = ExtResource("26_npcspw")
 npc_scene = ExtResource("27_npcscn")
 npc_count = 30
 spawn_radius = 14.0
-player_path = NodePath("../Player")
+
+[node name="NPCReplicator" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../NPCSpawner")
 
 [node name="CrowdController" type="Node" parent="."]
 script = ExtResource("30_crowdctl")
-player_path = NodePath("../Player")
 npc_spawner_path = NodePath("../NPCSpawner")
 
 [node name="PoliceSpawner" type="Node3D" parent="."]
 script = ExtResource("31_policespw")
 police_scene = ExtResource("32_policescn")
-player_path = NodePath("../Player")
+
+[node name="PoliceReplicator" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("../PoliceSpawner")
 
 [node name="HUD" parent="." instance=ExtResource("28_hud")]
-player_health_path = NodePath("../Player/HealthComponent")
-weapon_switcher_path = NodePath("../Player/Head/Camera/WeaponSwitcher")
-player_path = NodePath("../Player")
 
 [node name="GameOver" parent="." instance=ExtResource("29_gmovr")]

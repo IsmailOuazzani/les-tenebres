@@ -7,8 +7,31 @@ class_name Police
 ## scripts/police_spawner.gd; everything else it needs (nearby protesters) it
 ## finds itself each frame via the "protester" group that scripts/npc.gd adds
 ## its NPCs to on recruit.
+##
+## ## Multiplayer
+##
+## Police AI and combat are **server-authoritative** with client-side visual
+## interpolation, exactly like protesters (see scripts/npc.gd). Clients run no
+## AI; they interpolate the replicated transform snapshot and play the
+## replicated animation state.
+##
+## Targeting is multi-player aware per spec 4.4: a cop chases the **nearest
+## living player** (re-evaluated each frame via scripts/player_registry.gd)
+## rather than a single player handed to it at spawn time, so it can fight any
+## of the four and will switch to a closer one. Interception by charging
+## protesters still takes priority over any player, unchanged from
+## single-player. A player who is waiting out their 5-second respawn is not an
+## eligible target.
 
 enum State { CHASE_PLAYER, FIGHT_PROTESTER, ATTACK_PLAYER }
+
+## Replicated animation state -- see scripts/npc.gd for why this is an int.
+enum Anim { IDLE, RUN, SHOOT }
+
+const _ANIM_NAMES: Array[StringName] = [&"Idle", &"Run", &"Gun_Shoot"]
+
+const INTERP_SPEED: float = 9.0
+const INTERP_SNAP_DISTANCE: float = 6.0
 
 ## Emitted on death, mirroring scripts/destructible_prop.gd's contract --
 ## lets CrowdController clear `_attack_target` (CONNECT_ONE_SHOT) when a
@@ -39,7 +62,14 @@ signal destroyed
 ## actual engagement range changing.
 @export var collider_to_damage_ratio: float = 0.15
 
+## -- Replicated state (authority = the listen server) --
+@export var net_position: Vector3 = Vector3.ZERO
+@export var net_yaw: float = 0.0
+@export var net_anim: int = Anim.IDLE
+@export var net_health: float = 40.0
+
 var state: State = State.CHASE_PLAYER
+## Current target player, re-resolved every frame by `_update_state()`.
 var player: Node3D = null
 
 var _fight_target: Node3D = null
@@ -67,6 +97,8 @@ func _ready() -> void:
 	_health_bar.value = health.current_health
 	_health_bar.visible = false
 	_outline.visible = false
+	net_health = health.max_health
+	net_position = global_position
 
 
 ## Shrinks the physical collision capsule to collider_to_damage_ratio *
@@ -78,13 +110,6 @@ func _apply_collider_ratio() -> void:
 	var capsule: CapsuleShape3D = collision_shape.shape.duplicate()
 	capsule.radius = attack_range * collider_to_damage_ratio
 	collision_shape.shape = capsule
-
-
-## Called once by scripts/police_spawner.gd right after instantiating --
-## cops are spawned dynamically so they can't get the player wired up via a
-## NodePath set in the editor like CrowdController does.
-func setup(player_node: Node3D) -> void:
-	player = player_node
 
 
 ## Called by Megaphone every frame the player's aim raycast is/isn't hitting
@@ -103,6 +128,14 @@ func take_damage(amount: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Clients run no police AI -- transform and animation arrive as
+	# replicated state and are interpolated.
+	if not NetworkManager.is_authoritative():
+		_interpolate_snapshot(delta)
+		_apply_replicated_health()
+		_update_visuals(delta)
+		return
+
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 	else:
@@ -119,7 +152,34 @@ func _physics_process(delta: float) -> void:
 			_process_attack_player(delta)
 
 	move_and_slide()
+	_publish_snapshot()
 	_update_visuals(delta)
+
+
+## Wire -> render, client side (snapshot interpolation).
+func _interpolate_snapshot(delta: float) -> void:
+	var weight: float = clamp(delta * INTERP_SPEED, 0.0, 1.0)
+	if global_position.distance_to(net_position) > INTERP_SNAP_DISTANCE:
+		global_position = net_position
+	else:
+		global_position = global_position.lerp(net_position, weight)
+	mesh_root.rotation.y = lerp_angle(mesh_root.rotation.y, net_yaw, weight)
+	velocity = Vector3.ZERO
+
+
+func _apply_replicated_health() -> void:
+	if is_equal_approx(_health_bar.value, net_health):
+		return
+	_health_bar.value = net_health
+	_health_bar.visible = net_health < health.max_health
+
+
+## Server -> wire.
+func _publish_snapshot() -> void:
+	net_position = global_position
+	net_yaw = mesh_root.rotation.y
+	net_anim = _compute_anim()
+	net_health = health.current_health
 
 
 ## Interception by a *charging* protester always takes priority over
@@ -135,6 +195,10 @@ func _update_state() -> void:
 		return
 
 	_fight_target = null
+	# Re-target the nearest *living* player every frame (spec 4.4: police can
+	# fight any player and pick the nearest eligible one). In single-player
+	# this resolves to the only player, so behavior is unchanged.
+	player = PlayerRegistry.nearest(self, global_position)
 	if player != null and is_instance_valid(player) \
 			and global_position.distance_to(player.global_position) <= attack_range:
 		state = State.ATTACK_PLAYER
@@ -222,16 +286,19 @@ func _move_toward(direction: Vector3, delta: float) -> void:
 	mesh_root.rotation.y = lerp_angle(mesh_root.rotation.y, target_angle, turn_speed * delta)
 
 
-func _update_visuals(_delta: float) -> void:
-	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
-	var target_anim: StringName
+## Server-side: derives the replicated animation state from this frame's AI.
+func _compute_anim() -> int:
 	if state == State.ATTACK_PLAYER or state == State.FIGHT_PROTESTER:
-		target_anim = &"Gun_Shoot"
-	elif horizontal_speed <= 0.05:
-		target_anim = &"Idle"
-	else:
-		target_anim = &"Run"
+		return Anim.SHOOT
+	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed <= 0.05:
+		return Anim.IDLE
+	return Anim.RUN
 
+
+## Plays whatever clip `net_anim` names -- identical on server and client.
+func _update_visuals(_delta: float) -> void:
+	var target_anim: StringName = _ANIM_NAMES[clampi(net_anim, 0, _ANIM_NAMES.size() - 1)]
 	if _anim.current_animation != target_anim:
 		_anim.play(target_anim)
 

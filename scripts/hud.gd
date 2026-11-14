@@ -6,12 +6,17 @@ extends CanvasLayer
 ## the player's own HealthComponent via `player_health_path`, since health
 ## isn't global state the way Grabuge is.
 
-@export var player_health_path: NodePath
-@export var weapon_switcher_path: NodePath
-## Root player node (the one that yaws with mouse look) -- feeds the compass
-## bar's rotation and the enemy marker bearings. See
-## agents/compass-hud-notes.md.
-@export var player_path: NodePath
+## ## Multiplayer
+##
+## The HUD is strictly **local**: each peer shows its own health, its own
+## weapon hotbar and its own compass. Crowd count and Grabuge come from
+## GameState, which is replicated shared state, so those read identically for
+## everyone (spec 4.5).
+##
+## The player node is no longer at a fixed scene path -- player characters are
+## spawned at runtime by a MultiplayerSpawner -- so instead of `player_path`
+## style exports the match scene calls `bind_player()` with the locally owned
+## character as soon as it exists. See scenes/test_map.gd.
 
 @onready var _crowd_label: Label = %CrowdLabel
 @onready var _grabuge_bar: ProgressBar = %GrabugeBar
@@ -54,6 +59,9 @@ const _GRABUGE_VARIANT_RISING := &"ProgressBarWarning"
 const _GRABUGE_VARIANT_HOT := &"ProgressBarDanger"
 
 
+var _bound_player: Node3D = null
+
+
 func _ready() -> void:
 	GameState.crowd_count_changed.connect(_on_crowd_count_changed)
 	GameState.grabuge_changed.connect(_on_grabuge_changed)
@@ -61,25 +69,37 @@ func _ready() -> void:
 	_on_crowd_count_changed(GameState.crowd_count)
 	_on_grabuge_changed(GameState.grabuge)
 
-	var player_health: Node = get_node_or_null(player_health_path)
+
+## True once `bind_player()` has run. Polled by the match scene, which can
+## only bind after the player-spawn handshake completes.
+func is_bound() -> bool:
+	return _bound_player != null and is_instance_valid(_bound_player)
+
+
+## Wires this HUD to the locally owned player character: health bar, weapon
+## hotbar and compass. Called once per match by scenes/test_map.gd.
+func bind_player(player: Node3D) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	_bound_player = player
+
+	var player_health: Node = player.get_node_or_null("HealthComponent")
 	if player_health != null:
 		player_health.health_changed.connect(_on_player_health_changed)
 		_on_player_health_changed(player_health.current_health, player_health.max_health)
 
-	var weapon_switcher: Node = get_node_or_null(weapon_switcher_path)
+	var weapon_switcher: Node = player.get_node_or_null("Head/Camera/WeaponSwitcher")
 	if weapon_switcher != null:
 		_build_hotbar(weapon_switcher.get_weapon_names())
 		weapon_switcher.weapon_switched.connect(_on_weapon_switched)
 		_on_weapon_switched(weapon_switcher.get_active_index())
 
-	var player: Node3D = get_node_or_null(player_path)
-	if player != null:
-		_compass_bar.parent = player
-		# CompassBar's own _ready() runs before ours (children ready
-		# bottom-up), so it already saw `parent` as null and disabled its
-		# _physics_process -- re-enable it now that `parent` is set.
-		_compass_bar.set_physics_process(true)
-		_compass_markers.player = player
+	_compass_bar.parent = player
+	# CompassBar's own _ready() runs before ours (children ready bottom-up),
+	# so it already saw `parent` as null and disabled its _physics_process --
+	# re-enable it now that `parent` is set.
+	_compass_bar.set_physics_process(true)
+	_compass_markers.player = player
 
 
 func _process(_delta: float) -> void:
