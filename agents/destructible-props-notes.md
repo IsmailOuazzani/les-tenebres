@@ -97,8 +97,13 @@ looks right, need an eyeball pass via `task run`.
 
 ## Not done / still open
 
-- Nothing placed in `scenes/test_map.tscn` — per explicit instruction, these
-  are ready-to-use scenes only.
+- ~~Nothing placed in `scenes/test_map.tscn`~~ — **done**, see
+  `agents/map-generation-notes.md`. All of these are now placed in
+  `scenes/map_geometry.tscn` by `tools/generate_map_geometry.py`. Note they are
+  instanced at **scale 1**, since each scene bakes its own 4x model scale.
+  (The "`--script` can't resolve the `GameState` autoload" warning in the
+  Verification section above turned out to be the exact trap that later
+  destroyed `test_map.tscn` — that incident is written up in the new notes.)
 - Café tables/chairs/kiosks (Kenney City Kit Commercial) and a statue
   destructible were in the original brainstorm but not built this pass —
   only the agreed shortlist (street props, bus, glass) was done.
