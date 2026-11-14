@@ -88,10 +88,11 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_update_visuals(delta)
 
-	# Recruited protesters fight back on their own, independent of whatever
-	# steering state they're in -- per the spec's "Protesters can intercept
-	# police by moving into their proximity."
-	if crowd_controller != null:
+	# Recruited protesters only fight cops once the player has actively sent
+	# them somewhere (CHARGE) -- a FOLLOW-state crowd just standing near the
+	# player doesn't engage, so cops beeline for the player instead of
+	# getting dragged into combat by proximity alone. See vision.md.
+	if crowd_controller != null and state == State.CHARGE:
 		_process_police_combat(delta)
 
 
@@ -250,6 +251,15 @@ func recruit(controller: Node) -> void:
 	# unrecruited wandering civilian never joins the fight, per the spec's
 	# "Existing recruited protesters should automatically damage nearby cops."
 	add_to_group(&"protester")
+
+
+## True only while actively charging toward a Send Mob destination -- the
+## one state that counts as "the player directed this NPC somewhere." Police
+## (scripts/police.gd) only intercept/engage protesters that pass this check,
+## so a FOLLOW-state crowd standing near the player doesn't drag cops into
+## combat just by proximity.
+func is_charging() -> bool:
+	return state == State.CHARGE
 
 
 ## Called by CrowdController to send this NPC charging toward a destination

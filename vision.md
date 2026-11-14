@@ -111,6 +111,8 @@ The final screen displays:
 
 **Escalating City Response:** As Grabuge rises, the city responds with more obstacles, traffic disruptions, and police barricades.
 
+**Police:** Cops beeline for the player by default and only engage the crowd once the player actively directs part of it at them — standing nearby isn't enough to draw them into a fight.
+
 ## MVP Scope
 
 Build the smallest prototype that proves the central mechanic is fun.

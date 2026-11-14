@@ -73,9 +73,11 @@ func _physics_process(delta: float) -> void:
 	_update_visuals(delta)
 
 
-## Protester interception always takes priority over whatever else this cop
-## was doing (chasing or already attacking the player), per the spec's
-## ATTACK_PLAYER behavior: "Prioritize nearby protesters if they intercept."
+## Interception by a *charging* protester always takes priority over
+## whatever else this cop was doing (chasing or already attacking the
+## player). Protesters just standing/following near the player don't count
+## -- see _find_nearest_protester() -- so cops beeline for the player until
+## the player actively sends part of the crowd at them.
 func _update_state() -> void:
 	var nearest_protester: Node3D = _find_nearest_protester()
 	if nearest_protester != null:
@@ -136,11 +138,17 @@ func _tick_attack(delta: float, target: Node3D) -> void:
 		target_health.take_damage(damage_per_second * attack_interval)
 
 
+## Only considers protesters the player has actively sent charging (CHARGE
+## state) -- a FOLLOW-state crowd just standing/holding ground near the
+## player doesn't count as "intercepting," so this cop keeps beelining for
+## the player instead of engaging by proximity alone. See vision.md.
 func _find_nearest_protester() -> Node3D:
 	var nearest: Node3D = null
 	var nearest_dist: float = interception_radius
 	for protester in get_tree().get_nodes_in_group(&"protester"):
 		if not is_instance_valid(protester):
+			continue
+		if not protester.is_charging():
 			continue
 		var dist: float = global_position.distance_to(protester.global_position)
 		if dist <= nearest_dist:

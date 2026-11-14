@@ -95,3 +95,26 @@ run`**: get recruits, let a cop catch up, confirm it either starts biting
 you or gets intercepted by your mob, and confirm a dead protester actually
 leaves `CrowdController.recruited` (e.g. a Send Mob command right after a
 protester death shouldn't try to move a freed node).
+
+## Update: interception gated on CHARGE state
+
+Direct feedback: cops were engaging any nearby recruited protester,
+including ones just standing in FOLLOW near the player -- so a cop chasing
+the player through a crowd would get dragged into a fight it was never
+directed into. Per the new vision.md "Police" line, cops should beeline for
+the player and only engage once the player actively sends part of the crowd
+at them.
+
+Fix: `Police._find_nearest_protester()` now skips any protester whose
+`is_charging()` (new `scripts/npc.gd` method, `state == State.CHARGE`)
+returns false. Symmetrically, `NPC._process_police_combat()` (protesters'
+auto-attack on nearby cops) now only runs while the protester itself is
+`State.CHARGE` -- a FOLLOW-state crowd no longer passively plinks a cop that
+runs past it either. Both sides of the engagement are now gated on the same
+"was this protester actively sent here" check, so a cop ignoring the crowd
+and a crowd ignoring the cop stay consistent with each other.
+
+Not verified in-engine (no display access here) -- someone should confirm:
+a cop beelines straight through/past a standing FOLLOW crowd without
+stopping, and only breaks off once a Send Mob charge lands a few protesters
+near it.
