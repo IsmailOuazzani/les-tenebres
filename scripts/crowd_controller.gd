@@ -50,6 +50,7 @@ class_name CrowdController
 @export var attack_damage_per_second: float = 1.0
 
 var recruited: Array[Node3D] = []
+var speed_boost_until_msec: int = 0
 
 ## Rotating cursor into `recruited`, per agents/mob-selector-notes.md: a
 ## partial-percentage send takes its slice starting here (wrapping around
@@ -115,7 +116,7 @@ func _process_recruitment() -> void:
 		return
 
 	for npc in _npc_spawner.spawned_npcs:
-		if not is_instance_valid(npc):
+		if not is_instance_valid(npc) or npc.is_queued_for_deletion():
 			continue
 		if npc in recruited:
 			continue
@@ -174,6 +175,10 @@ func get_neighbors(npc: Node3D, radius: float) -> Array:
 
 ## Live headcount of currently-recruited NPCs. Server-side only -- clients
 ## read GameState.live_crowd_count, the replicated mirror of this.
+func get_speed_multiplier() -> float:
+	return 1.5 if Time.get_ticks_msec() < speed_boost_until_msec else 1.0
+
+
 func get_recruited_count() -> int:
 	return recruited.size()
 
@@ -240,7 +245,10 @@ func request_send_mob(percentage: float, target_path: String, point: Vector3) ->
 	if not NetworkManager.is_authoritative():
 		return
 	var sender: int = multiplayer.get_remote_sender_id()
-	if not NetworkManager.players.has(sender):
+	var player := get_tree().current_scene.get_node_or_null("Players/%d" % sender) as NetPlayer
+	if player == null or not player.can_issue_mob_order():
+		return
+	if not is_finite(percentage) or not point.is_finite():
 		return
 	apply_send_mob(percentage, target_path, point)
 

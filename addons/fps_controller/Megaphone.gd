@@ -61,6 +61,12 @@ signal send_mob_triggered(percentage: float, target: Node3D, point: Vector3)
 ## WeaponSwitcher.gd (see addons/fps_controller/WeaponSwitcher.gd) via
 ## activate()/deactivate() below -- Megaphone never decides this itself.
 var _is_active: bool = true
+var can_send: bool = true
+var can_recruit: bool = true
+var left_ability: int = -1
+var right_ability: int = -1
+
+@onready var _player := get_node("../../..") as NetPlayer
 
 var _rest_position: Vector3
 var _rest_rotation: Vector3
@@ -118,7 +124,8 @@ func _process(delta: float) -> void:
 		return
 	if not _is_active:
 		return
-	_update_aim_target()
+	if can_send:
+		_update_aim_target()
 
 	if _send_held:
 		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
@@ -136,24 +143,40 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not is_multiplayer_authority():
+	if not is_multiplayer_authority() or not _is_active:
 		return
-	if not _is_active:
+	if _player != null and not _player.is_alive():
 		return
-	if event.is_action_pressed(&"recruit"):
+	if can_recruit and event.is_action_pressed(&"recruit"):
 		_start_recruit()
-	elif event.is_action_released(&"recruit"):
+	elif can_recruit and event.is_action_released(&"recruit"):
 		_stop_recruit()
+	elif event.is_action_pressed(&"recruit") and right_ability >= 0:
+		_player.use_class_ability(right_ability)
 	elif event.is_action_pressed(&"primary_action"):
-		_send_held = true
-		_send_press_time_msec = Time.get_ticks_msec()
-		AudioManager.start_send_charge()
-	elif event.is_action_released(&"primary_action"):
+		if can_send:
+			_send_held = true
+			_send_press_time_msec = Time.get_ticks_msec()
+			AudioManager.start_send_charge()
+		elif left_ability >= 0:
+			_player.use_class_ability(left_ability)
+	elif _send_held and event.is_action_released(&"primary_action"):
 		var held_msec: int = Time.get_ticks_msec() - _send_press_time_msec
-		_send_held = false
-		charge_label.text = ""
-		AudioManager.stop_send_charge()
+		_stop_send_charge()
 		_do_send_mob(_current_send_percentage(held_msec), _aim_target, _aim_point)
+
+
+func cancel_actions() -> void:
+	if _recruiting_held:
+		_stop_recruit()
+	if _send_held:
+		_stop_send_charge()
+
+
+func _stop_send_charge() -> void:
+	_send_held = false
+	charge_label.text = ""
+	AudioManager.stop_send_charge()
 
 
 ## True while the player is holding the recruit input and the ground
@@ -174,9 +197,7 @@ func activate() -> void:
 ## object while the megaphone isn't even equipped.
 func deactivate() -> void:
 	_is_active = false
-	_stop_recruit()
-	_send_held = false
-	charge_label.text = ""
+	cancel_actions()
 	if _aim_target != null and is_instance_valid(_aim_target) and _aim_target.has_method("set_targeted"):
 		_aim_target.set_targeted(false)
 	_aim_target = null

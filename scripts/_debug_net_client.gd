@@ -6,8 +6,7 @@ extends SceneTree
 ##
 ## Pair with scripts/_debug_net_host.gd (see `task test:lan`). Joins
 ## 127.0.0.1:7000, rides the synchronized match start, *plays* a little
-## (walks into a crowd of civilians, holds the megaphone, issues a Send Mob
-## order), then asserts that the authoritative world arrived over the wire:
+## (joins as Scout, recruits civilians and reveals police), then asserts that the authoritative world arrived over the wire:
 ##
 ##   * two player characters exist, with authority split between the host
 ##     (peer 1) and this peer
@@ -22,13 +21,13 @@ extends SceneTree
 ##
 ## The server-side half of the recruitment/command assertions lives in
 ## _debug_net_host.gd -- between them they cover "a client can recruit into
-## the one shared crowd and command it" without a window.
+## the one shared crowd" without a window.
 ##
 ## Not part of gameplay; safe to delete.
 
 const JOIN_DELAY_SEC: float = 1.0
 const RECRUIT_AT_SEC: float = 3.0
-const SEND_MOB_AT_SEC: float = 5.0
+const REVEAL_AT_SEC: float = 4.8
 ## When this client asks the server to buy a shared upgrade out of the shared
 ## Grabuge wallet. After the recruiting phase, so the wallet has something in
 ## it (the host also keeps it topped up -- see _debug_net_host.gd).
@@ -41,7 +40,8 @@ var _elapsed: float = 0.0
 var _nm: Node
 var _joined: bool = false
 var _recruited: bool = false
-var _commanded: bool = false
+var _revealed: bool = false
+var _saw_reveal: bool = false
 var _requested_upgrade: bool = false
 var _done: bool = false
 var _last_tick: float = 0.0
@@ -65,6 +65,7 @@ func _process(delta: float) -> bool:
 			_done = true
 			quit(1)
 			return false
+		_nm.players_changed.connect(_select_scout)
 		var err: int = _nm.join_lan("127.0.0.1", "Client")
 		print("[client] join_lan() -> ", err)
 		if err != OK:
@@ -79,16 +80,26 @@ func _process(delta: float) -> bool:
 	# couple of seconds, so a handful of protesters join rather than one --
 	# a one-protester crowd makes every later assertion hostage to whether a
 	# cop happened to kill it.
-	if _elapsed > RECRUIT_AT_SEC and _elapsed < SEND_MOB_AT_SEC:
+	if _elapsed > RECRUIT_AT_SEC and _elapsed < REVEAL_AT_SEC:
 		if not _recruited:
 			_recruited = true
 			_start_recruiting()
 		else:
 			_walk_to_next_civilian()
 
-	if not _commanded and _elapsed > SEND_MOB_AT_SEC:
-		_commanded = true
-		_send_mob()
+	if not _revealed and _elapsed > REVEAL_AT_SEC:
+		var scout: Node = _local_player()
+		if scout != null:
+			_revealed = true
+			_press_reveal()
+
+	var local: Node = _local_player()
+	if local != null and local.get_cooldown_seconds(PlayerClass.Ability.REVEAL) > 0:
+		for cop in get_nodes_in_group(&"police"):
+			var halo := cop.get_node_or_null("ClassHalo") as MeshInstance3D
+			if halo != null and halo.visible and halo.material_override.no_depth_test:
+				_saw_reveal = true
+				break
 
 	if not _requested_upgrade and _elapsed > UPGRADE_AT_SEC:
 		_requested_upgrade = true
@@ -177,19 +188,17 @@ func _walk_to_next_civilian() -> void:
 	player.global_position = target.global_position + Vector3(0.0, 1.0, 0.0)
 
 
-## Issues an "À L'ATTAQUE!" order through the same handler the megaphone's
-## `send_mob_triggered` signal calls, which on a client forwards it to the
-## server's CrowdController via RPC.
-func _send_mob() -> void:
-	var player: Node3D = _local_player()
-	if player == null:
-		return
-	var destination: Vector3 = player.global_position + Vector3(8.0, 0.0, 0.0)
-	# Half the crowd, so the rest stays in FOLLOW -- charging protesters pick
-	# fights with police and a 100% send can wipe the whole crowd before the
-	# later phases run.
-	player._on_send_mob_triggered(0.5, null, destination)
-	print("[client] sent 50%% of the crowd to ", str(destination.round()))
+func _select_scout() -> void:
+	var peer_id: int = _nm.get_local_peer_id()
+	if _nm.players.has(peer_id) and _nm.get_player_kit(peer_id) != PlayerClass.Kit.SCOUT:
+		_nm.select_kit(PlayerClass.Kit.SCOUT)
+
+
+func _press_reveal() -> void:
+	var event := InputEventAction.new()
+	event.action = &"primary_action"
+	event.pressed = true
+	Input.parse_input_event(event)
 
 
 func _report() -> void:
@@ -233,8 +242,12 @@ func _report() -> void:
 				"client has authority over its own character")
 		var cam: Camera3D = local_player.get_node_or_null("Head/Camera")
 		_expect(cam != null and cam.current, "client's own camera is current")
-		_expect(local_player.net_recruiting,
-				"client's recruit-held flag is set for the server to poll")
+		_expect(local_player.kit == PlayerClass.Kit.SCOUT, "lobby class replicated to the local character")
+		_expect(local_player.extra_jumps == 1, "Scout has one air jump")
+		_expect(_saw_reveal, "Scout click revealed police and replicated its cooldown")
+		_expect(local_player.get_cooldown_seconds(PlayerClass.Ability.REVEAL) > 0,
+				"respawn preserved the reveal cooldown")
+		_expect(current_scene.get_node("HUD/Root/CompassAnchor").visible, "Scout has the compass")
 		_expect(_saw_death, "server-side death replicated to the owning client")
 		_expect(_saw_respawn, "server-side respawn replicated to the owning client")
 		_expect(local_player.net_alive, "client is alive again after respawning")

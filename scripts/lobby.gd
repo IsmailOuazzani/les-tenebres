@@ -17,6 +17,8 @@ extends Control
 @onready var _start_button: Button = %StartButton
 @onready var _leave_button: Button = %LeaveButton
 @onready var _hint_label: Label = %HintLabel
+@onready var _class_picker: OptionButton = %ClassPicker
+@onready var _class_description: Label = %ClassDescription
 
 
 func _ready() -> void:
@@ -26,7 +28,12 @@ func _ready() -> void:
 	_start_button.pressed.connect(_on_start_pressed)
 	_leave_button.pressed.connect(_on_leave_pressed)
 
+	for kit in PlayerClass.LAN_KITS:
+		_class_picker.add_item(PlayerClass.display_name(kit), kit)
+	_class_picker.item_selected.connect(_on_kit_selected)
+
 	NetworkManager.players_changed.connect(_refresh)
+	NetworkManager.match_starting.connect(func() -> void: _class_picker.disabled = true)
 	NetworkManager.connection_error.connect(_on_connection_error)
 
 	if NetworkManager.is_host():
@@ -45,6 +52,7 @@ func _ready() -> void:
 
 func _refresh() -> void:
 	for child in _player_list.get_children():
+		_player_list.remove_child(child)
 		child.queue_free()
 
 	var ids: Array = NetworkManager.players.keys()
@@ -57,11 +65,27 @@ func _refresh() -> void:
 		if int(id) == NetworkManager.get_local_peer_id():
 			tags.append("you")
 		var suffix: String = "" if tags.is_empty() else "  (%s)" % ", ".join(tags)
-		row.text = "%s%s" % [NetworkManager.get_player_name(int(id)), suffix]
+		row.text = "%s  |  %s%s" % [
+			NetworkManager.get_player_name(int(id)),
+			PlayerClass.display_name(NetworkManager.get_player_kit(int(id))),
+			suffix,
+		]
 		_player_list.add_child(row)
 
+	var local_id := NetworkManager.get_local_peer_id()
+	var kit := NetworkManager.get_player_kit(local_id)
+	_class_picker.select(_class_picker.get_item_index(kit))
+	_class_picker.disabled = NetworkManager.match_in_progress or not NetworkManager.players.has(local_id)
+	_class_description.text = PlayerClass.description(kit)
+
 	if NetworkManager.is_host():
-		_start_button.disabled = NetworkManager.players.is_empty()
+		_start_button.disabled = NetworkManager.players.is_empty() or NetworkManager.match_in_progress
+
+
+func _on_kit_selected(index: int) -> void:
+	var kit := _class_picker.get_item_id(index)
+	_class_description.text = PlayerClass.description(kit)
+	NetworkManager.select_kit(kit)
 
 
 func _on_start_pressed() -> void:

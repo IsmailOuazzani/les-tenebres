@@ -32,6 +32,8 @@ class_name MeleeWeapon
 @onready var crumb_burst: CPUParticles3D = $VisualRoot/CrumbBurst
 @onready var hit_area: Area3D = $HitArea
 
+@onready var _wielder := get_node("../../..") as NetPlayer
+
 var _is_active: bool = false
 var _rest_rotation: Vector3
 var _swing_tween: Tween
@@ -54,7 +56,7 @@ const SERVER_HIT_RANGE: float = 4.0
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
 		return
-	if not _is_active:
+	if not _is_active or (_wielder != null and not _wielder.is_alive()):
 		return
 	if event.is_action_pressed(&"primary_action") and not _is_swinging():
 		_play_swing()
@@ -124,7 +126,7 @@ func _play_crumb_burst() -> void:
 
 func _submit_hit(target_paths: Array[String]) -> void:
 	if NetworkManager.is_authoritative():
-		_apply_hit(target_paths)
+		_apply_equipped_hit(target_paths)
 	else:
 		rpc_id(1, "_request_hit", target_paths)
 
@@ -135,6 +137,12 @@ func _request_hit(target_paths: Array) -> void:
 		return
 	# Only the peer that owns this weapon may swing it.
 	if multiplayer.get_remote_sender_id() != get_multiplayer_authority():
+		return
+	_apply_equipped_hit(target_paths)
+
+
+func _apply_equipped_hit(target_paths: Array) -> void:
+	if _wielder != null and not _wielder.can_use_melee(name):
 		return
 	_apply_hit(target_paths)
 

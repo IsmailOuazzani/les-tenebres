@@ -1,4 +1,5 @@
 extends CharacterBody3D
+class_name NPC
 
 ## Civilian / crowd NPC.
 ##
@@ -24,7 +25,7 @@ extends CharacterBody3D
 ## and the spawner mirrors both. `variant_index` travels in the spawn payload
 ## so a given protester wears the same outfit on every peer.
 
-enum State { IDLE, WANDER, FOLLOW, CHARGE }
+enum State { IDLE, WANDER, FOLLOW, CHARGE, BARRIER }
 
 ## Replicated animation state (ints rather than clip-name strings, so it fits
 ## in a small on-change delta packet).
@@ -157,7 +158,8 @@ func _ready() -> void:
 	net_position = global_position
 	_spawn_character_variant()
 	_apply_collider_ratio()
-	_enter_idle()
+	if state != State.BARRIER:
+		_enter_idle()
 
 	health.health_changed.connect(_on_health_changed)
 	health.died.connect(_on_died)
@@ -271,6 +273,9 @@ func _simulate(delta: float) -> void:
 			_process_follow(delta)
 		State.CHARGE:
 			_process_charge(delta)
+		State.BARRIER:
+			velocity.x = 0.0
+			velocity.z = 0.0
 
 	move_and_slide()
 
@@ -453,8 +458,11 @@ func _combine_with_separation(seek: Vector3) -> Vector3:
 
 
 func _move_toward(direction: Vector3, delta: float) -> void:
-	velocity.x = direction.x * move_speed * _speed_variance
-	velocity.z = direction.z * move_speed * _speed_variance
+	var current_speed := move_speed * _speed_variance
+	if crowd_controller != null:
+		current_speed *= crowd_controller.get_speed_multiplier()
+	velocity.x = direction.x * current_speed
+	velocity.z = direction.z * current_speed
 
 	var target_angle: float = atan2(direction.x, direction.z)
 	mesh_root.rotation.y = lerp_angle(mesh_root.rotation.y, target_angle, turn_speed * delta)
@@ -504,6 +512,10 @@ func recruit(controller: Node) -> void:
 ## Either way, a FOLLOW/WANDER/IDLE protester (not charging at all) never
 ## engages -- see police.gd and the comment in _physics_process() above.
 func can_engage(cop: Node3D) -> bool:
+	if is_queued_for_deletion() or health.is_dead():
+		return false
+	if state == State.BARRIER:
+		return true
 	if state != State.CHARGE:
 		return false
 	return _charge_target == null or _charge_target == cop

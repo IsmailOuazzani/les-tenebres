@@ -183,6 +183,26 @@ func _spawn_npc_at(spawn_point: Vector3) -> void:
 	spawned_npcs.append(npc)
 
 
+## Barrier NPCs share civilian scene replication without entering the recruitable list.
+func spawn_barrier_supporter(at: Vector3, facing: Vector3, duration: float) -> void:
+	var npc := npc_scene.instantiate() as NPC
+	npc.name = "Barrier%d" % _next_npc_id
+	_next_npc_id += 1
+	npc.position = to_local(at)
+	npc.net_position = at
+	npc.variant_index = npc.random_variant_index()
+	npc.state = NPC.State.BARRIER
+	npc.add_to_group(&"protester")
+	add_child(npc)
+	npc.mesh_root.rotation.y = atan2(facing.x, facing.z)
+	npc.net_yaw = npc.mesh_root.rotation.y
+	var lifetime := Timer.new()
+	lifetime.one_shot = true
+	lifetime.timeout.connect(npc.queue_free)
+	npc.add_child(lifetime)
+	lifetime.start(duration)
+
+
 func _find_spawn_point(center: Vector3, placed_points: Array[Vector3]) -> Vector3:
 	for attempt in range(20):
 		var angle: float = randf() * TAU

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://bdupkh0grwy27"]
+[gd_scene load_steps=10 format=3 uid="uid://bdupkh0grwy27"]
 
 [ext_resource type="PackedScene" path="res://addons/fps_controller/MovementController.tscn" id="1_t1jcr"]
 [ext_resource type="PackedScene" path="res://addons/fps_controller/Head.tscn" id="2_41iu1"]
@@ -8,6 +8,8 @@
 [ext_resource type="Script" path="res://addons/fps_controller/WeaponSwitcher.gd" id="6_wswtch"]
 [ext_resource type="Script" path="res://scripts/health_component.gd" id="7_health"]
 [ext_resource type="PackedScene" path="res://addons/fps_controller/Baguette.tscn" id="8_baguette"]
+
+[ext_resource type="PackedScene" path="res://addons/fps_controller/ProtestSign.tscn" id="9_sign"]
 
 [node name="Player" instance=ExtResource("1_t1jcr")]
 
@@ -22,9 +24,11 @@ script = ExtResource("3_bgqcu")
 
 [node name="Baguette" parent="Head/Camera" instance=ExtResource("8_baguette")]
 
+[node name="ProtestSign" parent="Head/Camera" instance=ExtResource("9_sign")]
+
 [node name="WeaponSwitcher" type="Node" parent="Head/Camera"]
 script = ExtResource("6_wswtch")
-weapon_paths = Array[NodePath]([NodePath("../Megaphone"), NodePath("../Croissant"), NodePath("../Baguette")])
+weapon_paths = Array[NodePath]([NodePath("../Megaphone"), NodePath("../Croissant"), NodePath("../Baguette"), NodePath("../ProtestSign")])
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("7_health")

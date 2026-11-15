@@ -17,10 +17,18 @@ signal weapon_switched(index: int)
 var _weapons: Array[Node] = []
 var _active_index: int = 0
 
+@onready var _player := get_parent().get_parent().get_parent() as NetPlayer
+
 
 func _ready() -> void:
+	var kit: int = _player.kit if _player != null else PlayerClass.Kit.SOLO
 	for path in weapon_paths:
-		_weapons.append(get_node(path))
+		var weapon := get_node(path)
+		weapon.call(&"deactivate")
+		if kit == PlayerClass.Kit.SOLO and weapon.name != &"ProtestSign":
+			_weapons.append(weapon)
+		elif kit != PlayerClass.Kit.SOLO and weapon.name in [&"Megaphone", _class_weapon_name(kit)]:
+			_weapons.append(weapon)
 
 	for i in _weapons.size():
 		var equipped := is_multiplayer_authority() and i == _active_index
@@ -39,6 +47,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		_switch_to(1)
 	elif event.is_action_pressed(&"weapon_3"):
 		_switch_to(2)
+	elif _active_index == 1 and _player != null and _player.kit == PlayerClass.Kit.MENEUR:
+		if event.is_action_pressed(&"recruit"):
+			_player.use_class_ability(PlayerClass.Ability.CROISSANT_SHOT)
+
+
+func _class_weapon_name(kit: int) -> StringName:
+	match kit:
+		PlayerClass.Kit.SCOUT: return &"Baguette"
+		PlayerClass.Kit.MENEUR: return &"Croissant"
+		PlayerClass.Kit.MEDIC: return &"ProtestSign"
+	return &""
 
 
 ## Display names for the hotbar, in slot order -- just the weapon nodes' own
@@ -47,7 +66,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func get_weapon_names() -> Array[String]:
 	var names: Array[String] = []
 	for weapon in _weapons:
-		names.append(weapon.name)
+		names.append("Protest Sign" if weapon.name == &"ProtestSign" else String(weapon.name))
 	return names
 
 
@@ -60,5 +79,7 @@ func _switch_to(index: int) -> void:
 		return
 	_weapons[_active_index].call(&"deactivate")
 	_active_index = index
+	if _player != null:
+		_player.publish_weapon_slot(index)
 	_weapons[_active_index].call(&"activate")
 	weapon_switched.emit(_active_index)
