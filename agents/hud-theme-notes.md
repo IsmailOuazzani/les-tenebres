@@ -1,11 +1,21 @@
-# HUD theme (Kenney UI Pack)
+# Match HUD theme
 
-The HUD was upgraded from plain default-theme Labels/ProgressBars (no
-background, no outline, flat gray bars) to a themed look using an existing
-asset pack rather than hand-rolled StyleBoxFlats, per the repo's
-addon-first rule.
+`res://themes/hud_theme.tres` styles the in-match HUD, upgrade station,
+Act Complete screen and Game Over screen using Godot's existing Theme
+resource. Charcoal surfaces and warm white text carry persistent information.
+Amber marks the selected hotbar slot, spendable Grabuge and primary buttons.
+The health bar switches from mint to amber at 60% and red at 30%. Threat
+warnings use red.
 
-## Source
+The Snapchat feed explicitly uses its previous inherited theme,
+`res://themes/main_theme.tres`. Its scene and script still own the feed's
+colors and notification styling.
+
+The upgrade station groups player and crowd offers, keeps the balance and
+countdown action outside the scrolling list, and updates the existing rows
+when purchases change the wallet, level, price or affordability.
+
+## Original theme source
 
 `res://themes/main_theme.tres` + `res://themes/ui_pack/` were copied from
 [Kingsmai/kenney-ui-pack-starter-kit](https://github.com/Kingsmai/kenney-ui-pack-starter-kit)
@@ -19,23 +29,6 @@ generator script) or install the `ThemeGen` plugin it depends on — the
 baked `main_theme.tres` is used as a static resource. If the theme ever
 needs new variants/colors, either hand-edit the `.tres` or pull the
 generator script + ThemeGen plugin back in.
-
-## How it's wired
-
-- `scenes/hud.tscn`'s `Root` Control has `theme = main_theme.tres`, so it
-  cascades to every HUD child.
-- The stats block (`Crowd`/`Grabuge`/`Health`) is now wrapped in a
-  `StatsPanel` (`PanelContainer`, variant `PanelContainerDefaultFlat`)
-  instead of floating bare text over the 3D scene.
-- `scripts/hud.gd` switches `theme_type_variation` at runtime instead of
-  building custom `StyleBoxFlat`s:
-  - Health bar: `ProgressBarSuccess` / `Warning` / `Danger` by HP ratio
-    thresholds (>60% / 30-60% / <30%).
-  - Grabuge bar: `ProgressBarPrimary` (calm) → `Warning` → `Danger` as it
-    climbs past 35% / 70%.
-  - Hotbar slot chips: `PanelContainerDefaultFlat` (inactive) /
-    `PanelContainerPrimaryFlat` (active weapon), replacing the old
-    hand-drawn border/background swap.
 
 ## Gotcha hit while setting this up
 
