@@ -10,6 +10,8 @@ vars:
   # wraps it. See export:macos vs export:macos:zip below.
   EXPORT_APP: dist/ProtestSimulator.app
   EXPORT_ZIP: dist/ProtestSimulator-macOS.zip
+  EXPORT_WINDOWS_PRESET: Windows Desktop
+  EXPORT_WINDOWS_ZIP: dist/ProtestSimulator-Windows.zip
 
 tasks:
   # Bare `task` lists what is available rather than failing with
@@ -75,6 +77,24 @@ tasks:
         "{{.GODOT}}" --headless --path . \
           --export-release "{{.EXPORT_PRESET}}" "{{.EXPORT_ZIP}}"
       - task: _export:macos:verify:zip
+
+  export:windows:
+    desc: Build a Windows x86_64 release ZIP into dist/
+    cmds:
+      - mkdir -p dist
+      - |
+        set -eu
+        archive="{{.EXPORT_WINDOWS_ZIP}}"
+        rm -f "$archive"
+        "{{.GODOT}}" --headless --path . \
+          --export-release "{{.EXPORT_WINDOWS_PRESET}}" "$archive"
+
+        listing="$(unzip -Z1 "$archive")"
+        if ! printf '%s\n' "$listing" | grep -Eq '(^|/)ProtestSimulator-Windows[.]exe$'; then
+          echo "error: $archive is missing ProtestSimulator-Windows.exe." >&2
+          exit 1
+        fi
+        echo "== OK: $archive contains ProtestSimulator-Windows.exe"
 
   _export:macos:check-templates:
     internal: true

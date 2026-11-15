@@ -15,7 +15,7 @@ Now with **LAN co-op for 1-4 players**.
 | | |
 |---|---|
 | Engine | **Godot 4.7** (developed against 4.7.2 stable) |
-| Platform | macOS (Apple Silicon or Intel); the project also runs on other desktop platforms, only macOS is packaged |
+| Platform | Develop on macOS (Apple Silicon or Intel). Release builds are available for macOS and Windows x86_64. |
 | Task runner | [`go-task`](https://taskfile.dev) (`brew install go-task`) |
 
 The Godot binary is expected at `/Applications/Godot.app/Contents/MacOS/Godot`.
@@ -27,7 +27,7 @@ GODOT_BIN=/path/to/godot task run
 
 ### Export templates (only needed to build a release)
 
-`task export:macos` needs the **export templates for the exact Godot version
+Release builds need the **export templates for the exact Godot version
 you are running**. Install them once:
 
 * In the editor: **Editor → Manage Export Templates → Download and Install**, or
@@ -50,7 +50,9 @@ it is missing.
 | `task editor` | Open the project in the Godot editor |
 | `task verify:singleplayer` | Headless smoke test: match bootstrap, player spawn, replication wiring |
 | `task test:lan` | Two headless Godot processes replicating over `127.0.0.1:7000` |
-| `task export:macos` | Build a distributable macOS release ZIP into `dist/` |
+| `task export:macos` | Build a macOS `.app` into `dist/` |
+| `task export:macos:zip` | Build a distributable macOS release ZIP into `dist/` |
+| `task export:windows` | Build a distributable Windows x86_64 release ZIP into `dist/` |
 
 The game boots to a main menu with three options: **Single Player**,
 **Host LAN** and **Join LAN**.
@@ -176,6 +178,20 @@ quarantine flag than files received via AirDrop or a USB stick — the
 To ship a build that opens with a plain double-click you would need a paid
 Apple Developer account for a Developer ID signature plus notarization; both
 are deliberately out of scope here.
+
+---
+
+## Building a Windows release
+
+With the Windows x86_64 export templates installed, run this from the project
+root on your Mac:
+
+```sh
+task export:windows
+```
+
+Send `dist/ProtestSimulator-Windows.zip` to the other players. Have them extract
+the whole ZIP and run `ProtestSimulator-Windows.exe` from the extracted folder.
 
 ---
 
