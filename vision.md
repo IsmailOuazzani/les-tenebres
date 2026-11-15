@@ -4,24 +4,28 @@
 
 A chaotic, funny, first-person protest simulator set in Paris, France.
 
-The player starts alone and recruits NPCs to form an increasingly massive protest. Using a megaphone, they direct their mob toward locations and objects, causing ridiculous disruptions across the city.
+The player starts alone and recruits NPCs to form an increasingly massive protest. Using a megaphone, they direct their mob toward locations, objects, and police, causing ridiculous disruptions across the city while surviving escalating waves of police attacks.
 
-**Genre:** First-person sandbox, crowd simulator, arcade
+**Genre:** First-person wave-survival crowd simulator, arcade
 
-**Inspiration:** Goat Simulator, Katamari Damacy, Pikmin
+**Inspiration:** Goat Simulator, Katamari Damacy, Pikmin, Call of Duty Zombies, Team Fortress 2: Mann vs. Machine
 
-**Goal:** Build the biggest protest possible before the crowd disperses. No story mode, just replayable sandbox gameplay and high scores.
+**Goal:** Survive as many waves of police as possible, growing an increasingly ridiculous mob and upgrading yourself between waves. No story mode — replayable runs centered on beating your previous best wave/Act.
 
 ## Core Gameplay Loop
 
-1. **Recruit:** Hold your megaphone to project a recruitment cone and convince nearby civilians to join your protest.
-2. **Direct:** Aim at a location or object and shout "À L'ATTAQUE!" to send your mob there.
-3. **Cause chaos:** Protesters interact with the target, creating funny, physics-driven disruptions.
-4. **Build Grabuge:** Recruiting and successful disruptions raise the crowd's shared chaos/excitement meter.
-5. **Grow:** Use your larger mob — and a bigger megaphone cone — to cause increasingly spectacular disruptions.
-6. **Survive:** Keep Grabuge up before it decays away and the crowd disperses.
+The game launches directly into **Survival Mode** by default.
 
-Repeat until the protest collapses.
+1. **Prepare:** Recruit civilians, position your mob, and prepare for the next attack.
+2. **Survive:** Police arrive in increasingly large waves. Use your mob to defend yourself and fight back.
+3. **Cause chaos:** Continue recruiting and directing protesters toward objects, locations, and police to generate Grabuge.
+4. **Earn Grabuge:** Accumulate currency through recruitment and successful disruptions.
+5. **Upgrade:** Between waves, spend Grabuge on upgrades that improve your chances of surviving.
+6. **Escalate:** Face larger, more dangerous waves as the run progresses.
+
+Repeat until the player dies or completes the Act.
+
+The player should feel increasingly powerful, but the police should escalate enough to remain threatening.
 
 ## Core Controls
 
@@ -52,6 +56,7 @@ Examples:
 - **Plaza:** Protesters gather and begin chanting.
 - **Barricade:** Protesters push against it.
 - **Statue:** Protesters climb all over it.
+- **Police:** Protesters swarm and fight them, when explicitly targeted with Send Mob.
 
 The outcome depends on crowd size, positioning, physics, and the environment.
 
@@ -79,29 +84,111 @@ NPCs should also imitate certain player actions where appropriate, creating emer
 
 **Physical size vs. damage range are separate knobs.** How tightly bodies can pack together (for a dense mob look) and how close something needs to be to deal/take damage are deliberately independent — shrinking one doesn't shrink the other. See "Tweakable Parameters" below.
 
-## Grabuge: the One Shared Resource
+## Grabuge: Currency and Progression
 
-**Grabuge** is the protest's single shared meter of chaos and excitement (0-100%). It replaces any separate publicity, enthusiasm, or patience-style meters — there is only one number to manage.
+**Grabuge is no longer a survival meter — it's the run's currency.**
 
-- Recruiting civilians and pulling off disruptions raise Grabuge.
-- Bigger, more ridiculous disruptions raise it more.
-- Grabuge decays continuously on its own.
-- Higher Grabuge grows the megaphone's recruitment cone (range and width), making recruiting easier and the mob grow faster.
+Grabuge is earned during the run and spent on upgrades between waves. It no longer decays, and it no longer determines anything about losing the run.
 
-The player is encouraged to keep moving and find increasingly interesting targets to keep Grabuge from running out.
+**Important design distinction:** the game tracks two separate numbers:
+- **Total Grabuge earned** this run — never decreases, used to scale civilian spawn rate (a bigger, louder protest draws more onlookers).
+- **Available (unspent) Grabuge** — rises and falls as the player earns and spends it, used only for upgrade purchases.
 
-## Losing Condition: Grabuge Collapse
+Keeping these separate means buying an upgrade can never accidentally shrink the recruitment pool.
 
-When Grabuge runs out, the protest loses steam: NPCs gradually begin leaving, and at zero the crowd disperses rapidly.
+- Recruiting civilians generates Grabuge.
+- Successful disruptions generate Grabuge.
+- Grabuge no longer decays.
+- Unspent Grabuge carries over between waves.
+- Police spawning is completely independent of Grabuge — it's controlled entirely by the wave system (see below).
+- Higher Grabuge (total earned) still grows the megaphone's recruitment cone, making recruiting easier as the mob grows.
 
-**Game Over:** The last protester leaves.
+Do not introduce additional currencies or resource meters.
 
-The final screen displays:
-- Peak number of protesters
+## Losing Condition: Player Health
+
+The only game-over condition is **the player's health reaching zero**.
+
+- The player has health.
+- Police attempt to reach and attack the player directly.
+- The player must direct protesters to intercept and fight the police before they close in.
+- Protesters can take damage and die.
+- Losing protesters makes survival harder (a smaller mob to throw at incoming waves), but does not directly end the run.
+- Grabuge reaching zero does **not** end the run.
+
+**Game Over:** Player health reaches zero.
+
+## Wave System
+
+A straightforward survival-wave structure, inspired by zombie survival games.
+
+**During waves:**
+- A visible survival timer and wave number.
+- Police spawn at randomized locations around the play area, and continue spawning throughout the wave.
+- Wave sizes increase as the player progresses.
+- Clear audiovisual warning signals precede dangerous incoming attacks.
+- Spawn locations vary, but enemies should never unfairly appear directly on top of the player.
+
+**Between waves:**
+- Clear wave completion feedback.
+- A brief quiet period with no new police spawning.
+- An opportunity to recruit additional civilians.
+- An upgrade purchasing opportunity (see below).
+- A preview of the next wave's difficulty/approximate threat level.
+- A countdown before the next wave begins.
+
+Waves are primarily **time-based survival challenges**, not kill-everything challenges: surviving the timer completes the wave, and any remaining police can retreat or despawn during the transition.
+
+**Escalation:**
+- Wave size increases over time.
+- Escalation milestones should be predictable and understandable (e.g. every third wave introduces a more substantial assault).
+- Later Acts raise the overall difficulty further.
+
+For the MVP, escalating enemy counts are sufficient — no multiple enemy types, bosses, or sophisticated police tactics yet.
+
+## Acts and Progression
+
+The game is organized into **Acts**, each a discrete survival challenge made of multiple waves with increasing difficulty.
+
+At the end of an Act, display a scoreboard with:
+- Waves survived
+- Peak crowd size
+- Total Grabuge earned
+- Police defeated
 - Total disruptions
-- Protest duration
-- Peak Grabuge reached
-- A humorous reason for the protest ending
+- Time survived
+
+Completing an Act should feel rewarding, with clear feedback before proceeding to a harder Act. For now, Acts don't need different environments, scripted story sequences, or elaborate objectives — their job is to structure progression and create meaningful milestones.
+
+## Upgrade System
+
+Between waves, players spend available Grabuge on upgrades. Upgrades persist for the current run only (no permanent meta-progression).
+
+Three starting player upgrades:
+
+| Upgrade | Effect |
+|---|---|
+| **Speed** | Increase player movement speed by 10%. |
+| **Jump** | Increase player jump height by 15%. |
+| **Health** | Increase maximum player health by 20 HP and restore 20 HP. |
+
+Upgrades aren't limited to the player — the same purchasing flow can apply to the mob, since the crowd is as central to survival as the player is:
+
+| Upgrade | Effect |
+|---|---|
+| **Crowd Velocity** | Increase protester movement speed by 10%, so the mob responds and closes distance faster. |
+| **Crowd Health** | Increase protester max health by 20%, so NPCs survive longer against police. |
+| **Crowd Strength** | Increase protester attack damage by 15%, so the mob clears police faster. |
+
+These numbers are all configurable.
+
+Design principles:
+- Upgrades are purchased with available Grabuge; players can save up across waves instead of spending immediately.
+- Upgrades should be immediately noticeable in how the player feels to control.
+- The UI stays simple: show each upgrade, its effect, its price, and whether the player can currently afford it.
+- No skill trees, inventory management, complex item systems, or permanent meta-progression for now.
+
+This starting set is intentionally simple — the selection can expand once the survival loop itself is fun.
 
 ## Secondary Mechanics for Later
 
@@ -111,11 +198,11 @@ The final screen displays:
 
 **Mob Imitation:** NPCs copy funny player actions, such as sitting in the road or climbing on objects.
 
-**Escalating City Response:** As Grabuge rises, the city responds with more obstacles, traffic disruptions, and police barricades. Police spawn rate already scales with Grabuge this way (same trickle-rate formula as Civilian Spawning, capped at a max concurrent count); obstacles/traffic/barricades are still unimplemented.
+**Civilian Spawning:** Bystanders trickle in near the player over time, at a rate that scales up with total Grabuge earned (a bigger, louder protest draws more onlookers) up to a cap, and despawn once too far from the player. Keeps recruits available for the whole run instead of a one-time pool that runs dry.
 
-**Civilian Spawning:** Bystanders trickle in near the player over time, at a rate that scales up with Grabuge (a bigger, louder protest draws more onlookers) up to a cap, and despawn once too far from the player. Keeps recruits available for the whole run instead of a one-time pool that runs dry.
+**Escalating Obstacles:** Beyond wave size, later Acts could add traffic disruptions, barricades, or other environmental obstacles tied to wave/Act progression (not to Grabuge, which no longer drives police presence). Unimplemented for now.
 
-**Police:** Cops beeline for the player by default and only engage the crowd once the player actively directs part of it at them — standing nearby isn't enough to draw them into a fight. Police are a Send Mob target like any destructible object — the player can aim and "À L'ATTAQUE!" a cop directly, not just march the crowd near one and hope for an intercept.
+**Police:** Cops beeline for the player by default and only engage the crowd once the player actively directs part of it at them — standing nearby isn't enough to draw them into a fight. Police are a Send Mob target like any destructible object — the player can aim and "À L'ATTAQUE!" a cop directly, not just march the crowd near one and hope for an intercept. Police spawning itself (timing, count, location) is driven entirely by the Wave System, not by Grabuge.
 
 ## MVP Scope
 
@@ -123,16 +210,17 @@ Build the smallest prototype that proves the central mechanic is fun.
 
 **First playable version:**
 1. A small Paris-inspired street environment.
-2. First-person character with a megaphone.
-3. Civilian NPCs who can be recruited by holding left click (recruitment cone).
+2. First-person character with a megaphone and health.
+3. Civilian NPCs who can be recruited by holding right click (recruitment cone).
 4. Recruited NPCs follow the player as a loose crowd (seek/separation/cohesion steering).
-5. Right click sends the mob charging toward a selected target; hold right click regroups it.
-6. Two or three contextual targets, such as a bus, road, and plaza.
+5. Hold left click to ramp up a % of the mob, release to send it charging at the reticle's target; holding right click regroups the crowd around the player.
+6. Two or three contextual targets, such as a bus, road, and plaza, plus police as a Send Mob target.
 7. Simple NPC reactions and crowd physics.
-8. The Grabuge system (single shared meter, decay, and debug controls).
-9. Crowd counter and game-over screen.
+8. The Grabuge system (total earned vs. available, no decay) and civilian spawn scaling.
+9. A basic wave system: timer, wave number, escalating police spawns, and a between-wave upgrade screen with the three starting upgrades.
+10. Crowd counter, player health bar, and a game-over screen on player death.
 
-**Avoid initially:** Story mode, complex combat, sophisticated police AI, skill trees, detailed progression systems, and large maps.
+**Avoid initially:** Story mode, complex combat, sophisticated police AI/multiple enemy types, skill trees, detailed meta-progression systems, and large maps.
 
 ## Design Pillars
 
@@ -140,8 +228,8 @@ Build the smallest prototype that proves the central mechanic is fun.
 2. **The mob is the main character.** Watching and directing the crowd is the primary entertainment.
 3. **Size changes gameplay.** A crowd of 500 must feel substantially different from a crowd of 10.
 4. **Comedy through simulation.** Funny moments emerge from NPC physics and interactions, not scripted cutscenes.
-5. **Constant risk and reward.** Bigger disruptions raise Grabuge faster but risk scattering the crowd.
-6. **Replayability over narrative.** Short sandbox runs centered on beating your previous high score.
+5. **Escalating tension, not a ticking clock.** Waves of police — not a decaying meter — create pressure; the player's own choices (recruiting, upgrading, picking fights) determine whether they keep pace.
+6. **Replayability over narrative.** Short survival runs centered on beating your previous wave count or Act.
 
 ## Tweakable Parameters
 
@@ -151,8 +239,8 @@ Gameplay-relevant ratios/knobs worth knowing exist, without duplicating every nu
 
 ## The Core Design Test
 
-**Is pointing at an object, shouting "À L'ATTAQUE!", and watching 100 NPCs attempt to interact with it inherently fun?**
+**Is recruiting and commanding an increasingly ridiculous mob to survive escalating waves of police, while earning Grabuge and upgrading yourself between waves, fun enough to sustain repeated runs?**
 
-If yes, build the rest of the game around that.
+The game must retain the comedy and emergent crowd chaos of the original concept, but now have the pacing, tension, progression, and replayability of a wave-survival game.
 
-The first prototype should focus on making this single interaction satisfying before adding more systems.
+If yes, build the rest of the game around that. The first prototype should focus on making the recruit → direct → survive → upgrade loop satisfying before adding more systems.

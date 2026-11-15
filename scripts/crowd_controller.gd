@@ -51,6 +51,12 @@ var _npc_spawner: Node
 var _megaphone: Node
 var _attack_target: Node3D = null
 
+## Base (pre-upgrade) value of attack_damage_per_second, captured once in
+## _ready() so _apply_crowd_damage_mult() always derives from the same
+## starting point rather than multiplying the current live value -- see
+## agents/wave-survival-notes.md ("don't compound multipliers").
+var _base_attack_damage_per_second: float = 0.0
+
 
 func _ready() -> void:
 	_player = get_node_or_null(player_path)
@@ -60,6 +66,14 @@ func _ready() -> void:
 	# reach a sibling-of-Player node like CrowdController via a cross-scene
 	# path override the way test_map.tscn wires HUD's exports.
 	add_to_group(&"crowd_controller")
+
+	# There are two crowd damage paths per the integration contract: this one
+	# (Send Mob vs. a targeted destructible/cop) and npc.gd's own
+	# damage_per_second (protester melee vs. cops). crowd_damage_mult applies
+	# to both; npc.gd applies it to itself.
+	_base_attack_damage_per_second = attack_damage_per_second
+	_apply_crowd_damage_mult()
+	UpgradeManager.upgrade_purchased.connect(_on_upgrade_purchased)
 
 	if _player == null:
 		push_warning("CrowdController: player_path did not resolve, FOLLOW will do nothing.")
@@ -91,6 +105,15 @@ func _physics_process(delta: float) -> void:
 			continue
 		if _megaphone.is_point_within_recruit_range(npc.global_position):
 			_recruit(npc)
+
+
+func _on_upgrade_purchased(id: StringName, _new_level: int) -> void:
+	if id == &"crowd_damage":
+		_apply_crowd_damage_mult()
+
+
+func _apply_crowd_damage_mult() -> void:
+	attack_damage_per_second = _base_attack_damage_per_second * UpgradeManager.crowd_damage_mult
 
 
 ## Ticks damage on the active attack target (if any) from every recruited

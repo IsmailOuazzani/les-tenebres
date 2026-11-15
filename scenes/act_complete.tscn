@@ -1,0 +1,59 @@
+[gd_scene load_steps=2 format=3 uid="uid://cactcomplete001"]
+
+[ext_resource type="Script" path="res://scripts/act_complete.gd" id="1_script"]
+
+[node name="ActComplete" type="CanvasLayer"]
+process_mode = 3
+script = ExtResource("1_script")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.75)
+
+[node name="Center" type="CenterContainer" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Panel" type="PanelContainer" parent="Backdrop/Center"]
+layout_mode = 2
+custom_minimum_size = Vector2(440, 0)
+
+[node name="Margin" type="MarginContainer" parent="Backdrop/Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBox" type="VBoxContainer" parent="Backdrop/Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="Backdrop/Center/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ACT 1 COMPLETE"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="StatsLabel" type="Label" parent="Backdrop/Center/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Waves survived: 0
+Peak crowd size: 0
+Total Grabuge earned: 0
+Police defeated: 0
+Total disruptions: 0
+Time survived: 0:00"
+horizontal_alignment = 1
+
+[node name="ContinueButton" type="Button" parent="Backdrop/Center/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Continue to next Act"

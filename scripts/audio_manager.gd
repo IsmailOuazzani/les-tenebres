@@ -281,7 +281,10 @@ func _update_crowd_ambience(delta: float) -> void:
 			return
 
 	var count: int = _crowd_controller.get_recruited_count()
-	var grabuge_ratio: float = GameState.grabuge / GameState.GRABUGE_MAX
+	# Intensity tracks *total earned* Grabuge, not the spendable balance --
+	# otherwise buying an upgrade would audibly calm the crowd down, which
+	# makes no sense (the protest didn't get smaller, the player just shopped).
+	var grabuge_ratio: float = clamp(GameState.grabuge_total_earned / GameState.GRABUGE_SCALE_REFERENCE, 0.0, 1.0)
 
 	# Independent axes per spec 9C's worked examples: size drives how loud/
 	# dense the layer can get; Grabuge drives how much of that ceiling is

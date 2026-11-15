@@ -19,7 +19,16 @@ class_name NPCSpawner
 
 ## -- Continuous trickle spawning (agents/protester-spawning-notes.md) --
 ## Spawn rate (civilians/sec) scales with Grabuge between these two bounds:
-## rate(g) = spawn_rate_min + (spawn_rate_max - spawn_rate_min) * (g / 100)^spawn_rate_exponent
+## rate(g) = spawn_rate_min + (spawn_rate_max - spawn_rate_min) * (g / GRABUGE_SCALE_REFERENCE)^spawn_rate_exponent
+## Reads GameState.grabuge_total_earned, NOT grabuge_available -- per
+## vision.md/agents/wave-survival-notes.md, Grabuge is now a spendable
+## currency that rises and falls with upgrade purchases, and the civilian
+## trickle is meant to track how big/loud the protest has been overall ("a
+## bigger, louder protest draws more onlookers"), not how much cash is
+## currently in the player's pocket. Using the spendable balance would make
+## buying an upgrade instantly shrink the recruit pool, which
+## agents/wave-survival-notes.md explicitly calls out as the wrong
+## behavior. total_earned is monotonic, so this only ever grows.
 ## An exponent > 1 keeps the rate low through early/mid Grabuge and only
 ## ramps up hard near max Grabuge -- a bigger, louder protest draws more
 ## bystanders out, but small protests don't get instantly flooded.
@@ -99,7 +108,7 @@ func _update_trickle_spawn(delta: float) -> void:
 	var spawn_point: Vector3 = _find_spawn_point(_player.global_position, [])
 	_spawn_npc_at(spawn_point)
 
-	var rate: float = _spawn_rate(GameState.grabuge)
+	var rate: float = _spawn_rate(GameState.grabuge_total_earned)
 	_spawn_timer = 1.0 / max(rate, 0.001)
 
 
@@ -111,8 +120,8 @@ func _count_unrecruited() -> int:
 	return count
 
 
-func _spawn_rate(grabuge: float) -> float:
-	var t: float = clamp(grabuge / GameState.GRABUGE_MAX, 0.0, 1.0)
+func _spawn_rate(grabuge_total_earned: float) -> float:
+	var t: float = clamp(grabuge_total_earned / GameState.GRABUGE_SCALE_REFERENCE, 0.0, 1.0)
 	return spawn_rate_min + (spawn_rate_max - spawn_rate_min) * pow(t, spawn_rate_exponent)
 
 

@@ -6,6 +6,8 @@
 [ext_resource type="PackedScene" path="res://scenes/npc.tscn" id="27_npcscn"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="28_hud"]
 [ext_resource type="PackedScene" path="res://scenes/game_over.tscn" id="29_gmovr"]
+[ext_resource type="PackedScene" path="res://scenes/act_complete.tscn" id="43_actcmp"]
+[ext_resource type="PackedScene" path="res://scenes/upgrade_screen.tscn" id="44_upgscr"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="30_crowdctl"]
 [ext_resource type="Script" path="res://scripts/police_spawner.gd" id="31_policespw"]
 [ext_resource type="PackedScene" path="res://scenes/police.tscn" id="32_policescn"]
@@ -73,3 +75,7 @@ weapon_switcher_path = NodePath("../Player/Head/Camera/WeaponSwitcher")
 player_path = NodePath("../Player")
 
 [node name="GameOver" parent="." instance=ExtResource("29_gmovr")]
+
+[node name="ActComplete" parent="." instance=ExtResource("43_actcmp")]
+
+[node name="UpgradeScreen" parent="." instance=ExtResource("44_upgscr")]

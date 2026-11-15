@@ -85,6 +85,16 @@ var _anim: AnimationPlayer
 
 var _attack_timer: float = 0.0
 
+## Base (pre-upgrade) values captured once in _ready(), before any
+## UpgradeManager multiplier is applied. _apply_crowd_upgrades() always
+## derives the live value from these rather than multiplying the current
+## live value, so repeated purchases (each bumping the multiplier a bit
+## more) never compound onto an already-multiplied number. See
+## agents/wave-survival-notes.md.
+var _base_move_speed: float = 0.0
+var _base_damage_per_second: float = 0.0
+var _base_max_health: float = 0.0
+
 ## The cop currently in melee range, if any -- recomputed every physics
 ## frame (not just on the attack-interval tick) purely so _update_visuals()
 ## knows whether to play a punch animation. Null whenever this protester
@@ -104,6 +114,18 @@ func _ready() -> void:
 
 	health.health_changed.connect(_on_health_changed)
 	health.died.connect(_on_died)
+
+	_base_move_speed = move_speed
+	_base_damage_per_second = damage_per_second
+	_base_max_health = health.max_health
+	# Crowd upgrades apply at spawn time too, not just retroactively --
+	# scripts/npc_spawner.gd trickles in fresh civilians for the whole run,
+	# so an NPC spawned after a crowd purchase must arrive already upgraded
+	# instead of diluting the crowd average. See
+	# agents/wave-survival-notes.md.
+	_apply_crowd_upgrades(true)
+	UpgradeManager.upgrade_purchased.connect(_on_upgrade_purchased)
+
 	_health_bar.max_value = health.max_health
 	_health_bar.value = health.current_health
 	_health_bar.visible = false
@@ -201,6 +223,47 @@ func _find_nearest_cop() -> Node3D:
 func _on_health_changed(current: float, max_value: float) -> void:
 	_health_bar.visible = true
 	_health_bar.value = current
+
+
+## Fired by UpgradeManager on every purchase -- only the crowd ids matter to
+## an individual NPC (crowd_speed/crowd_health/crowd_damage); this is how an
+## already-recruited/living NPC gets retroactively upgraded instead of only
+## future spawns benefiting, per vision.md's "upgrades should be immediately
+## noticeable" design principle.
+func _on_upgrade_purchased(id: StringName, _new_level: int) -> void:
+	match id:
+		&"crowd_speed", &"crowd_health", &"crowd_damage":
+			_apply_crowd_upgrades(false)
+
+
+## Rescales move_speed/damage_per_second/max_health from this NPC's spawn-time
+## base values against UpgradeManager's current crowd multipliers.
+## `full_heal`: true on initial spawn, where current_health is simply set to
+## the (possibly already-upgraded) max outright. False on a later retroactive
+## purchase, where instead this NPC is healed by exactly the max-HP increase
+## -- so the buff is immediately felt without resetting an already-damaged
+## NPC back to full (which would be a much bigger, un-costed heal than the
+## vision.md spec intends).
+func _apply_crowd_upgrades(full_heal: bool) -> void:
+	move_speed = _base_move_speed * UpgradeManager.crowd_speed_mult
+	damage_per_second = _base_damage_per_second * UpgradeManager.crowd_damage_mult
+
+	var old_max: float = health.max_health
+	var new_max: float = _base_max_health * UpgradeManager.crowd_health_mult
+	health.max_health = new_max
+
+	if full_heal:
+		health.current_health = new_max
+	else:
+		var delta: float = new_max - old_max
+		if delta > 0.0:
+			health.current_health = min(health.current_health + delta, new_max)
+
+	# health_component.gd's health_changed only fires from take_damage() --
+	# there's no raise-max/heal method, and that file isn't ours to edit (see
+	# the identical situation in scenes/test_map.gd for the player). Emitting
+	# the node's own signal from here keeps the health bar in sync.
+	health.health_changed.emit(health.current_health, health.max_health)
 
 
 ## Removes this protester from the crowd it was part of and frees it. Cops

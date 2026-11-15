@@ -1,10 +1,11 @@
 extends CanvasLayer
 
-## Live HUD showing crowd count, Grabuge, and (per agents/police-notes.md)
-## player health. Crowd/Grabuge are driven entirely by the GameState
-## autoload (see agents/grabuge-notes.md); health instead reads directly off
-## the player's own HealthComponent via `player_health_path`, since health
-## isn't global state the way Grabuge is.
+## Live HUD showing crowd count, Grabuge, player health, and (per
+## agents/wave-survival-notes.md) the wave/Act survival loop. Crowd/Grabuge
+## are driven entirely by the GameState autoload (see
+## agents/grabuge-notes.md); health instead reads directly off the player's
+## own HealthComponent via `player_health_path`, since health isn't global
+## state the way Grabuge is. Wave state comes from the WaveManager autoload.
 
 @export var player_health_path: NodePath
 @export var weapon_switcher_path: NodePath
@@ -14,7 +15,6 @@ extends CanvasLayer
 @export var player_path: NodePath
 
 @onready var _crowd_label: Label = %CrowdLabel
-@onready var _grabuge_bar: ProgressBar = %GrabugeBar
 @onready var _grabuge_label: Label = %GrabugeLabel
 @onready var _health_bar: ProgressBar = %HealthBar
 @onready var _health_label: Label = %HealthLabel
@@ -23,6 +23,14 @@ extends CanvasLayer
 @onready var _compass_markers: Control = %CompassMarkers
 @onready var _damage_flash: ColorRect = %DamageFlash
 @onready var _fps_label: Label = %FpsLabel
+
+@onready var _wave_label: Label = %WaveLabel
+@onready var _wave_banner_anchor: CenterContainer = %WaveBannerAnchor
+@onready var _wave_banner_label: Label = %WaveBannerLabel
+@onready var _intermission_anchor: CenterContainer = %IntermissionAnchor
+@onready var _intermission_label: Label = %IntermissionLabel
+@onready var _threat_anchor: CenterContainer = %ThreatAnchor
+@onready var _threat_label: Label = %ThreatLabel
 
 ## Tracks the player's last-seen health so _on_player_health_changed can
 ## tell a hit (health went down) apart from a HUD refresh or healing.
@@ -49,9 +57,14 @@ const _SLOT_VARIANT_ACTIVE := &"PanelContainerPrimaryFlat"
 const _HEALTH_VARIANT_OK := &"ProgressBarSuccess"
 const _HEALTH_VARIANT_LOW := &"ProgressBarWarning"
 const _HEALTH_VARIANT_CRITICAL := &"ProgressBarDanger"
-const _GRABUGE_VARIANT_CALM := &"ProgressBarPrimary"
-const _GRABUGE_VARIANT_RISING := &"ProgressBarWarning"
-const _GRABUGE_VARIANT_HOT := &"ProgressBarDanger"
+
+## How long the "WAVE N CLEARED" banner and the threat warning stay on
+## screen before fading out.
+const _WAVE_BANNER_DURATION: float = 2.5
+const _THREAT_WARNING_DURATION: float = 3.0
+
+var _wave_banner_tween: Tween
+var _threat_tween: Tween
 
 
 func _ready() -> void:
@@ -59,7 +72,7 @@ func _ready() -> void:
 	GameState.grabuge_changed.connect(_on_grabuge_changed)
 
 	_on_crowd_count_changed(GameState.crowd_count)
-	_on_grabuge_changed(GameState.grabuge)
+	_on_grabuge_changed(GameState.grabuge_available, GameState.grabuge_total_earned)
 
 	var player_health: Node = get_node_or_null(player_health_path)
 	if player_health != null:
@@ -81,24 +94,34 @@ func _ready() -> void:
 		_compass_bar.set_physics_process(true)
 		_compass_markers.player = player
 
+	# WaveManager is an autoload, so its _ready() (which starts wave 1) runs
+	# before this scene even exists -- we missed its first wave_started
+	# signal. Connect for future transitions, then sync the label by hand
+	# from WaveManager's current state.
+	WaveManager.wave_started.connect(_on_wave_started)
+	WaveManager.wave_completed.connect(_on_wave_completed)
+	WaveManager.intermission_started.connect(_on_intermission_started)
+	WaveManager.intermission_finished.connect(_on_intermission_finished)
+	WaveManager.threat_warning.connect(_on_threat_warning)
+	_sync_wave_label_from_current_state()
+
 
 func _process(_delta: float) -> void:
 	_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
+	_update_wave_timer()
 
 
 func _on_crowd_count_changed(value: int) -> void:
 	_crowd_label.text = "Protesters: %d" % value
 
 
-func _on_grabuge_changed(value: float) -> void:
-	_grabuge_bar.value = value
-	_grabuge_label.text = "Grabuge: %d%%" % round(value)
-	if value >= 70.0:
-		_grabuge_bar.theme_type_variation = _GRABUGE_VARIANT_HOT
-	elif value >= 35.0:
-		_grabuge_bar.theme_type_variation = _GRABUGE_VARIANT_RISING
-	else:
-		_grabuge_bar.theme_type_variation = _GRABUGE_VARIANT_CALM
+## Grabuge is now an unbounded spendable currency, not a capped meter (see
+## agents/wave-survival-notes.md), so a ProgressBar reading toward some max
+## no longer makes sense -- just show both numbers as a plain readout: the
+## spendable balance (what upgrades cost) prominently, and the lifetime
+## total (what civilian spawn scaling reads) as a smaller aside.
+func _on_grabuge_changed(available: float, total_earned: float) -> void:
+	_grabuge_label.text = "⚡ %d  (earned %d)" % [round(available), round(total_earned)]
 
 
 func _on_player_health_changed(current: float, max_value: float) -> void:
@@ -173,3 +196,93 @@ func _on_weapon_switched(active_index: int) -> void:
 		var active: bool = i == active_index
 		_hotbar_slots[i].theme_type_variation = _SLOT_VARIANT_ACTIVE if active else _SLOT_VARIANT_INACTIVE
 		_hotbar_key_labels[i].add_theme_font_size_override("font_size", 14 if active else 12)
+
+
+## -- Wave survival HUD (agents/wave-survival-notes.md) --
+
+## Called once from _ready() since WaveManager (an autoload) already
+## started wave 1 before this HUD existed to catch the signal -- just read
+## its current public state directly instead of waiting for an event.
+func _sync_wave_label_from_current_state() -> void:
+	_wave_banner_anchor.visible = false
+	_threat_anchor.visible = false
+	if WaveManager.state == WaveManager.State.INTERMISSION:
+		_on_intermission_started(WaveManager.current_wave, WaveManager.wave_duration)
+	else:
+		_intermission_anchor.visible = false
+		_wave_label.text = "Wave %d" % WaveManager.current_wave
+
+
+## Ticks the visible "Wave N - MM:SS" / "Next wave in MM:SS" readout every
+## frame off WaveManager's own wave_time_left -- cheaper than a dedicated
+## Timer node, and keeps the HUD a pure read-only reflection of WaveManager.
+func _update_wave_timer() -> void:
+	var time_left: int = int(ceil(max(WaveManager.wave_time_left, 0.0)))
+	var minutes: int = time_left / 60
+	var seconds: int = time_left % 60
+
+	match WaveManager.state:
+		WaveManager.State.ACTIVE:
+			_wave_label.text = "Wave %d  %d:%02d" % [WaveManager.current_wave, minutes, seconds]
+		WaveManager.State.INTERMISSION:
+			_intermission_label.text = _format_intermission_text(minutes, seconds)
+
+
+func _format_intermission_text(minutes: int, seconds: int) -> String:
+	var preview: Dictionary = WaveManager.get_next_wave_preview()
+	var threat: String = "ASSAULT" if preview.get("assault", false) else "normal"
+	return "Next: Wave %d (%s, ~%d police) in %d:%02d" % [
+		preview.get("wave", WaveManager.current_wave + 1),
+		threat,
+		preview.get("police", 0),
+		minutes,
+		seconds,
+	]
+
+
+func _on_wave_started(wave_number: int, _police_total: int) -> void:
+	_intermission_anchor.visible = false
+	_wave_label.text = "Wave %d" % wave_number
+
+
+func _on_wave_completed(wave_number: int) -> void:
+	_wave_banner_label.text = "WAVE %d CLEARED" % wave_number
+	_show_banner_once(_wave_banner_anchor, _wave_banner_tween, _WAVE_BANNER_DURATION)
+
+
+func _on_intermission_started(next_wave_number: int, _duration: float) -> void:
+	_intermission_anchor.visible = true
+	_intermission_label.text = _format_intermission_text(0, 0)
+	# Unused param kept for signal-shape clarity -- preview text pulls the
+	# live countdown from WaveManager.wave_time_left every frame instead
+	# (see _update_wave_timer()), since the countdown doesn't actually
+	# start running until begin_intermission_countdown() is called by the
+	# upgrade station (see agents/wave-survival-notes.md).
+	_wave_label.text = "Wave %d cleared" % (next_wave_number - 1)
+
+
+func _on_intermission_finished() -> void:
+	_intermission_anchor.visible = false
+
+
+func _on_threat_warning(message: String) -> void:
+	_threat_label.text = message
+	_show_banner_once(_threat_anchor, _threat_tween, _THREAT_WARNING_DURATION)
+
+
+## Shared show-then-fade-then-hide helper for the wave-cleared banner and
+## the threat warning -- both are "flash a message, then go away" UI with
+## no persistent state once they expire.
+func _show_banner_once(anchor: CanvasItem, tween: Tween, duration: float) -> void:
+	if tween != null and is_instance_valid(tween):
+		tween.kill()
+	anchor.visible = true
+	anchor.modulate.a = 1.0
+	var new_tween: Tween = create_tween()
+	new_tween.tween_interval(duration)
+	new_tween.tween_property(anchor, "modulate:a", 0.0, 0.4)
+	new_tween.tween_callback(func() -> void: anchor.visible = false)
+	if anchor == _wave_banner_anchor:
+		_wave_banner_tween = new_tween
+	elif anchor == _threat_anchor:
+		_threat_tween = new_tween

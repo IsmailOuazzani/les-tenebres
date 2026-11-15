@@ -97,7 +97,7 @@ func _style_header() -> void:
 func _spawn_ambient_message() -> void:
 	var roll: float = _rng.randf()
 	if roll < 0.2:
-		_push_system(SnapFeedData.random_gameplay_flavor(_rng, GameState.grabuge, GameState.crowd_count))
+		_push_system(SnapFeedData.random_gameplay_flavor(_rng, GameState.grabuge_available, GameState.crowd_count))
 	elif roll < 0.5:
 		_push_user(SnapFeedData.random_chatter(_rng), "ordinary")
 	else:

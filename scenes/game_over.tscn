@@ -54,7 +54,9 @@ layout_mode = 2
 text = "Peak protesters: 0
 Total disruptions: 0
 Protest duration: 0:00
-Peak Grabuge reached: 0%"
+Total Grabuge earned: 0
+Police defeated: 0
+Waves survived: 0"
 horizontal_alignment = 1
 
 [node name="RestartButton" type="Button" parent="Backdrop/Center/Panel/Margin/VBox"]

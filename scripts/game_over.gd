@@ -1,8 +1,9 @@
 extends CanvasLayer
 
-## Game-over screen. Triggered by GameState.game_over, which fires when
-## Grabuge decays to zero; displays end-of-run stats plus a randomized
-## humorous reason (placeholder per vision.md). See agents/grabuge-notes.md.
+## Game-over screen. Triggered by GameState.game_over, which fires when the
+## player's health reaches zero (GameState.trigger_player_death()); displays
+## end-of-run stats plus a randomized humorous reason (placeholder per
+## vision.md). See agents/grabuge-notes.md.
 
 ## Placeholder "humorous reason" list. Real version should eventually pick a
 ## reason tied to what actually happened in the run (e.g. mob got separated,
@@ -48,19 +49,36 @@ func _populate_stats() -> void:
 		"Peak protesters: %d\n"
 		+ "Total disruptions: %d\n"
 		+ "Protest duration: %d:%02d\n"
-		+ "Peak Grabuge reached: %d%%"
+		+ "Total Grabuge earned: %d\n"
+		+ "Police defeated: %d\n"
+		+ "Waves survived: %d"
 	) % [
 		GameState.peak_crowd_count,
 		GameState.total_disruptions,
 		minutes,
 		seconds,
-		round(GameState.peak_grabuge),
+		round(GameState.grabuge_total_earned),
+		GameState.police_defeated_count,
+		_waves_survived(),
 	]
 
 	_reason_label.text = HUMOROUS_REASONS[randi() % HUMOROUS_REASONS.size()]
 
 
+## Waves fully cleared this run: finished Acts worth WAVES_PER_ACT each,
+## plus whatever waves were cleared in the current (incomplete) Act.
+func _waves_survived() -> int:
+	return (WaveManager.current_act - 1) * WaveManager.WAVES_PER_ACT + (WaveManager.current_wave - 1)
+
+
 func _on_restart_pressed() -> void:
 	get_tree().paused = false
 	GameState.reset()
+	# Autoloads survive reload_current_scene(), so without these
+	# WaveManager/UpgradeManager would carry the previous run's Act/wave
+	# and upgrade levels into the new one -- see
+	# agents/wave-survival-notes.md. UpgradeManager.reset() is a stub the
+	# other agent is implementing in parallel; calling it is safe either way.
+	WaveManager.reset()
+	UpgradeManager.reset()
 	get_tree().reload_current_scene()
