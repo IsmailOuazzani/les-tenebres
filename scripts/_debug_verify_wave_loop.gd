@@ -56,14 +56,18 @@ func _process(delta: float) -> bool:
 	match _phase:
 		0:
 			# Let wave 1 run a moment, then confirm it is really spawning.
-			if _wm.wave_time_left < _wm.wave_duration - 5.0:
+			if _elapsed > 1.0:
 				print("\n--- wave 1 active ---")
 				print("state: ", _wm.state, "  cops alive: ", get_nodes_in_group(&"police").size())
 				print("spawner._spawning: ", _spawner._spawning)
+				print("police_remaining: ", _wm.police_remaining)
 				# Give the player money to shop with.
 				GameStateRef().add_grabuge(500.0)
-				# Skip to the end of the wave instead of waiting 45s.
-				_wm.wave_time_left = 0.05
+				# Waves are kill-gated now (no timer to fast-forward) -- force
+				# the wave empty directly so _process_active() sees
+				# has_any_police_left() == false on its next tick.
+				_spawner._police_remaining_to_spawn = 0
+				_spawner.clear_all_police()
 				_phase = 1
 		1:
 			if _wm.state == 2:  # INTERMISSION
@@ -93,13 +97,15 @@ func _process(delta: float) -> bool:
 			print("unpaused after continue: ", not paused)
 			print("screen hidden after continue: ", not _screen.visible)
 			print("intermission counting: ", _wm._intermission_counting)
+			# Skip the live pre-wave countdown instead of waiting 12s --
+			# that part is still timer-based.
 			_wm.wave_time_left = 0.05
 			_phase = 3
 		3:
 			if _wm.state == 1 and _wm.current_wave == 2:
 				print("\n--- wave 2 started ---")
 				print("current_act/wave: ", _wm.current_act, "/", _wm.current_wave)
-				print("wave_duration: ", _wm.wave_duration)
+				print("police_remaining: ", _wm.police_remaining)
 				print("spawner._spawning: ", _spawner._spawning)
 				print("police queued for wave 2: ", _spawner._police_remaining_to_spawn)
 				_phase = 4

@@ -142,6 +142,18 @@ func _setup_remote() -> void:
 	$Head/Camera/WeaponSwitcher.process_mode = Node.PROCESS_MODE_DISABLED
 
 
+## Freezes/unfreezes this character's own input and movement, used by
+## scripts/pause_menu.gd for the local-only pause that a networked session
+## needs (see agents/multiplayer-notes.md's "nothing pauses the tree in a
+## networked session" rule -- get_tree().paused would freeze every player,
+## not just the one who opened the menu). PROCESS_MODE_DISABLED propagates to
+## every child (Head, Sprint, Megaphone, Croissant, WeaponSwitcher), so this
+## also stops their _unhandled_input/_physics_process the same way
+## _setup_remote() already does for a remote-owned character above.
+func set_input_locked(locked: bool) -> void:
+	process_mode = Node.PROCESS_MODE_DISABLED if locked else Node.PROCESS_MODE_INHERIT
+
+
 func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
 		if net_alive:

@@ -312,15 +312,17 @@ func _report() -> void:
 	_expect(game_state.grabuge_available > 0.0, "replicated shared Grabuge arrived")
 
 	var wave_manager: Node = get_root().get_node("WaveManager")
-	print("[client] wave state=%d act/wave=%d/%d time_left=%.1f" % [
+	print("[client] wave state=%d act/wave=%d/%d police_remaining=%d" % [
 		wave_manager.state, wave_manager.current_act,
-		wave_manager.current_wave, wave_manager.wave_time_left
+		wave_manager.current_wave, wave_manager.police_remaining
 	])
 	# 1 == WaveManager.State.ACTIVE. The client never starts a wave itself,
-	# so an ACTIVE wave with a live countdown can only have been replicated.
+	# so an ACTIVE wave with a nonzero police count can only have been
+	# replicated (waves are kill-gated now, not timer-based -- see
+	# agents/wave-survival-notes.md).
 	_expect(wave_manager.state == 1, "replicated wave state is ACTIVE on the client")
-	_expect(wave_manager.wave_time_left > 0.0 and wave_manager.wave_time_left < 45.0,
-			"replicated wave countdown is running on the client")
+	_expect(wave_manager.police_remaining > 0 and wave_manager.police_remaining <= 8,
+			"replicated police-remaining count is running on the client")
 
 	var upgrade_manager: Node = get_root().get_node("UpgradeManager")
 	print("[client] player_speed_mult=%.2f crowd_damage_mult=%.2f" % [

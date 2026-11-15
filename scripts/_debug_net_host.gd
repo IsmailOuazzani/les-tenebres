@@ -151,13 +151,16 @@ func _check_world() -> void:
 	# small test crowd before the later phases can observe it. Replace the
 	# wave's spawn order with a two-cop one, so police replication is still
 	# covered without the test's assertions depending on combat outcomes.
-	# The wave loop itself is deliberately left running (wave 1 lasts 45s,
-	# far longer than this test, so it never issues a second order) -- the
-	# client asserts that its ACTIVE state and countdown replicated.
+	# Waves are kill-gated now (see agents/wave-survival-notes.md's
+	# "Kill-gated waves rewrite") -- WaveManager itself will see this
+	# override's lower count via the same PoliceSpawner and complete the
+	# wave once those two are spawned and killed, same as any other wave.
+	# The client's police_remaining assertion only checks it's in (0, 8],
+	# which holds regardless.
 	var police_spawner: Node = map.get_node("PoliceSpawner")
 	police_spawner.stop_spawning()
 	police_spawner.clear_all_police()
-	police_spawner.begin_wave(2, 2.0)
+	police_spawner.begin_wave(2)
 
 
 func _check_commands() -> void:

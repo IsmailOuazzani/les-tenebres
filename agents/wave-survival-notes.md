@@ -448,3 +448,62 @@ seams that touch this feature are listed here; the full account is in
 * `PoliceSpawner._spawn_police()` returns a bool and the wave quota is only
   decremented on success, since in the multiplayer respawn window there may
   be no living player to spawn a cop around.
+
+---
+
+## Kill-gated waves rewrite (2026-11-14)
+
+Per vision.md's "Call of Duty Zombies" inspiration and Design Pillar 5
+("escalating tension, not a ticking clock"), waves are no longer time-based.
+**This supersedes the "Waves are time-based" line in the contract above and
+every `wave_duration`-based claim in the WaveManager implementation notes
+above it** -- those sections are left as a historical record of the original
+build, not current behavior.
+
+**New contract:**
+
+- `WaveManager.wave_time_left`/`wave_duration` now mean the live
+  **intermission** countdown only. They are meaningless during `ACTIVE` --
+  don't read them for wave progress.
+- `WaveManager.police_remaining: int` (new) -- queued-to-spawn plus
+  currently-alive cops for the current wave. This is what the HUD and
+  replication now use for ACTIVE-state feedback. Pushed via the same 10 Hz
+  `_apply_wave_state` RPC and set on `wave_started`/`_apply_wave_started`.
+- A wave completes when `police_remaining` hits 0, i.e. every cop for the
+  wave has been both spawned and killed (`PoliceSpawner.has_any_police_left()
+  == false`), checked every `ACTIVE` frame in `_process_active()`. No clock
+  drives this any more.
+- `PoliceSpawner.begin_wave(total_police: int, megacop_count: int = 0)` --
+  dropped the `duration` parameter. Spawns now trickle in capped at
+  `max_alive` (new `@export`, default 10) live cops at once, refilling one
+  at a time (`SPAWN_COOLDOWN = 0.6s` between attempts) as the cap frees up,
+  rather than being spread across a wave duration. This is the actual
+  Zombies-style pressure mechanism: the player always has *something* to
+  fight, and stalling doesn't thin the field.
+- `PoliceSpawner.has_any_police_left() -> bool` and
+  `get_police_left_count() -> int` (new) -- what WaveManager polls.
+- Dropped entirely: `BASE_WAVE_DURATION`, `WAVE_DURATION_PER_ACT`,
+  `SPAWN_WINDOW_FRACTION`, `ASSAULT_WARNING_LEAD_TIME`,
+  `_assault_warning_fired`. The assault-wave warning now fires only from
+  `begin_intermission_countdown()` (the pre-wave warning already in the
+  contract) -- there is no more mid-wave second warning, since there's no
+  duration-relative point in the wave left to time it against.
+
+**HUD:** `scripts/hud.gd`'s `WaveLabel` now reads `Wave N  X left` during
+`ACTIVE` (was `Wave N  MM:SS`), driven by `WaveManager.police_remaining`.
+`INTERMISSION`'s countdown display is unchanged.
+
+**Debug/regression scripts updated to match:**
+`scripts/_debug_verify_wave_boot.gd`, `scripts/_debug_verify_wave_loop.gd`
+(the wave-1-skip trick is now "drain the spawner's queue and clear live
+police directly" instead of forcing `wave_time_left` to near-zero -- there's
+no timer to force anymore), `scripts/_debug_net_client.gd` (asserts
+`police_remaining` replicated instead of a countdown range).
+
+**Why max_alive + cooldown instead of just "spawn everything, kill-gate the
+wave":** without a cap, a 20-cop wave would still dump most of its cops in
+the first second or two the way the old duration-compressed spawner did,
+just without a timer backstop -- it would read as one burst fight rather
+than a sustained siege. The cap is what actually produces the "they keep
+coming" Zombies feel; the kill-gate alone only changes *when* the wave ends,
+not how the police arrive.

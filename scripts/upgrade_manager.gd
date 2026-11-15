@@ -112,10 +112,10 @@ func _ready() -> void:
 	reset()
 
 
-## One entry per upgrade: {id, name, description, price, level, affordable}.
-## Built fresh each call (cheap, 6 entries) so callers (the upgrade screen)
-## always see live prices/affordability without needing their own signal
-## bookkeeping beyond upgrade_purchased + GameState.grabuge_changed.
+## One entry per upgrade: {id, name, description, price, level, affordable,
+## current_value}. Built fresh each call (cheap, 6 entries) so callers (the
+## upgrade screen) always see live prices/affordability without needing their
+## own signal bookkeeping beyond upgrade_purchased + GameState.grabuge_changed.
 func get_upgrades() -> Array[Dictionary]:
 	var upgrades: Array[Dictionary] = []
 	for id in UPGRADE_IDS:
@@ -128,8 +128,31 @@ func get_upgrades() -> Array[Dictionary]:
 			"price": price,
 			"level": level,
 			"affordable": price <= GameState.grabuge_available,
+			"current_value": _current_value_text(id),
 		})
 	return upgrades
+
+
+## Current total effect of `id` at its live level, phrased as a change from
+## the neutral (level 0) baseline -- shown on the upgrade card so a player
+## can see what they already have, not just what the next level costs. Reads
+## the live mult/bonus vars directly rather than recomputing from level, so
+## this can never drift out of sync with what's actually applied.
+func _current_value_text(id: StringName) -> String:
+	match id:
+		&"player_speed":
+			return "+%d%% move speed" % roundi((player_speed_mult - 1.0) * 100.0)
+		&"player_jump":
+			return "+%d%% jump height" % roundi((player_jump_mult - 1.0) * 100.0)
+		&"player_health":
+			return "+%d max HP" % roundi(player_bonus_health)
+		&"crowd_speed":
+			return "+%d%% protester speed" % roundi((crowd_speed_mult - 1.0) * 100.0)
+		&"crowd_health":
+			return "+%d%% protester HP" % roundi((crowd_health_mult - 1.0) * 100.0)
+		&"crowd_damage":
+			return "+%d%% protester damage" % roundi((crowd_damage_mult - 1.0) * 100.0)
+	return ""
 
 
 ## Attempts to buy one more level of `id`. Returns true and applies the

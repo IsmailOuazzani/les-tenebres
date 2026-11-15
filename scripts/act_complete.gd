@@ -14,6 +14,9 @@ extends CanvasLayer
 
 func _ready() -> void:
 	visible = false
+	# Lets scripts/pause_menu.gd check "is some other full-screen overlay
+	# already up" without a direct node reference to each one.
+	add_to_group(&"blocking_screen")
 	WaveManager.act_completed.connect(_on_act_completed)
 	# The scoreboard is dismissed when the next Act's first wave actually
 	# starts, not by the button press itself -- in multiplayer only the
