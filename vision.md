@@ -125,8 +125,8 @@ The only game-over condition is **the player's health reaching zero**.
 A straightforward survival-wave structure, inspired by zombie survival games.
 
 **During waves:**
-- A visible survival timer and wave number.
-- Police spawn at randomized locations around the play area, and continue spawning throughout the wave.
+- A visible count of police remaining for the wave, and the wave number.
+- Police for the wave spawn at randomized locations around the play area, trickling in up to a max-alive cap and refilling as earlier ones are defeated, rather than all arriving at once.
 - Wave sizes increase as the player progresses.
 - Clear audiovisual warning signals precede dangerous incoming attacks.
 - Spawn locations vary, but enemies should never unfairly appear directly on top of the player.
@@ -139,7 +139,7 @@ A straightforward survival-wave structure, inspired by zombie survival games.
 - A preview of the next wave's difficulty/approximate threat level.
 - A countdown before the next wave begins.
 
-Waves are primarily **time-based survival challenges**, not kill-everything challenges: surviving the timer completes the wave, and any remaining police can retreat or despawn during the transition.
+Waves are **kill-gated survival challenges**, per the Call of Duty Zombies inspiration: a wave has a fixed police count that must be fully spawned and defeated to clear it, not a timer to simply outlast. There is no clock during a wave — the police keep coming (capped at a max-alive count, so there's always a next one dripping in) until the quota is cleared.
 
 **Escalation:**
 - Wave size increases over time.

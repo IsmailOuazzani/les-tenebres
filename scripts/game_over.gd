@@ -29,6 +29,9 @@ const HUMOROUS_REASONS: Array[String] = [
 
 func _ready() -> void:
 	visible = false
+	# Lets scripts/pause_menu.gd check "is some other full-screen overlay
+	# already up" without a direct node reference to each one.
+	add_to_group(&"blocking_screen")
 	GameState.game_over.connect(_on_game_over)
 	_restart_button.pressed.connect(_on_restart_pressed)
 

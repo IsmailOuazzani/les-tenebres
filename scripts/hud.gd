@@ -138,11 +138,11 @@ func _on_crowd_count_changed(value: int) -> void:
 
 ## Grabuge is now an unbounded spendable currency, not a capped meter (see
 ## agents/wave-survival-notes.md), so a ProgressBar reading toward some max
-## no longer makes sense -- just show both numbers as a plain readout: the
-## spendable balance (what upgrades cost) prominently, and the lifetime
-## total (what civilian spawn scaling reads) as a smaller aside.
-func _on_grabuge_changed(available: float, total_earned: float) -> void:
-	_grabuge_label.text = "⚡ %d  (earned %d)" % [round(available), round(total_earned)]
+## no longer makes sense -- just show the spendable balance (what upgrades
+## cost). `total_earned` still drives civilian spawn scaling elsewhere, it's
+## just not surfaced here.
+func _on_grabuge_changed(available: float, _total_earned: float) -> void:
+	_grabuge_label.text = "⚡ %d" % round(available)
 
 
 func _on_player_health_changed(current: float, max_value: float) -> void:
@@ -234,18 +234,19 @@ func _sync_wave_label_from_current_state() -> void:
 		_wave_label.text = "Wave %d" % WaveManager.current_wave
 
 
-## Ticks the visible "Wave N - MM:SS" / "Next wave in MM:SS" readout every
-## frame off WaveManager's own wave_time_left -- cheaper than a dedicated
-## Timer node, and keeps the HUD a pure read-only reflection of WaveManager.
+## Ticks the visible "Wave N - X left" / "Next wave in MM:SS" readout every
+## frame off WaveManager's own state -- cheaper than a dedicated Timer node,
+## and keeps the HUD a pure read-only reflection of WaveManager. Waves are
+## kill-gated, not timer-based, so ACTIVE shows the live police count instead
+## of a countdown; INTERMISSION still has a real clock.
 func _update_wave_timer() -> void:
-	var time_left: int = int(ceil(max(WaveManager.wave_time_left, 0.0)))
-	var minutes: int = time_left / 60
-	var seconds: int = time_left % 60
-
 	match WaveManager.state:
 		WaveManager.State.ACTIVE:
-			_wave_label.text = "Wave %d  %d:%02d" % [WaveManager.current_wave, minutes, seconds]
+			_wave_label.text = "Wave %d  %d left" % [WaveManager.current_wave, WaveManager.police_remaining]
 		WaveManager.State.INTERMISSION:
+			var time_left: int = int(ceil(max(WaveManager.wave_time_left, 0.0)))
+			var minutes: int = time_left / 60
+			var seconds: int = time_left % 60
 			_intermission_label.text = _format_intermission_text(minutes, seconds)
 
 

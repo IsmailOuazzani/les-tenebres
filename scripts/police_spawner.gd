@@ -4,6 +4,7 @@ class_name PoliceSpawner
 ## Spawns police at generated street entrances on the host. The existing
 ## MultiplayerSpawner replicates the cops and each peer renders the rings.
 const WARNING_LEAD_TIME: float = 0.4
+const SPAWN_COOLDOWN: float = 0.6
 const RING_SCALE := Vector3(1.0, 0.12, 1.0)
 
 @export var police_scene: PackedScene
@@ -12,6 +13,7 @@ const RING_SCALE := Vector3(1.0, 0.12, 1.0)
 ## decided entirely by WaveManager (see begin_wave()'s megacop_count); this
 ## spawner just picks which scene to instantiate for each spawn slot.
 @export var megacop_scene: PackedScene
+@export var max_alive: int = 10
 @export var entrances_path: NodePath
 
 var _entrances: Array[Marker3D] = []
@@ -30,7 +32,6 @@ var _police_remaining_to_spawn: int = 0
 ## them evenly through the wave (same trick as dealing special cards from a
 ## shuffled deck) while still landing on the exact count by the last spawn.
 var _megacop_remaining_to_spawn: int = 0
-var _spawn_interval: float = 1.0
 var _spawn_timer: float = 0.0
 
 ## Monotonic counter feeding deterministic replicated node names.
@@ -92,25 +93,27 @@ func _process(delta: float) -> void:
 		_spawning = false
 		return
 
+	if _count_live_police() >= max_alive:
+		return
+
 	_spawn_timer -= delta
 	if _spawn_timer > 0.0:
 		return
 
-	var lead_time := minf(WARNING_LEAD_TIME, _spawn_interval * 0.5)
 	if _pending_entrance_index >= 0:
 		if not PlayerRegistry.alive(self).is_empty():
 			_spawn_police(_entrances[_pending_entrance_index])
 			_police_remaining_to_spawn -= 1
 		_pending_entrance_index = -1
-		_spawn_timer = _spawn_interval - lead_time
+		_spawn_timer = SPAWN_COOLDOWN - WARNING_LEAD_TIME
 	elif not _active_entrance_indices.is_empty() and not PlayerRegistry.alive(self).is_empty():
 		_pending_entrance_index = _active_entrance_indices.pick_random()
-		_spawn_timer = lead_time
-		_pulse_entrance(_pending_entrance_index, lead_time)
+		_spawn_timer = WARNING_LEAD_TIME
+		_pulse_entrance(_pending_entrance_index, WARNING_LEAD_TIME)
 		if NetworkManager.is_multiplayer_session():
-			_pulse_entrance.rpc(_pending_entrance_index, lead_time)
+			_pulse_entrance.rpc(_pending_entrance_index, WARNING_LEAD_TIME)
 	else:
-		_spawn_timer = _spawn_interval
+		_spawn_timer = SPAWN_COOLDOWN
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -120,22 +123,22 @@ func _pulse_entrance(index: int, duration: float) -> void:
 	ring.create_tween().tween_property(ring, "scale", RING_SCALE, duration)
 
 
-## Called by WaveManager at the start of a wave: spawn `total_police` cops,
-## spread evenly across `duration` seconds (so they trickle in across the
-## whole wave rather than all landing at once). `megacop_count` of those
-## (clamped to total_police) are megacops rather than regular cops.
-func begin_wave(total_police: int, duration: float, megacop_count: int = 0) -> void:
+## Called by WaveManager at the start of a wave: queue `total_police` cops to
+## trickle in (capped at `max_alive` live at once, refilling as they die --
+## see _process()) rather than spawning on any clock. `megacop_count` of
+## those (clamped to total_police) are megacops rather than regular cops.
+func begin_wave(total_police: int, megacop_count: int = 0) -> void:
 	_police_remaining_to_spawn = max(total_police, 0)
 	_megacop_remaining_to_spawn = clamp(megacop_count, 0, _police_remaining_to_spawn)
-	_spawn_interval = duration / max(total_police, 1)
 	_spawn_timer = 0.0
 	_pending_entrance_index = -1
 	_spawning = _police_remaining_to_spawn > 0
 
 
-## Called by WaveManager when a wave ends (time-based completion, not
-## kill-everything) -- stops handing out new spawns without touching
-## already-live cops. See clear_all_police() for despawning those.
+## Called by WaveManager to stop handing out new spawns without touching
+## already-live cops -- only used as a safety net now that waves end by kill
+## count (the quota should already be zero by the time this runs). See
+## clear_all_police() for despawning those.
 func stop_spawning() -> void:
 	_pending_entrance_index = -1
 	_spawning = false
@@ -143,14 +146,25 @@ func stop_spawning() -> void:
 	_megacop_remaining_to_spawn = 0
 
 
-## Called by WaveManager on wave transitions to retreat/despawn leftover
-## cops from the wave that just ended, per vision.md: "any remaining police
-## can retreat or despawn during the transition."
+## Called by WaveManager on wave transitions as a safety net (a wave only
+## completes once this is already empty) and on game over/reset.
 func clear_all_police() -> void:
 	for police in spawned_police:
 		if is_instance_valid(police):
 			police.queue_free()
 	spawned_police.clear()
+
+
+## True while this wave still has cops to deliver (queued or alive). Read by
+## WaveManager every ACTIVE frame -- the wave completes once this goes false.
+func has_any_police_left() -> bool:
+	return _police_remaining_to_spawn > 0 or _count_live_police() > 0
+
+
+## Queued-but-not-yet-spawned plus currently-alive, for the HUD's "N left"
+## readout.
+func get_police_left_count() -> int:
+	return _police_remaining_to_spawn + _count_live_police()
 
 
 func _count_live_police() -> int:

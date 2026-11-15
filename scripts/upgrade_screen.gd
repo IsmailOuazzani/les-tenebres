@@ -40,6 +40,9 @@ const _CARD_VARIANT := &"PanelContainerDefaultFlat"
 
 func _ready() -> void:
 	visible = false
+	# Lets scripts/pause_menu.gd check "is some other full-screen overlay
+	# already up" without a direct node reference to each one.
+	add_to_group(&"blocking_screen")
 	_continue_button.pressed.connect(_on_continue_pressed)
 	GameState.grabuge_changed.connect(_on_grabuge_changed)
 	UpgradeManager.upgrade_purchased.connect(_on_upgrade_purchased)
@@ -156,6 +159,16 @@ func _build_card(upgrade: Dictionary) -> PanelContainer:
 	desc_label.add_theme_font_size_override("font_size", 12)
 	desc_label.modulate = Color(1.0, 1.0, 1.0, 0.7)
 	info_box.add_child(desc_label)
+
+	# Current total effect at this level (e.g. "+20% move speed"), so a
+	# player can see what they already have, not just what the next level
+	# costs -- blank/neutral at level 0 reads the same as "+0%", which is
+	# the correct baseline rather than a special case.
+	var current_label := Label.new()
+	current_label.text = "Current: %s" % upgrade["current_value"]
+	current_label.add_theme_font_size_override("font_size", 12)
+	current_label.modulate = Color(0.6, 1.0, 0.6, 0.9) if upgrade["level"] > 0 else Color(1.0, 1.0, 1.0, 0.5)
+	info_box.add_child(current_label)
 
 	var price_label := Label.new()
 	price_label.text = "%d" % round(upgrade["price"])

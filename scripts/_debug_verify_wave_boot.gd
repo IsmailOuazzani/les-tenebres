@@ -46,7 +46,7 @@ func _process(delta: float) -> bool:
 		_reported_boot = true
 		print("--- first idle frame (autoload _ready has now run) ---")
 		print("WaveManager state: ", wm.state, "  (0=PREPARING 1=ACTIVE 2=INTERMISSION 3=ACT_COMPLETE)")
-		print("wave_time_left: ", wm.wave_time_left, "  wave_duration: ", wm.wave_duration)
+		print("police_remaining: ", wm.police_remaining)
 		print("police_spawner in group: ", spawner != null)
 		if spawner != null:
 			print("spawner._spawning: ", spawner._spawning)
@@ -54,7 +54,7 @@ func _process(delta: float) -> bool:
 
 	if _elapsed >= 8.0:
 		print("--- after %.1fs of wave 1 ---" % _elapsed)
-		print("WaveManager state: ", wm.state, "  wave_time_left: ", wm.wave_time_left)
+		print("WaveManager state: ", wm.state, "  police_remaining: ", wm.police_remaining)
 		if spawner != null:
 			print("spawner._spawning: ", spawner._spawning)
 			print("spawner._police_remaining_to_spawn: ", spawner._police_remaining_to_spawn)

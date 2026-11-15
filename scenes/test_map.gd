@@ -288,12 +288,8 @@ func _apply_player_health() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel"):
-		# Leaving a match returns to the main menu (and tears down the
-		# session) rather than quitting the application, so another
-		# host/join can be started without relaunching (spec 3).
-		NetworkManager.return_to_menu()
-		return
+	# Escape now opens scripts/pause_menu.gd instead of leaving the match
+	# outright -- see that script for the pause/leave flow.
 
 	if event is InputEventMouseButton and event.pressed:
 		if Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:

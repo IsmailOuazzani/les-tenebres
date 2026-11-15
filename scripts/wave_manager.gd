@@ -1,16 +1,17 @@
 extends Node
 
-## WaveManager: drives the time-based wave/intermission/Act loop per
+## WaveManager: drives the kill-gated wave/intermission/Act loop per
 ## vision.md's "Wave System" and "Acts and Progression" sections. Registered
 ## as the `WaveManager` autoload (see project.godot [autoload]). This is the
 ## integration contract with the (separately-built) upgrade system -- see
 ## agents/wave-survival-notes.md, which this file implements exactly.
 ##
-## Flow: PREPARING -> ACTIVE (timer runs, police spawn) -> wave_completed +
-## intermission_started (the upgrade station opens, built by the other
-## agent) -> INTERMISSION (live countdown, no police spawning) -> next wave
-## ACTIVE. After the last wave of an Act: act_completed instead of another
-## intermission.
+## Flow: PREPARING -> ACTIVE (police trickle in, capped at police_spawner's
+## max_alive; wave completes once every cop for the wave has been both
+## spawned and killed) -> wave_completed + intermission_started (the upgrade
+## station opens, built by the other agent) -> INTERMISSION (live countdown,
+## no police spawning) -> next wave ACTIVE. After the last wave of an Act:
+## act_completed instead of another intermission.
 ##
 ## Police spawning itself is delegated to whatever's in the
 ## `&"police_spawner"` group (scripts/police_spawner.gd) -- this script only
@@ -23,8 +24,8 @@ extends Node
 ## The wave loop is **server-authoritative shared state**, like Grabuge: one
 ## protest, one wave, one Act for everybody (see agents/multiplayer-notes.md).
 ## Only the server advances the timers and orders spawns; clients receive
-## * a 10 Hz unreliable-ordered push of (state, act, wave, time left) for the
-##   HUD countdown, and
+## * a 10 Hz unreliable-ordered push of (state, act, wave, time left, police
+##   left) for the HUD, and
 ## * every phase transition as a reliable RPC, so the upgrade station and the
 ##   Act scoreboard open and close in lockstep on all peers.
 ## The two player-driven transitions (leaving the shop, starting the next Act)
@@ -53,17 +54,9 @@ signal intermission_countdown_started
 ## -- Tuning constants (all balancing numbers live here, clearly named) --
 
 ## Waves per Act. Flat across Acts per vision.md ("multiple waves with
-## increasing difficulty") -- difficulty scales via police counts/duration,
+## increasing difficulty") -- difficulty scales via police counts/max_alive,
 ## not wave count.
 const WAVES_PER_ACT: int = 5
-
-## How long (seconds) a single wave lasts before it's automatically
-## completed, regardless of how many cops are still alive (waves are
-## time-based survival, not kill-everything, per vision.md).
-const BASE_WAVE_DURATION: float = 45.0
-## Each Act adds this many seconds to every wave's duration, so later Acts
-## are a longer grind as well as a denser one.
-const WAVE_DURATION_PER_ACT: float = 10.0
 
 ## Live pre-wave countdown length (seconds) once the player leaves the
 ## upgrade station via begin_intermission_countdown().
@@ -75,26 +68,12 @@ const BASE_POLICE_COUNT: int = 8
 const POLICE_PER_WAVE_INCREMENT: int = 3
 const POLICE_PER_ACT_MULTIPLIER: float = 1.4
 
-## Fraction of the wave duration that spawning is compressed into. At 1.0
-## the cops are spread across the whole wave, which at low counts reads as a
-## thin trickle (wave 1 was one cop every ~11s) and leaves the back half of
-## the wave empty once the player clears them. Compressing to the front
-## portion means pressure actually builds -- the full wave's worth of police
-## is on the field with time left to fight them, rather than dribbling in
-## until the timer expires.
-const SPAWN_WINDOW_FRACTION: float = 0.6
-
 ## Every Nth wave (within an Act) is a bigger "assault" wave -- predictable
 ## escalation milestones per vision.md ("every third wave introduces a more
 ## substantial assault").
 const ASSAULT_WAVE_INTERVAL: int = 3
 ## Assault waves multiply the normal police count for that wave.
 const ASSAULT_POLICE_MULTIPLIER: float = 1.75
-
-## How many seconds before an assault wave's police spawns land that the
-## threat_warning signal fires (fired right as the wave starts, since
-## spawning is spread across the wave duration -- see police_spawner.gd).
-const ASSAULT_WARNING_LEAD_TIME: float = 3.0
 
 ## Megacops (scripts/police.gd scaled up, see scenes/megacop.tscn) start
 ## showing up once this Act is reached -- Act 1 stays a clean intro with only
@@ -109,12 +88,14 @@ const MEGACOP_ASSAULT_FRACTION: float = 0.35
 var state: State = State.PREPARING
 var current_act: int = 1        # 1-based
 var current_wave: int = 1       # 1-based, within the current Act
+## Only meaningful during INTERMISSION now -- the live pre-wave countdown.
+## ACTIVE waves have no clock; see police_remaining instead.
 var wave_time_left: float = 0.0
 var wave_duration: float = 0.0
-
-## True once this wave's assault warning has already fired, so it doesn't
-## repeat every frame while the lead-time window is open.
-var _assault_warning_fired: bool = false
+## How many of this wave's cops are still queued-to-spawn or alive. Drives
+## the HUD's "N left" readout during ACTIVE; replicated like the other wave
+## state. Set from police_spawner.gd's own count, not derived independently.
+var police_remaining: int = 0
 
 ## True once begin_intermission_countdown() has been called -- the live
 ## countdown only ticks after the (paused) upgrade station is left, not as
@@ -156,9 +137,11 @@ func _process(delta: float) -> void:
 		return
 
 	if not NetworkManager.is_authoritative():
-		# Clients keep counting the replicated timer down locally between
-		# pushes, so the HUD countdown is smooth rather than 10 Hz steppy.
-		if state == State.ACTIVE or (state == State.INTERMISSION and _intermission_counting):
+		# Clients keep counting the replicated intermission timer down
+		# locally between pushes, so that countdown is smooth rather than
+		# 10 Hz steppy. ACTIVE has no clock to extrapolate -- police_remaining
+		# just waits for the next push.
+		if state == State.INTERMISSION and _intermission_counting:
 			wave_time_left = max(wave_time_left - delta, 0.0)
 		return
 
@@ -175,15 +158,22 @@ func _process(delta: float) -> void:
 		_push_wave_state()
 
 
-func _process_active(delta: float) -> void:
-	wave_time_left -= delta
+## Kill-gated: the wave has no clock of its own. Reads PoliceSpawner's live
+## state every frame to keep the HUD's "N left" count current, and completes
+## the wave the moment every cop for it has been both spawned and killed.
+func _process_active(_delta: float) -> void:
+	if not _pending_spawn_request.is_empty():
+		# The spawn order hasn't actually landed on the spawner yet (see
+		# _begin_spawning()'s retry) -- nothing has been queued, so there's
+		# nothing to check for completion against.
+		return
 
-	if not _assault_warning_fired and _is_assault_wave(current_wave) \
-			and wave_time_left <= wave_duration - ASSAULT_WARNING_LEAD_TIME:
-		_assault_warning_fired = true
-		_emit_threat_warning("ASSAULT WAVE INCOMING")
+	var spawner: Node = _get_police_spawner()
+	if spawner == null:
+		return
 
-	if wave_time_left <= 0.0:
+	police_remaining = spawner.get_police_left_count()
+	if not spawner.has_any_police_left():
 		_complete_wave()
 
 
@@ -261,10 +251,10 @@ func reset() -> void:
 	current_act = 1
 	current_wave = 1
 	state = State.PREPARING
-	_assault_warning_fired = false
 	_intermission_counting = false
 	_pending_spawn_request = {}
 	_push_timer = 0.0
+	police_remaining = 0
 	_clear_police()
 	# A reset without a running match (returning to the menu/lobby) must not
 	# start wave 1 -- start_run() does that when the next match boots.
@@ -285,20 +275,17 @@ func _start_wave(act: int, wave: int) -> void:
 	state = State.ACTIVE
 	current_act = act
 	current_wave = wave
-	_assault_warning_fired = false
 	_intermission_counting = false
-
-	wave_duration = BASE_WAVE_DURATION + WAVE_DURATION_PER_ACT * float(act - 1)
-	wave_time_left = wave_duration
 
 	var police_total: int = _police_count_for(act, wave)
 	var megacop_total: int = _megacop_count_for(act, wave, police_total)
+	police_remaining = police_total
 	_clear_police()
-	_begin_spawning(police_total, wave_duration, megacop_total)
+	_begin_spawning(police_total, megacop_total)
 
 	wave_started.emit(wave, police_total)
 	if NetworkManager.is_multiplayer_session():
-		_apply_wave_started.rpc(act, wave, police_total, wave_duration)
+		_apply_wave_started.rpc(act, wave, police_total)
 
 
 func _complete_wave() -> void:
@@ -381,12 +368,12 @@ func _get_police_spawner() -> Node:
 ## boot dump before this was added. Mirrors the lazy-resolve pattern in
 ## scripts/crowd_controller.gd's _find_megaphone(), which exists for exactly
 ## the same autoload/scene ordering reason.
-func _begin_spawning(total_police: int, duration: float, megacop_count: int = 0) -> void:
+func _begin_spawning(total_police: int, megacop_count: int = 0) -> void:
 	var spawner: Node = _get_police_spawner()
 	if spawner != null:
-		spawner.begin_wave(total_police, duration, megacop_count)
+		spawner.begin_wave(total_police, megacop_count)
 		return
-	_pending_spawn_request = {"police": total_police, "duration": duration, "megacops": megacop_count}
+	_pending_spawn_request = {"police": total_police, "megacops": megacop_count}
 
 
 ## Retries a spawn order that arrived before the PoliceSpawner existed. Called
@@ -397,7 +384,7 @@ func _flush_pending_spawn_request() -> void:
 	var spawner: Node = _get_police_spawner()
 	if spawner == null:
 		return
-	spawner.begin_wave(_pending_spawn_request["police"], _pending_spawn_request["duration"], _pending_spawn_request["megacops"])
+	spawner.begin_wave(_pending_spawn_request["police"], _pending_spawn_request["megacops"])
 	_pending_spawn_request = {}
 
 
@@ -429,34 +416,35 @@ func _emit_threat_warning(message: String) -> void:
 func _push_wave_state() -> void:
 	if not NetworkManager.is_multiplayer_session():
 		return
-	_apply_wave_state.rpc(int(state), current_act, current_wave, wave_time_left, wave_duration)
+	_apply_wave_state.rpc(int(state), current_act, current_wave, wave_time_left, wave_duration, police_remaining)
 
 
 ## Unreliable-ordered for the same reason as GameState's counter push: a lost
 ## packet is superseded by the next one, but out-of-order delivery would make
-## the HUD countdown jump backwards.
+## the HUD countdown/police-left count jump backwards.
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _apply_wave_state(
 	new_state: int,
 	new_act: int,
 	new_wave: int,
 	new_time_left: float,
-	new_duration: float
+	new_duration: float,
+	new_police_remaining: int
 ) -> void:
 	state = new_state as State
 	current_act = new_act
 	current_wave = new_wave
 	wave_time_left = new_time_left
 	wave_duration = new_duration
+	police_remaining = new_police_remaining
 
 
 @rpc("authority", "call_remote", "reliable")
-func _apply_wave_started(act: int, wave: int, police_total: int, duration: float) -> void:
+func _apply_wave_started(act: int, wave: int, police_total: int) -> void:
 	state = State.ACTIVE
 	current_act = act
 	current_wave = wave
-	wave_duration = duration
-	wave_time_left = duration
+	police_remaining = police_total
 	_intermission_counting = false
 	wave_started.emit(wave, police_total)
 

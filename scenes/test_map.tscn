@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/game_over.tscn" id="29_gmovr"]
 [ext_resource type="PackedScene" path="res://scenes/act_complete.tscn" id="43_actcmp"]
 [ext_resource type="PackedScene" path="res://scenes/upgrade_screen.tscn" id="44_upgscr"]
+[ext_resource type="PackedScene" path="res://scenes/pause_menu.tscn" id="45_pausemenu"]
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="30_crowdctl"]
 [ext_resource type="Script" path="res://scripts/police_spawner.gd" id="31_policespw"]
 [ext_resource type="PackedScene" path="res://scenes/police.tscn" id="32_policescn"]
@@ -83,3 +84,5 @@ spawn_path = NodePath("../PoliceSpawner")
 [node name="ActComplete" parent="." instance=ExtResource("43_actcmp")]
 
 [node name="UpgradeScreen" parent="." instance=ExtResource("44_upgscr")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("45_pausemenu")]
