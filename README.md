@@ -113,11 +113,14 @@ Dead players respawn after **5 seconds**; a death does not reset the protest.
 ## Building a macOS release
 
 ```sh
-task export:macos
+task export:macos        # -> dist/ProtestSimulator.app   (just run it)
+task export:macos:zip    # -> dist/ProtestSimulator-macOS.zip (to hand to someone)
 ```
 
-Produces **`dist/ProtestSimulator-macOS.zip`**, containing a complete,
-self-contained `ProtestSimulator.app`:
+Both run the same release export; they differ only in the output format,
+which the exporter picks from the extension it is given. Use the first one
+locally — there is nothing to unarchive, just `open dist/ProtestSimulator.app`.
+Either way you get a complete, self-contained `ProtestSimulator.app`:
 
 * **Universal 2** binary (Apple Silicon + Intel).
 * Release export, all game resources bundled inside the `.app`.
@@ -126,17 +129,23 @@ self-contained `ProtestSimulator.app`:
 * Networking entitlements enabled, so hosting and joining work.
 * Players do **not** need Godot installed.
 
-The task resolves the Godot binary (honouring `GODOT_BIN`), validates the
-export templates, creates `dist/`, runs the headless release exporter, and
-then verifies the resulting archive actually contains the app executable,
-`Info.plist` and `.pck` — failing loudly at whichever step breaks.
+Both tasks resolve the Godot binary (honouring `GODOT_BIN`), validate the
+export templates, create `dist/`, run the headless release exporter, and then
+verify the result — failing loudly at whichever step breaks. The `.app` build
+goes furthest: as well as checking the executable, `Info.plist` and `.pck` are
+present, it runs `codesign --verify` (a bundle whose signature does not cover
+its contents refuses to launch on Apple Silicon, which no file listing would
+reveal) and boots the real binary headlessly, which catches a mismatched
+`.pck`, a missing main scene, or a script parse error.
 
 `dist/` is gitignored.
 
 ### Distribution
 
-Send `dist/ProtestSimulator-macOS.zip` to the other players however you like
-(AirDrop, file share, USB). Each player unzips it and drags
+Use `task export:macos:zip` and send `dist/ProtestSimulator-macOS.zip` to the
+other players however you like (AirDrop, file share, USB) — a `.app` is a
+directory, so it needs wrapping to survive most transfers intact. Each player
+unzips it and drags
 `ProtestSimulator.app` wherever they want — typically `/Applications` or the
 Desktop.
 

@@ -5,6 +5,10 @@ vars:
   GODOT: '{{.GODOT_BIN | default "/Applications/Godot.app/Contents/MacOS/Godot"}}'
   # macOS export (see agents/multiplayer-notes.md and the README).
   EXPORT_PRESET: macOS
+  # The exporter picks its output format from this extension: `.app` writes
+  # the bundle straight out (double-clickable, nothing to unarchive), `.zip`
+  # wraps it. See export:macos vs export:macos:zip below.
+  EXPORT_APP: dist/ProtestSimulator.app
   EXPORT_ZIP: dist/ProtestSimulator-macOS.zip
 
 tasks:
@@ -45,7 +49,22 @@ tasks:
       - bash tools/lan_loopback_test.sh
 
   export:macos:
-    desc: Build a self-contained, ad-hoc-signed macOS release ZIP into dist/
+    desc: Build a self-contained, ad-hoc-signed ProtestSimulator.app into dist/
+    cmds:
+      - task: _export:macos:check-templates
+      - mkdir -p dist
+      - |
+        set -euo pipefail
+        echo "== exporting preset '{{.EXPORT_PRESET}}' -> {{.EXPORT_APP}}"
+        # The exporter writes into the bundle rather than replacing it, so a
+        # stale .app from an earlier build has to go first.
+        rm -rf "{{.EXPORT_APP}}"
+        "{{.GODOT}}" --headless --path . \
+          --export-release "{{.EXPORT_PRESET}}" "{{.EXPORT_APP}}"
+      - task: _export:macos:verify:app
+
+  export:macos:zip:
+    desc: Same build, wrapped in a ZIP for handing to someone else
     cmds:
       - task: _export:macos:check-templates
       - mkdir -p dist
@@ -55,7 +74,7 @@ tasks:
         rm -f "{{.EXPORT_ZIP}}"
         "{{.GODOT}}" --headless --path . \
           --export-release "{{.EXPORT_PRESET}}" "{{.EXPORT_ZIP}}"
-      - task: _export:macos:verify
+      - task: _export:macos:verify:zip
 
   _export:macos:check-templates:
     internal: true
@@ -84,7 +103,47 @@ tasks:
         fi
         echo "== export templates present: $TEMPLATE_DIR"
 
-  _export:macos:verify:
+  _export:macos:verify:app:
+    internal: true
+    silent: true
+    desc: Fail loudly unless the exported bundle is complete, signed and launchable
+    cmds:
+      - |
+        set -euo pipefail
+        APP="{{.EXPORT_APP}}"
+        if [ ! -d "$APP" ]; then
+          echo "error: export produced no bundle at $APP." >&2
+          exit 1
+        fi
+        for required in \
+          "Contents/MacOS/ProtestSimulator" \
+          "Contents/Info.plist" \
+          "Contents/Resources/ProtestSimulator.pck"
+        do
+          if [ ! -e "$APP/$required" ]; then
+            echo "error: $APP is missing $required -- it would not be playable." >&2
+            exit 1
+          fi
+        done
+        # A bundle whose signature does not cover its own contents fails to
+        # launch on Apple Silicon, and that is invisible in a file listing.
+        codesign --verify --deep "$APP" >/dev/null 2>&1 || {
+          echo "error: $APP failed codesign --verify." >&2
+          exit 1
+        }
+        # Cheapest end-to-end proof: boot the real binary headlessly. Catches
+        # a .pck that does not match the executable, a missing main scene and
+        # script parse errors, none of which a file listing would show.
+        "$APP/Contents/MacOS/ProtestSimulator" --headless --quit-after 120 >/dev/null 2>&1 || {
+          echo "error: $APP did not boot headlessly." >&2
+          exit 1
+        }
+        echo "== OK: $APP is complete, ad-hoc signed and boots"
+        echo "   $(du -sh "$APP" | cut -f1) — open it with: open $APP"
+        echo "   Note: ad-hoc signed, so first launch needs a Gatekeeper override."
+        echo "   See README.md > Running the exported application."
+
+  _export:macos:verify:zip:
     internal: true
     silent: true
     desc: Fail loudly unless the exported ZIP contains a complete, playable .app
