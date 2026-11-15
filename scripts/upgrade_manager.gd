@@ -16,6 +16,21 @@ extends Node
 ## upgrades (from outside the vendored addons/fps_controller/ scene, per the
 ## contract's "known gotchas"), and scripts/npc.gd / crowd_controller.gd read
 ## the crowd multipliers directly. See each file's comments for how.
+##
+## ## Multiplayer
+##
+## Upgrades are **shared and server-authoritative**, for the same reason
+## Grabuge is: there is one protest, one war chest and one crowd, so one
+## upgrade set. A level bought by any player applies to every player (and to
+## the shared crowd) -- the alternative, per-player upgrade sets paid for out
+## of a shared wallet, would also mean a client's crowd upgrades had no
+## effect at all, since the crowd is simulated only on the server.
+##
+## A client's purchase is therefore a *request*: purchase() rpc_id(1)s the
+## server, which does the spending and broadcasts the resulting level back.
+## purchase() returns false on a client even when the request will succeed --
+## callers refresh off `upgrade_purchased` / `GameState.grabuge_changed`
+## rather than off the return value (see scripts/upgrade_screen.gd).
 
 signal upgrade_purchased(id: StringName, new_level: int)
 
@@ -125,15 +140,19 @@ func purchase(id: StringName) -> bool:
 		push_warning("UpgradeManager.purchase(): unknown upgrade id %s" % id)
 		return false
 
+	if not NetworkManager.is_authoritative():
+		_request_purchase.rpc_id(1, id)
+		return false
+
 	var level: int = _levels.get(id, 0)
 	var price: float = _price_for(id, level)
 	if not GameState.spend_grabuge(price):
 		return false
 
 	var new_level: int = level + 1
-	_levels[id] = new_level
-	_apply_level(id, new_level)
-	upgrade_purchased.emit(id, new_level)
+	_set_level(id, new_level)
+	if NetworkManager.is_multiplayer_session():
+		_apply_purchase.rpc(id, new_level)
 	return true
 
 
@@ -150,6 +169,14 @@ func reset() -> void:
 	crowd_health_mult = 1.0
 	crowd_damage_mult = 1.0
 	player_bonus_health = 0.0
+	if NetworkManager.is_authoritative() and NetworkManager.is_multiplayer_session():
+		_apply_reset.rpc()
+
+
+func _set_level(id: StringName, new_level: int) -> void:
+	_levels[id] = new_level
+	_apply_level(id, new_level)
+	upgrade_purchased.emit(id, new_level)
 
 
 ## Price to go from `level` to `level + 1`: base * PRICE_GROWTH^level, so
@@ -181,3 +208,28 @@ func _apply_level(id: StringName, new_level: int) -> void:
 			crowd_health_mult = 1.0 + CROWD_HEALTH_STEP * new_level
 		&"crowd_damage":
 			crowd_damage_mult = 1.0 + CROWD_DAMAGE_STEP * new_level
+
+
+# --------------------------------------------------------------------------
+# Replication
+# --------------------------------------------------------------------------
+
+## Reliable: a dropped purchase would leave a client's shop permanently out
+## of step with the server's levels and prices.
+@rpc("authority", "call_remote", "reliable")
+func _apply_purchase(id: StringName, new_level: int) -> void:
+	if not BASE_PRICES.has(id):
+		return
+	_set_level(id, new_level)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_reset() -> void:
+	reset()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_purchase(id: StringName) -> void:
+	if not NetworkManager.is_authoritative():
+		return
+	purchase(id)

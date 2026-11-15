@@ -20,12 +20,27 @@ var _screen: Node
 ## run forever (a paused tree stops WaveManager from advancing at all).
 var _elapsed: float = 0.0
 
+var _booted: bool = false
 
-func _initialize() -> void:
+
+## Headless harnesses add the match scene by hand instead of going through
+## the main menu, so single-player mode has to be set up explicitly: every
+## server-authoritative system checks NetworkManager.is_authoritative(),
+## which is false in the menu-default Mode.NONE -- nothing would spawn or
+## simulate. `Node.multiplayer` is null during _initialize() (see
+## agents/multiplayer-notes.md gotcha 1), so this runs on the first idle
+## frame instead.
+func _boot() -> void:
+	root.get_node("NetworkManager").begin_single_player_session()
 	root.add_child(load("res://scenes/test_map.tscn").instantiate())
 
 
 func _process(delta: float) -> bool:
+	if not _booted:
+		_booted = true
+		_boot()
+		return false
+
 	_elapsed += delta
 	if _elapsed > 60.0:
 		print("\n!!! ABORT: stalled in phase ", _phase, " after 60s (tree paused: ", paused, ")")
@@ -60,7 +75,7 @@ func _process(delta: float) -> bool:
 				_phase = 2
 		2:
 			print("\n--- buying upgrades from the shop ---")
-			var mc: Node = root.get_node_or_null("TestMap/Player/MovementController")
+			var mc: Node = root.get_node_or_null("TestMap/Players/1")
 			var before_speed = mc.speed if mc else null
 			print("available grabuge: ", GameStateRef().grabuge_available)
 			print("player speed before: ", before_speed)

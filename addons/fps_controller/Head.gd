@@ -18,6 +18,13 @@ func _ready() -> void:
 
 # Called when there is an input event
 func _input(event: InputEvent) -> void:
+	# Only the locally owned player processes look input -- a remote player's
+	# head pitch/yaw arrives as replicated state instead. See
+	# agents/multiplayer-notes.md. Authority is inherited from the player root
+	# (scripts/player.gd sets it recursively), and is trivially true in
+	# single-player.
+	if not is_multiplayer_authority():
+		return
 	# Mouse look (only if the mouse is captured).
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		mouse_axis = event.relative
@@ -26,6 +33,8 @@ func _input(event: InputEvent) -> void:
 
 # Called every physics tick. 'delta' is constant
 func _physics_process(delta: float) -> void:
+	if not is_multiplayer_authority():
+		return
 	var joystick_axis := Input.get_vector(&"look_left", &"look_right",
 			&"look_down", &"look_up")
 	

@@ -417,3 +417,34 @@ vision.md loop step 1 ("Prepare: recruit civilians, position your mob") on
 the first wave. `State.PREPARING` exists but is only a transient bookkeeping
 value. Adding a pre-wave grace countdown is a small change to `_ready()` and
 the HUD's PREPARING display.
+
+---
+
+## Multiplayer integration (merge of the `lan-multiplayer` branch, 2026-11-14)
+
+The LAN co-op branch was cut before this rewrite existed, so the merge put
+the wave loop on top of a server-authoritative networking layer. Only the
+seams that touch this feature are listed here; the full account is in
+`agents/multiplayer-notes.md` § 11.
+
+* **WaveManager is now server-authoritative shared state** (one wave, one Act
+  for everybody). It no longer starts the run in `_ready()`; `test_map.gd`
+  calls `WaveManager.start_run()` once every peer has loaded and spawned.
+  Clients get a 10 Hz state push plus one reliable RPC per phase transition.
+* **UpgradeManager is shared and server-authoritative.** A client's
+  `purchase()` is a request and returns `false` even when it will succeed —
+  refresh off `upgrade_purchased` / `grabuge_changed`, not the return value.
+  Per-player upgrade sets were rejected because the crowd is simulated only
+  on the server, so a client's crowd upgrades would do nothing.
+* **The shop and the Act scoreboard do not pause the tree in multiplayer**
+  (pausing the listen server freezes everyone's simulation), and neither
+  closes itself on its button press any more: they close on the WaveManager
+  transition that comes back. In single-player that is the same frame, so the
+  behavior described above is unchanged.
+* **Player upgrades are applied to the locally owned character**, resolved
+  when it spawns (`test_map.gd::_bind_local_player()`), not via an `@onready`
+  path to a `Player` node — characters are spawned at runtime now. Upgrades
+  bought before a (re)spawn are re-applied on bind.
+* `PoliceSpawner._spawn_police()` returns a bool and the wave quota is only
+  decremented on success, since in the multiplayer respawn window there may
+  be no living player to spawn a cop around.

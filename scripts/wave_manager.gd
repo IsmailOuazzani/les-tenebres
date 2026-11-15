@@ -17,6 +17,22 @@ extends Node
 ## decides WHEN and HOW MANY, never touches spawn positions/instancing
 ## directly, mirroring the existing `&"crowd_controller"` group-lookup
 ## pattern (see scripts/audio_manager.gd).
+##
+## ## Multiplayer
+##
+## The wave loop is **server-authoritative shared state**, like Grabuge: one
+## protest, one wave, one Act for everybody (see agents/multiplayer-notes.md).
+## Only the server advances the timers and orders spawns; clients receive
+## * a 10 Hz unreliable-ordered push of (state, act, wave, time left) for the
+##   HUD countdown, and
+## * every phase transition as a reliable RPC, so the upgrade station and the
+##   Act scoreboard open and close in lockstep on all peers.
+## The two player-driven transitions (leaving the shop, starting the next Act)
+## are requests: a client rpc_id(1)s them and the server decides.
+##
+## The run no longer starts in _ready(): the main scene is the menu, and in
+## multiplayer wave 1 must not begin until every peer has loaded the map and
+## spawned a character. scenes/test_map.gd calls start_run() at that point.
 
 enum State { PREPARING, ACTIVE, INTERMISSION, ACT_COMPLETE }
 
@@ -29,6 +45,10 @@ signal act_completed(act_number: int)
 ## Pre-assault audiovisual warning, per vision.md ("clear audiovisual
 ## warning signals for incoming police").
 signal threat_warning(message: String)
+## Fired when the live pre-wave countdown actually starts, i.e. the shop is
+## over. The upgrade station closes on this rather than on its own button
+## press, so in multiplayer every peer's shop closes together.
+signal intermission_countdown_started
 
 ## -- Tuning constants (all balancing numbers live here, clearly named) --
 
@@ -96,19 +116,53 @@ var _intermission_counting: bool = false
 ## _begin_spawning() for why this happens on the very first wave.
 var _pending_spawn_request: Dictionary = {}
 
+## True between start_run() and a game over -- nothing ticks before the match
+## actually begins (the main scene is the menu).
+var _running: bool = false
+
+## How often the server pushes the wave timers to clients (10 Hz). The
+## countdown changes every frame, so pushing on change would flood the
+## channel for no visible benefit -- same reasoning as GameState's push.
+const _PUSH_INTERVAL: float = 0.1
+var _push_timer: float = 0.0
+
 
 func _ready() -> void:
 	GameState.game_over.connect(_on_game_over)
+
+
+## Called by scenes/test_map.gd once the map is loaded on every peer and the
+## player characters exist. Server-authoritative: on a client this only arms
+## the local countdown display, the wave itself arrives by replication.
+func start_run() -> void:
+	_running = true
+	if not NetworkManager.is_authoritative():
+		return
 	_start_wave(current_act, current_wave)
 
 
 func _process(delta: float) -> void:
+	if not _running:
+		return
+
+	if not NetworkManager.is_authoritative():
+		# Clients keep counting the replicated timer down locally between
+		# pushes, so the HUD countdown is smooth rather than 10 Hz steppy.
+		if state == State.ACTIVE or (state == State.INTERMISSION and _intermission_counting):
+			wave_time_left = max(wave_time_left - delta, 0.0)
+		return
+
 	_flush_pending_spawn_request()
 
 	if state == State.ACTIVE:
 		_process_active(delta)
 	elif state == State.INTERMISSION:
 		_process_intermission(delta)
+
+	_push_timer -= delta
+	if _push_timer <= 0.0:
+		_push_timer = _PUSH_INTERVAL
+		_push_wave_state()
 
 
 func _process_active(delta: float) -> void:
@@ -117,7 +171,7 @@ func _process_active(delta: float) -> void:
 	if not _assault_warning_fired and _is_assault_wave(current_wave) \
 			and wave_time_left <= wave_duration - ASSAULT_WARNING_LEAD_TIME:
 		_assault_warning_fired = true
-		threat_warning.emit("ASSAULT WAVE INCOMING")
+		_emit_threat_warning("ASSAULT WAVE INCOMING")
 
 	if wave_time_left <= 0.0:
 		_complete_wave()
@@ -152,18 +206,26 @@ func get_next_wave_preview() -> Dictionary:
 ## and begin the live pre-wave countdown. No-op unless we're actually
 ## waiting in INTERMISSION.
 func begin_intermission_countdown() -> void:
+	# On a client this is a request -- the server owns the transition and
+	# broadcasts it back, which is what actually closes the shop.
+	if not NetworkManager.is_authoritative():
+		_request_intermission_countdown.rpc_id(1)
+		return
 	if state != State.INTERMISSION:
 		return
 	wave_time_left = INTERMISSION_DURATION
 	wave_duration = INTERMISSION_DURATION
 	_intermission_counting = true
+	intermission_countdown_started.emit()
+	if NetworkManager.is_multiplayer_session():
+		_apply_countdown_started.rpc(INTERMISSION_DURATION)
 
 	# Warn here, during the live countdown, rather than after the assault
 	# wave has already begun -- vision.md asks for warnings *before*
 	# dangerous attacks, and the player can still act on this one (recruit
 	# more, reposition the mob) while the countdown runs.
 	if _is_assault_wave(current_wave + 1):
-		threat_warning.emit("ASSAULT WAVE INCOMING")
+		_emit_threat_warning("ASSAULT WAVE INCOMING")
 
 
 ## Not part of the original contract (agents/wave-survival-notes.md only
@@ -172,6 +234,10 @@ func begin_intermission_countdown() -> void:
 ## some way to actually start the next, harder Act. Safe to call only while
 ## state == ACT_COMPLETE.
 func start_next_act() -> void:
+	# Same request/authority split as begin_intermission_countdown().
+	if not NetworkManager.is_authoritative():
+		_request_next_act.rpc_id(1)
+		return
 	if state != State.ACT_COMPLETE:
 		return
 	current_act += 1
@@ -185,13 +251,20 @@ func reset() -> void:
 	state = State.PREPARING
 	_assault_warning_fired = false
 	_intermission_counting = false
+	_pending_spawn_request = {}
+	_push_timer = 0.0
 	_clear_police()
-	_start_wave(current_act, current_wave)
+	# A reset without a running match (returning to the menu/lobby) must not
+	# start wave 1 -- start_run() does that when the next match boots.
+	if _running and NetworkManager.is_authoritative():
+		_start_wave(current_act, current_wave)
 
 
 func _on_game_over() -> void:
 	state = State.PREPARING
-	_stop_spawning()
+	_running = false
+	if NetworkManager.is_authoritative():
+		_stop_spawning()
 
 
 ## -- Internal wave flow --
@@ -211,6 +284,8 @@ func _start_wave(act: int, wave: int) -> void:
 	_begin_spawning(police_total, wave_duration)
 
 	wave_started.emit(wave, police_total)
+	if NetworkManager.is_multiplayer_session():
+		_apply_wave_started.rpc(act, wave, police_total, wave_duration)
 
 
 func _complete_wave() -> void:
@@ -218,16 +293,22 @@ func _complete_wave() -> void:
 	_stop_spawning()
 	_clear_police()
 	wave_completed.emit(current_wave)
+	if NetworkManager.is_multiplayer_session():
+		_apply_wave_completed.rpc(current_wave)
 
 	if current_wave >= WAVES_PER_ACT:
 		state = State.ACT_COMPLETE
 		act_completed.emit(current_act)
+		if NetworkManager.is_multiplayer_session():
+			_apply_act_completed.rpc(current_act)
 		return
 
 	state = State.INTERMISSION
 	wave_time_left = INTERMISSION_DURATION
 	wave_duration = INTERMISSION_DURATION
 	intermission_started.emit(current_wave + 1, INTERMISSION_DURATION)
+	if NetworkManager.is_multiplayer_session():
+		_apply_intermission_started.rpc(current_wave + 1, INTERMISSION_DURATION)
 
 
 ## _process() ticks wave_time_left down during INTERMISSION the same way it
@@ -238,6 +319,8 @@ func _complete_wave() -> void:
 func _on_intermission_elapsed() -> void:
 	_intermission_counting = false
 	intermission_finished.emit()
+	if NetworkManager.is_multiplayer_session():
+		_apply_intermission_finished.rpc()
 	_start_wave(current_act, current_wave + 1)
 
 
@@ -307,3 +390,111 @@ func _clear_police() -> void:
 	var spawner: Node = _get_police_spawner()
 	if spawner != null:
 		spawner.clear_all_police()
+
+
+func _emit_threat_warning(message: String) -> void:
+	threat_warning.emit(message)
+	if NetworkManager.is_multiplayer_session():
+		_apply_threat_warning.rpc(message)
+
+
+# --------------------------------------------------------------------------
+# Replication (server -> clients)
+# --------------------------------------------------------------------------
+
+func _push_wave_state() -> void:
+	if not NetworkManager.is_multiplayer_session():
+		return
+	_apply_wave_state.rpc(int(state), current_act, current_wave, wave_time_left, wave_duration)
+
+
+## Unreliable-ordered for the same reason as GameState's counter push: a lost
+## packet is superseded by the next one, but out-of-order delivery would make
+## the HUD countdown jump backwards.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _apply_wave_state(
+	new_state: int,
+	new_act: int,
+	new_wave: int,
+	new_time_left: float,
+	new_duration: float
+) -> void:
+	state = new_state as State
+	current_act = new_act
+	current_wave = new_wave
+	wave_time_left = new_time_left
+	wave_duration = new_duration
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_wave_started(act: int, wave: int, police_total: int, duration: float) -> void:
+	state = State.ACTIVE
+	current_act = act
+	current_wave = wave
+	wave_duration = duration
+	wave_time_left = duration
+	_intermission_counting = false
+	wave_started.emit(wave, police_total)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_wave_completed(wave: int) -> void:
+	state = State.PREPARING
+	current_wave = wave
+	wave_completed.emit(wave)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_intermission_started(next_wave_number: int, duration: float) -> void:
+	state = State.INTERMISSION
+	_intermission_counting = false
+	wave_time_left = duration
+	wave_duration = duration
+	intermission_started.emit(next_wave_number, duration)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_countdown_started(duration: float) -> void:
+	wave_time_left = duration
+	wave_duration = duration
+	_intermission_counting = true
+	intermission_countdown_started.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_intermission_finished() -> void:
+	_intermission_counting = false
+	intermission_finished.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_act_completed(act: int) -> void:
+	state = State.ACT_COMPLETE
+	current_act = act
+	act_completed.emit(act)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_threat_warning(message: String) -> void:
+	threat_warning.emit(message)
+
+
+# --------------------------------------------------------------------------
+# Client requests (client -> server)
+# --------------------------------------------------------------------------
+
+## Any player can close the shared shop and start the countdown -- first one
+## to press Continue starts it for everybody, which is simpler than waiting
+## on a ready-check and keeps the protest from stalling on an idle player.
+@rpc("any_peer", "call_remote", "reliable")
+func _request_intermission_countdown() -> void:
+	if not NetworkManager.is_authoritative():
+		return
+	begin_intermission_countdown()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_next_act() -> void:
+	if not NetworkManager.is_authoritative():
+		return
+	start_next_act()

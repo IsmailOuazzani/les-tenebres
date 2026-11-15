@@ -5,11 +5,16 @@ class_name Megaphone
 ##
 ## This node is purely player-facing: it owns the held prop, the recruitment
 ## ground-circle indicator, the aim reticle/outline, raise/shake animation,
-## and the signal below. It does NOT know about NPCs or the crowd --
-## CrowdController (scripts/crowd_controller.gd) polls `is_recruiting_held()`
-## / `is_point_within_recruit_range()` and listens for `send_mob_triggered`
-## itself rather than this script reaching into NPCs. See `agents/megaphone-notes.md`
-## and `agents/mob-selector-notes.md` for the full integration contract.
+## and the signal below. It does NOT know about NPCs or the crowd -- it only
+## exposes `is_recruiting_held()` and emits `send_mob_triggered`, and
+## scripts/player.gd routes both to the server-authoritative CrowdController
+## (directly on the listen server, by RPC on a client). See
+## `agents/megaphone-notes.md` and `agents/mob-selector-notes.md` for the
+## gameplay contract, and `agents/multiplayer-notes.md` for the routing.
+##
+## Only the locally owned player's megaphone runs: every entry point is
+## guarded by `is_multiplayer_authority()`, because the aim raycast and the
+## recruitment circle are resolved from *this peer's* camera.
 ##
 ## Checking `is_in_group("destructible")` on the raycast hit below is the one
 ## exception to "doesn't know about NPCs/crowd" -- it's a visual-only check
@@ -85,14 +90,6 @@ var _aim_point: Vector3 = Vector3.ZERO
 ## -- Send Mob hold-to-charge --
 var _send_held: bool = false
 var _send_press_time_msec: int = 0
-## Lazily resolved via the &"crowd_controller" group (see
-## scripts/crowd_controller.gd's _ready()) rather than an exported NodePath,
-## since Megaphone lives nested inside Player.tscn and can't reach a
-## sibling-of-Player node through a cross-scene path override. Read only to
-## show the live "how many NPCs would this commit" count on charge_label
-## while Send Mob is held -- CrowdController itself decides the actual
-## commit when send_mob_triggered fires.
-var _crowd_controller: Node = null
 
 
 func _ready() -> void:
@@ -113,6 +110,12 @@ func _ready() -> void:
 ## reticle every frame and, while Send Mob is held, updates the live charge
 ## percentage readout.
 func _process(delta: float) -> void:
+	# Local player only. The aim raycast below is resolved from
+	# `get_viewport().get_camera_3d()` (this peer's own camera), so a remote
+	# player's megaphone must never run it -- it would target whatever *we*
+	# are looking at. See agents/multiplayer-notes.md.
+	if not is_multiplayer_authority():
+		return
 	if not _is_active:
 		return
 	_update_aim_target()
@@ -133,6 +136,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not is_multiplayer_authority():
+		return
 	if not _is_active:
 		return
 	if event.is_action_pressed(&"recruit"):
@@ -187,15 +192,16 @@ func _current_send_percentage(held_msec: int) -> float:
 	return lerp(send_tap_floor_percentage, 1.0, ramp_t)
 
 
-## Mirrors CrowdController._on_send_mob()'s count math so the live readout
+## Mirrors CrowdController.apply_send_mob()'s count math so the live readout
 ## while charging matches exactly what releasing Send Mob right now would
 ## commit.
+##
+## Reads the live headcount off GameState rather than CrowdController
+## directly: the recruited list is server-side state (the crowd simulation is
+## server-authoritative), so on a client CrowdController's list is empty.
+## GameState.live_crowd_count is the replicated mirror of it.
 func _current_selected_count(percentage: float) -> int:
-	if _crowd_controller == null:
-		_crowd_controller = get_tree().get_first_node_in_group(&"crowd_controller")
-	if _crowd_controller == null:
-		return 0
-	var total: int = _crowd_controller.get_recruited_count()
+	var total: int = GameState.live_crowd_count
 	return clampi(roundi(percentage * total), 0, total)
 
 
@@ -239,18 +245,13 @@ func _update_aim_target() -> void:
 	reticle_dot.visible = _aim_target == null
 
 
-## True if `point` (world space) falls inside the recruitment radius right
-## now -- a flat, omnidirectional horizontal-distance check centered on the
-## player (ignores height), decoupled from the ground-circle visual mesh so
-## recruitment logic doesn't depend on the mesh being pixel-perfect.
-func is_point_within_recruit_range(point: Vector3) -> bool:
-	var cam := get_viewport().get_camera_3d()
-	if cam == null:
-		return false
-
-	var origin: Vector3 = cam.global_transform.origin
-	var horizontal_delta := Vector2(point.x - origin.x, point.z - origin.z)
-	return horizontal_delta.length() <= recruit_radius
+## NOTE: the "is this civilian inside my recruitment circle" test used to
+## live here and be polled by CrowdController off the local camera. With one
+## shared crowd and up to four players, that check moved server-side into
+## CrowdController, which runs it against every player's body position (see
+## scripts/crowd_controller.gd and `NetPlayer.get_recruit_radius()`). This
+## node keeps only the player-facing half: the viewmodel, the ground circle,
+## the reticle, and the `recruit`/`send_mob_triggered` input signals.
 
 
 func _start_recruit() -> void:

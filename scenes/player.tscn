@@ -1,0 +1,48 @@
+[gd_scene load_steps=6 format=3 uid="uid://cnetplayer001"]
+
+[ext_resource type="PackedScene" uid="uid://bdupkh0grwy27" path="res://addons/fps_controller/Player.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scripts/player.gd" id="2_script"]
+[ext_resource type="PackedScene" uid="uid://crsteg230ii02" path="res://assets/quaternius_men/Casual_2.gltf" id="3_body"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_input"]
+properties/0/path = NodePath(".:net_position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:net_body_yaw")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:net_head_pitch")
+properties/2/spawn = false
+properties/2/replication_mode = 1
+properties/3/path = NodePath(".:net_anim")
+properties/3/spawn = true
+properties/3/replication_mode = 2
+properties/4/path = NodePath(".:net_recruiting")
+properties/4/spawn = false
+properties/4/replication_mode = 2
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_server"]
+properties/0/path = NodePath(".:net_health")
+properties/0/spawn = true
+properties/0/replication_mode = 2
+properties/1/path = NodePath(".:net_alive")
+properties/1/spawn = true
+properties/1/replication_mode = 2
+
+[node name="Player" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+
+[node name="Body" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+
+[node name="Character" parent="Body" instance=ExtResource("3_body")]
+
+[node name="InputSync" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.033
+delta_interval = 0.05
+replication_config = SubResource("SceneReplicationConfig_input")
+
+[node name="ServerSync" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.0
+delta_interval = 0.0
+replication_config = SubResource("SceneReplicationConfig_server")

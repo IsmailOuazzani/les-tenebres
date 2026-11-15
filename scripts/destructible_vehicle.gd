@@ -20,11 +20,14 @@ class_name DestructibleVehicle
 @export var debris_impulse_strength: float = 2.5
 
 
+## Local destruction routine -- runs on every peer off the one replicated
+## `_net_destroy()` trigger, so each simulates its own debris physics rather
+## than having every wheel's transform streamed over the wire (spec 5:
+## cosmetic effects and minor debris can run locally).
 func _die() -> void:
 	_dying = true
 	_health_bar.visible = false
 	destroyed.emit()
-	GameState.record_disruption(1.0)
 
 	var parent := get_parent()
 	var my_transform := global_transform

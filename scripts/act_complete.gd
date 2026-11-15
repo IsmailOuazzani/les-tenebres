@@ -15,6 +15,12 @@ extends CanvasLayer
 func _ready() -> void:
 	visible = false
 	WaveManager.act_completed.connect(_on_act_completed)
+	# The scoreboard is dismissed when the next Act's first wave actually
+	# starts, not by the button press itself -- in multiplayer only the
+	# server starts it, so every peer's scoreboard closes together. See
+	# scripts/upgrade_screen.gd for the same pattern and why the tree isn't
+	# paused in a networked session.
+	WaveManager.wave_started.connect(_on_wave_started)
 	_continue_button.pressed.connect(_on_continue_pressed)
 
 
@@ -23,7 +29,8 @@ func _on_act_completed(act_number: int) -> void:
 	_populate_stats()
 	visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	get_tree().paused = true
+	if not NetworkManager.is_multiplayer_session():
+		get_tree().paused = true
 
 
 ## All six scoreboard stats per vision.md's "Acts and Progression" --
@@ -54,6 +61,12 @@ func _populate_stats() -> void:
 
 
 func _on_continue_pressed() -> void:
-	get_tree().paused = false
-	visible = false
 	WaveManager.start_next_act()
+
+
+func _on_wave_started(_wave_number: int, _police_total: int) -> void:
+	if not visible:
+		return
+	visible = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	get_tree().paused = false

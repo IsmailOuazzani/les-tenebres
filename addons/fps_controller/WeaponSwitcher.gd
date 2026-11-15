@@ -31,6 +31,10 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Local player only -- remote players' equipped weapon is cosmetic and
+	# their viewmodels are hidden entirely (see scripts/player.gd).
+	if not is_multiplayer_authority():
+		return
 	if event.is_action_pressed(&"weapon_1"):
 		_switch_to(0)
 	elif event.is_action_pressed(&"weapon_2"):

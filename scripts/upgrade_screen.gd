@@ -9,6 +9,21 @@ extends CanvasLayer
 ## Cards are built entirely from UpgradeManager.get_upgrades() rather than
 ## hand-placed in the scene, so a 7th upgrade later needs zero scene edits --
 ## same precedent as scripts/hud.gd's _build_hotbar().
+##
+## ## Multiplayer
+##
+## The shop is **shared**: one Grabuge wallet, one upgrade set (see
+## scripts/upgrade_manager.gd), so every peer opens and closes it together on
+## WaveManager's replicated phase transitions, and the first player to press
+## Continue starts the countdown for everybody.
+##
+## Two single-player behaviors deliberately do NOT carry over:
+##   * the tree is not paused -- pausing on the listen server would freeze
+##     the authoritative simulation for every player, and pausing on a client
+##     would only desync its own view.
+##   * Continue does not close this screen directly; it asks WaveManager for
+##     the countdown and the screen closes when that transition comes back
+##     (which in single-player is the same frame, so nothing changes there).
 
 @onready var _next_wave_label: Label = %NextWaveLabel
 @onready var _grabuge_label: Label = %GrabugeLabel
@@ -35,6 +50,7 @@ func _ready() -> void:
 	# open()/close() can still be called directly for standalone testing.
 	if WaveManager.has_signal(&"intermission_started"):
 		WaveManager.intermission_started.connect(_on_intermission_started)
+		WaveManager.intermission_countdown_started.connect(_on_countdown_started)
 	else:
 		push_warning("UpgradeScreen: WaveManager.intermission_started not found; open() must be called directly.")
 
@@ -51,17 +67,27 @@ func open(next_wave_number: int) -> void:
 	_refresh()
 	visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-	get_tree().paused = true
+	if not NetworkManager.is_multiplayer_session():
+		get_tree().paused = true
 
 
 ## Closes the shop and hands control back to WaveManager for the live
 ## pre-wave countdown (where the player can still recruit) -- this exact
-## call is the handoff contract with the wave system.
+## call is the handoff contract with the wave system. The screen itself is
+## hidden by _on_countdown_started(), which WaveManager fires back (same
+## frame in single-player, over the wire in multiplayer).
 func close() -> void:
+	WaveManager.begin_intermission_countdown()
+
+
+## The actual teardown, driven by WaveManager's countdown transition so every
+## peer leaves the shop at the same moment.
+func _on_countdown_started() -> void:
+	if not visible:
+		return
 	visible = false
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	get_tree().paused = false
-	WaveManager.begin_intermission_countdown()
 
 
 func _on_continue_pressed() -> void:

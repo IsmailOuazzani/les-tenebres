@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cnpcwander001"]
+[gd_scene load_steps=8 format=3 uid="uid://cnpcwander001"]
 
 [ext_resource type="Script" path="res://scripts/npc.gd" id="1_script"]
 [ext_resource type="Script" path="res://scripts/health_component.gd" id="2_health"]
@@ -21,6 +21,23 @@ shader_parameter/billboard_mode = 1
 resource_local_to_scene = true
 material = SubResource("ShaderMaterial_health")
 size = Vector2(0.7, 0.1)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_npc"]
+properties/0/path = NodePath(".:variant_index")
+properties/0/spawn = true
+properties/0/replication_mode = 0
+properties/1/path = NodePath(".:net_position")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:net_yaw")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+properties/3/path = NodePath(".:net_anim")
+properties/3/spawn = true
+properties/3/replication_mode = 2
+properties/4/path = NodePath(".:net_health")
+properties/4/spawn = true
+properties/4/replication_mode = 2
 
 [node name="NPC" type="CharacterBody3D"]
 collision_layer = 4
@@ -50,3 +67,8 @@ max_value = 25.0
 background_color = Color(0.08, 0.08, 0.09, 1)
 progress_color = Color(0.25, 0.85, 0.3, 1)
 billboard_mode = 1
+
+[node name="NetSync" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.1
+delta_interval = 0.1
+replication_config = SubResource("SceneReplicationConfig_npc")

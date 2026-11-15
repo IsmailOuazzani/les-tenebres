@@ -12,20 +12,35 @@ extends SceneTree
 var _phase: int = 0
 var _elapsed: float = 0.0
 
+var _booted: bool = false
 
-func _initialize() -> void:
+
+## Headless harnesses add the match scene by hand instead of going through
+## the main menu, so single-player mode has to be set up explicitly: every
+## server-authoritative system checks NetworkManager.is_authoritative(),
+## which is false in the menu-default Mode.NONE -- nothing would spawn or
+## simulate. `Node.multiplayer` is null during _initialize() (see
+## agents/multiplayer-notes.md gotcha 1), so this runs on the first idle
+## frame instead.
+func _boot() -> void:
+	root.get_node("NetworkManager").begin_single_player_session()
 	root.add_child(load("res://scenes/test_map.tscn").instantiate())
 
 
 func _process(delta: float) -> bool:
+	if not _booted:
+		_booted = true
+		_boot()
+		return false
+
 	_elapsed += delta
 	if _elapsed > 30.0:
 		print("!!! ABORT: stalled in phase ", _phase)
 		return true
 
-	var player: Node = root.get_node_or_null("TestMap/Player")
-	var sprint: Node = root.get_node_or_null("TestMap/Player/Sprint")
-	var health: Node = root.get_node_or_null("TestMap/Player/HealthComponent")
+	var player: Node = root.get_node_or_null("TestMap/Players/1")
+	var sprint: Node = root.get_node_or_null("TestMap/Players/1/Sprint")
+	var health: Node = root.get_node_or_null("TestMap/Players/1/HealthComponent")
 	var um: Node = root.get_node("UpgradeManager")
 	var gs: Node = root.get_node("GameState")
 

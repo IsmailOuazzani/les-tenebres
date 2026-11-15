@@ -11,11 +11,12 @@ class_name DestructibleGlass
 @onready var _pane: Node = $GlassPane
 
 
+## Local destruction routine -- runs on every peer off the one replicated
+## `_net_destroy()` trigger; the shard RigidBody3Ds are simulated locally.
 func _die() -> void:
 	_dying = true
 	_health_bar.visible = false
 	destroyed.emit()
-	GameState.record_disruption(1.0)
 	remove_from_group(&"destructible")
 
 	# break_window() reparents its shard RigidBody3Ds onto the pane's
