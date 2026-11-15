@@ -10,8 +10,8 @@ extends SceneTree
 ##
 ##   phase WORLD    both player characters spawned with the right authority,
 ##                  and civilians/police are being simulated
-##   phase COMMANDS the *client's* recruitment and Send Mob command actually
-##                  reached the server's shared crowd (spec 4.2 / 4.3)
+##   phase COMMANDS Scout recruitment and Reveal reached the host, and the
+##                  Meneur can command the same shared crowd
 ##   phase CLEANUP  the client's character was despawned when it quit, while
 ##                  the protesters it recruited stayed in the shared crowd
 ##                  (spec 3)
@@ -72,7 +72,9 @@ func _process(delta: float) -> bool:
 	if _match_started_at < 0.0:
 		# players always contains peer 1 (the host), so >1 means a client
 		# finished registering.
-		if _nm.players.size() > 1:
+		var ids: Array = _nm.players.keys()
+		ids.erase(1)
+		if not ids.is_empty() and _nm.get_player_kit(ids[0]) == PlayerClass.Kit.SCOUT:
 			print("[host] peers registered: ", _nm.players.keys())
 			_match_started_at = _elapsed
 			_nm.start_match()
@@ -185,14 +187,27 @@ func _check_commands() -> void:
 	_expect(game_state.live_crowd_count == _recruited_before_disconnect,
 			"GameState.live_crowd_count mirrors CrowdController")
 
-	# The client also issued a Send Mob command; charging protesters are the
-	# observable result of request_send_mob() landing on the server.
+	var host_player: Node = map.get_node("Players/1")
+	_expect(host_player.kit == PlayerClass.Kit.MENEUR, "host uses the default Meneur class")
+	_expect(not map.get_node("HUD/Root/CompassAnchor").visible, "Meneur has no compass")
+	var revealed := false
+	for cop in get_nodes_in_group(&"police"):
+		var halo := cop.get_node_or_null("ClassHalo") as MeshInstance3D
+		if halo != null and halo.visible:
+			revealed = true
+			break
+	_expect(revealed, "client Scout revealed police for the host")
+
+	host_player._on_send_mob_triggered(0.5, null, host_player.global_position + Vector3(8, 0, 0))
 	var charging: int = 0
-	for npc in map.get_node("NPCSpawner").get_children():
+	for npc in crowd.recruited:
 		if npc.state == 3:  # NPC.State.CHARGE
 			charging += 1
-	print("[host] protesters in CHARGE state: ", charging)
-	_expect(charging > 0, "client's Send Mob command put protesters into CHARGE")
+	_expect(charging > 0, "host Meneur sent part of the shared crowd")
+	host_player.use_class_ability(PlayerClass.Ability.SPEED_BOOST)
+	_expect(is_equal_approx(crowd.get_speed_multiplier(), 1.5), "Meneur boost is 50%")
+	_expect(host_player.get_cooldown_seconds(PlayerClass.Ability.SPEED_BOOST) == 45,
+			"Meneur boost starts a 45-second cooldown")
 
 
 ## Applies lethal damage to the client's character through the normal

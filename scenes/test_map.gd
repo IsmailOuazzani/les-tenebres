@@ -69,7 +69,6 @@ var _movement_controller: MovementController = null
 ## them dynamically at runtime instead -- see the Sprint gotcha in
 ## agents/wave-survival-notes.md.
 var _sprint = null
-var _player_health: HealthComponent = null
 
 ## Base values captured once when the local character is bound, before any
 ## upgrade is applied, so every later re-application derives from the same
@@ -79,11 +78,14 @@ var _player_health: HealthComponent = null
 var _base_player_speed: float = 0.0
 var _base_player_jump_height: float = 0.0
 var _base_sprint_speed: float = 0.0
-var _base_player_max_health: float = 0.0
 
 
 func _ready() -> void:
 	_player_scene = load(PLAYER_SCENE_PATH)
+	if NetworkManager.is_multiplayer_session():
+		var abilities := ClassAbilities.new()
+		abilities.name = "ClassAbilities"
+		add_child(abilities)
 
 	# Registered in code rather than in the .tscn so the list is guaranteed
 	# byte-identical on every peer (the spawner matches scenes by index).
@@ -197,7 +199,7 @@ func _process(_delta: float) -> void:
 	if _movement_controller != null and is_instance_valid(_movement_controller):
 		return
 
-	var local_player: Node3D = PlayerRegistry.local(self)
+	var local_player := PlayerRegistry.local(self) as NetPlayer
 	if local_player != null:
 		_bind_local_player(local_player)
 
@@ -206,7 +208,7 @@ func _process(_delta: float) -> void:
 ## which only exists once the spawn handshake completes -- so this runs on
 ## the first frame it shows up rather than assuming a fixed scene path like
 ## it used to.
-func _bind_local_player(local_player: Node3D) -> void:
+func _bind_local_player(local_player: NetPlayer) -> void:
 	if _hud.has_method(&"is_bound") and not _hud.is_bound():
 		_hud.bind_player(local_player)
 
@@ -214,16 +216,13 @@ func _bind_local_player(local_player: Node3D) -> void:
 	# the movement controller.
 	_movement_controller = local_player as MovementController
 	_sprint = local_player.get_node_or_null("Sprint")
-	_player_health = local_player.get_node_or_null("HealthComponent")
-	if _player_health != null:
-		_upgrade_screen.bind_player_health(_player_health)
+	_upgrade_screen.bind_player_health(local_player.health)
 
 	_capture_player_upgrade_bases()
 	# Upgrades bought before this character existed (a respawn, or a client
 	# whose purchase landed during the load handshake) still have to land.
 	_apply_player_speed()
 	_apply_player_jump()
-	_apply_player_health()
 
 
 func _capture_player_upgrade_bases() -> void:
@@ -232,8 +231,6 @@ func _capture_player_upgrade_bases() -> void:
 		_base_player_jump_height = float(_movement_controller.jump_height)
 	if _sprint != null:
 		_base_sprint_speed = float(_sprint.sprint_speed)
-	if _player_health != null:
-		_base_player_max_health = _player_health.max_health
 
 
 func _on_upgrade_purchased(id: StringName, _new_level: int) -> void:
@@ -243,7 +240,8 @@ func _on_upgrade_purchased(id: StringName, _new_level: int) -> void:
 		&"player_jump":
 			_apply_player_jump()
 		&"player_health":
-			_apply_player_health()
+			for node in PlayerRegistry.all(self):
+				node.apply_health_upgrade()
 
 
 func _apply_player_speed() -> void:
@@ -267,27 +265,6 @@ func _apply_player_jump() -> void:
 	if _movement_controller == null:
 		return
 	_movement_controller.jump_height = roundi(_base_player_jump_height * UpgradeManager.player_jump_mult)
-
-
-## Health has no multiplier -- player_bonus_health is a flat sum of every
-## player_health level purchased (see upgrade_manager.gd), so max_health is
-## recomputed from the captured base rather than incremented in place.
-## HealthComponent.health_changed only fires from take_damage() (there's no
-## heal/raise-max method, and health_component.gd isn't ours to edit per the
-## brief) -- so after mutating max_health/current_health directly, this
-## emits health_changed itself. Emitting a node's own public signal from
-## outside its script is unusual but is the only path that gets the HUD's
-## health bar (scripts/hud.gd, listening to this exact signal) to redraw
-## without touching health_component.gd.
-func _apply_player_health() -> void:
-	if _player_health == null:
-		return
-	var new_max: float = _base_player_max_health + UpgradeManager.player_bonus_health
-	_player_health.max_health = new_max
-	_player_health.current_health = min(
-		_player_health.current_health + UpgradeManager.PLAYER_HEALTH_STEP, new_max
-	)
-	_player_health.health_changed.emit(_player_health.current_health, _player_health.max_health)
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -53,7 +53,7 @@ signal all_peers_loaded
 
 var mode: Mode = Mode.NONE
 
-## peer_id -> { "name": String, "loaded": bool }. Always contains peer 1
+## peer_id -> { "name": String, "loaded": bool, "kit": int }. Always contains peer 1
 ## (the host) while a session is live. Mirrored to clients wholesale by
 ## `_receive_players()`.
 var players: Dictionary = {}
@@ -144,7 +144,7 @@ func begin_single_player_session() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	mode = Mode.SINGLE_PLAYER
 	match_in_progress = true
-	players = {1: {"name": local_player_name, "loaded": false}}
+	players = {1: {"name": local_player_name, "loaded": false, "kit": PlayerClass.Kit.SOLO}}
 
 
 ## Starts the listen server and moves the host into the lobby.
@@ -162,7 +162,7 @@ func host_lan(player_name: String = "") -> Error:
 
 	multiplayer.multiplayer_peer = peer
 	mode = Mode.HOST
-	players = {1: {"name": local_player_name, "loaded": false}}
+	players = {1: {"name": local_player_name, "loaded": false, "kit": PlayerClass.DEFAULT_KIT}}
 	players_changed.emit()
 	get_tree().change_scene_to_file(LOBBY_SCENE)
 	return OK
@@ -238,7 +238,7 @@ func _on_peer_connected(id: int) -> void:
 		print("[NetworkManager] Rejecting peer %d: match already in progress (no late joining)." % id)
 		multiplayer.multiplayer_peer.disconnect_peer(id)
 		return
-	players[id] = {"name": "Peer %d" % id, "loaded": false}
+	players[id] = {"name": "Peer %d" % id, "loaded": false, "kit": PlayerClass.DEFAULT_KIT}
 	players_changed.emit()
 	_broadcast_players()
 
@@ -308,6 +308,36 @@ func get_player_name(id: int) -> String:
 	return "Peer %d" % id
 
 
+func get_player_kit(id: int) -> int:
+	if not is_multiplayer_session():
+		return PlayerClass.Kit.SOLO
+	return int(players.get(id, {}).get("kit", PlayerClass.DEFAULT_KIT))
+
+
+func select_kit(kit: int) -> void:
+	if not is_multiplayer_session() or match_in_progress:
+		return
+	if is_host():
+		_set_player_kit(1, kit)
+	else:
+		_request_kit.rpc_id(1, kit)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_kit(kit: int) -> void:
+	_set_player_kit(multiplayer.get_remote_sender_id(), kit)
+
+
+func _set_player_kit(peer_id: int, kit: int) -> void:
+	if not is_host() or match_in_progress or not players.has(peer_id):
+		return
+	if kit not in PlayerClass.LAN_KITS or get_player_kit(peer_id) == kit:
+		return
+	players[peer_id]["kit"] = kit
+	players_changed.emit()
+	_broadcast_players()
+
+
 ## Best-guess LAN IPv4 address to read out in the lobby. Skips loopback and
 ## link-local (169.254.x.x) addresses, which are useless to a joining peer.
 func get_lan_address() -> String:
@@ -331,7 +361,7 @@ func get_lan_address() -> String:
 ## (spec 3: "Wait for connected peers to finish loading before spawning
 ## players").
 func start_match() -> void:
-	if not is_host():
+	if not is_host() or match_in_progress:
 		return
 	match_in_progress = true
 	for id in players:

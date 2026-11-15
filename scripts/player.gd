@@ -3,9 +3,7 @@ class_name NetPlayer
 
 ## Networked first-person player character. Root script of
 ## scenes/player.tscn, which instances the vendored
-## addons/fps_controller/Player.tscn and adds the replication nodes -- so the
-## addon's movement/look/weapon code stays untouched apart from the
-## `is_multiplayer_authority()` input guards.
+## addons/fps_controller/Player.tscn and adds replication and class abilities.
 ##
 ## Network ownership (see agents/multiplayer-notes.md):
 ##   * Movement and look        -> owning client (client-authoritative)
@@ -85,6 +83,11 @@ const RUN_SPEED_THRESHOLD: float = 11.0
 @onready var _body: Node3D = $Body
 @onready var _collision: CollisionShape3D = $Collision
 
+var kit: int = PlayerClass.Kit.SOLO
+var _base_max_health: float
+var _weapon_slot: int = 0
+var _cooldowns: Dictionary[int, int] = {}
+
 var _body_anim: AnimationPlayer
 var _last_applied_anim: int = -1
 ## Set by scenes/test_map.gd on the server while a respawn timer is running.
@@ -97,7 +100,9 @@ var _respawning: bool = false
 ## the weapons, Sprint and InputSync all inherit it; ServerSync and
 ## HealthComponent are pushed back to the server in `_ready()`.
 func _enter_tree() -> void:
-	set_multiplayer_authority(name.to_int())
+	var peer_id := name.to_int()
+	set_multiplayer_authority(peer_id)
+	kit = NetworkManager.get_player_kit(peer_id)
 
 
 func _ready() -> void:
@@ -108,10 +113,25 @@ func _ready() -> void:
 	$ServerSync.set_multiplayer_authority(1)
 	health.set_multiplayer_authority(1)
 
+	extra_jumps = 1 if kit == PlayerClass.Kit.SCOUT else 0
+	_megaphone.can_send = can_send_mob()
+	_megaphone.can_recruit = can_recruit()
+	for ability in PlayerClass.abilities(kit):
+		if PlayerClass.ability_slot(ability) != 0:
+			continue
+		if PlayerClass.ability_is_left_click(ability):
+			_megaphone.left_ability = ability
+		else:
+			_megaphone.right_ability = ability
+
 	_body_anim = _body.get_node_or_null("Character/AnimationPlayer")
 	net_position = position
 	net_body_yaw = rotation.y
-	net_health = health.max_health
+	_base_max_health = health.max_health
+	health.max_health += UpgradeManager.player_bonus_health
+	if NetworkManager.is_authoritative():
+		health.current_health = health.max_health
+		net_health = health.max_health
 
 	if is_multiplayer_authority():
 		_setup_local()
@@ -152,6 +172,9 @@ func _setup_remote() -> void:
 ## also stops their _unhandled_input/_physics_process the same way
 ## _setup_remote() already does for a remote-owned character above.
 func set_input_locked(locked: bool) -> void:
+	if locked:
+		_megaphone.cancel_actions()
+		net_recruiting = false
 	process_mode = Node.PROCESS_MODE_DISABLED if locked else Node.PROCESS_MODE_INHERIT
 
 
@@ -230,6 +253,8 @@ func _update_body_animation() -> void:
 ## the statically-loaded map scene and police are spawned by the server's
 ## MultiplayerSpawner, so the same path resolves on every peer.
 func _on_send_mob_triggered(percentage: float, target: Node3D, point: Vector3) -> void:
+	if not can_issue_mob_order():
+		return
 	var crowd: Node = get_tree().get_first_node_in_group(&"crowd_controller")
 	if crowd == null:
 		return
@@ -246,12 +271,104 @@ func _on_send_mob_triggered(percentage: float, target: Node3D, point: Vector3) -
 ## True while this player holds the recruit input. Polled server-side by
 ## CrowdController for every player in the session.
 func is_recruiting() -> bool:
-	return net_alive and net_recruiting
+	return net_alive and net_recruiting and can_recruit() and _weapon_slot == 0
 
 
 ## Radius of this player's megaphone recruitment circle, read server-side.
 func get_recruit_radius() -> float:
 	return _megaphone.recruit_radius
+
+
+func can_send_mob() -> bool:
+	return kit == PlayerClass.Kit.SOLO or kit == PlayerClass.Kit.MENEUR
+
+
+func can_recruit() -> bool:
+	return kit == PlayerClass.Kit.SOLO or kit == PlayerClass.Kit.SCOUT
+
+
+func can_issue_mob_order() -> bool:
+	return can_send_mob() and is_alive() and _weapon_slot == 0
+
+
+func can_use_melee(weapon_name: StringName) -> bool:
+	if not is_alive() or _weapon_slot == 0:
+		return false
+	match kit:
+		PlayerClass.Kit.SCOUT: return weapon_name == &"Baguette"
+		PlayerClass.Kit.MENEUR: return weapon_name == &"Croissant"
+		PlayerClass.Kit.MEDIC: return weapon_name == &"ProtestSign"
+	return (weapon_name == &"Croissant" and _weapon_slot == 1) \
+		or (weapon_name == &"Baguette" and _weapon_slot == 2)
+
+
+func publish_weapon_slot(slot: int) -> void:
+	_weapon_slot = slot
+	if NetworkManager.is_client():
+		_receive_weapon_slot.rpc_id(1, slot)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _receive_weapon_slot(slot: int) -> void:
+	if NetworkManager.is_host() and multiplayer.get_remote_sender_id() == get_multiplayer_authority():
+		_weapon_slot = clampi(slot, 0, 1)
+
+
+func get_cooldown_seconds(ability: int) -> int:
+	var remaining: int = _cooldowns.get(ability, 0) - Time.get_ticks_msec()
+	return ceili(maxi(0, remaining) / 1000.0)
+
+
+func use_class_ability(ability: int) -> void:
+	if not is_multiplayer_authority() or not is_alive() or get_cooldown_seconds(ability) > 0:
+		return
+	var direction := -_camera.global_basis.z if ability == PlayerClass.Ability.CROISSANT_SHOT else Vector3.ZERO
+	if NetworkManager.is_host():
+		_activate_ability(ability, direction)
+	elif NetworkManager.is_client():
+		_request_ability.rpc_id(1, ability, direction)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_ability(ability: int, direction: Vector3) -> void:
+	if NetworkManager.is_host() and multiplayer.get_remote_sender_id() == get_multiplayer_authority():
+		_activate_ability(ability, direction)
+
+
+func _activate_ability(ability: int, direction: Vector3) -> void:
+	if not is_alive() or ability not in PlayerClass.abilities(kit):
+		return
+	if _weapon_slot != PlayerClass.ability_slot(ability) or get_cooldown_seconds(ability) > 0:
+		return
+	var abilities := get_tree().get_first_node_in_group(&"class_abilities") as ClassAbilities
+	if abilities == null:
+		return
+	var cooldown_msec := abilities.activate(self, ability, direction)
+	if cooldown_msec <= 0:
+		return
+	_cooldowns[ability] = Time.get_ticks_msec() + cooldown_msec
+	if not is_multiplayer_authority():
+		_receive_cooldown.rpc_id(get_multiplayer_authority(), ability, cooldown_msec)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _receive_cooldown(ability: int, cooldown_msec: int) -> void:
+	if _sent_by_server() and is_multiplayer_authority():
+		_cooldowns[ability] = Time.get_ticks_msec() + cooldown_msec
+
+
+## The host tracks upgraded max health for every teammate so Heal can use
+## the same authoritative cap for local and remote players.
+func apply_health_upgrade() -> void:
+	health.max_health = _base_max_health + UpgradeManager.player_bonus_health
+	if NetworkManager.is_authoritative():
+		health.heal(UpgradeManager.PLAYER_HEALTH_STEP)
+	else:
+		health.set_replicated_health(net_health)
+
+
+func get_shot_origin() -> Vector3:
+	return _camera.global_position if is_multiplayer_authority() else net_position + _head.position
 
 
 # --------------------------------------------------------------------------
@@ -319,6 +436,8 @@ func _apply_down_state() -> void:
 	if not _sent_by_server():
 		return
 	net_alive = false
+	net_recruiting = false
+	_megaphone.cancel_actions()
 	_body.visible = false
 	_collision.disabled = true
 	velocity = Vector3.ZERO
@@ -331,6 +450,7 @@ func _apply_respawn(spawn_position: Vector3) -> void:
 	net_alive = true
 	_body.visible = not is_multiplayer_authority()
 	_collision.disabled = false
+	_air_jumps_used = 0
 	position = spawn_position
 	net_position = spawn_position
 	velocity = Vector3.ZERO

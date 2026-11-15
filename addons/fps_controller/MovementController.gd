@@ -8,6 +8,8 @@ class_name MovementController
 @export var deceleration := 10
 @export_range(0.0, 1.0, 0.05) var air_control := 0.3
 @export var jump_height := 10
+var extra_jumps: int = 0
+var _air_jumps_used: int = 0
 var direction := Vector3()
 var input_axis := Vector2()
 # Get the gravity from the project settings to be synced with RigidDynamicBody nodes.
@@ -23,10 +25,14 @@ func _physics_process(delta: float) -> void:
 	direction_input()
 	
 	if is_on_floor():
+		_air_jumps_used = 0
 		if Input.is_action_just_pressed(&"jump"):
 			velocity.y = jump_height
 	else:
 		velocity.y -= gravity * delta
+		if _air_jumps_used < extra_jumps and Input.is_action_just_pressed(&"jump"):
+			_air_jumps_used += 1
+			velocity.y = jump_height
 	
 	accelerate(delta)
 	

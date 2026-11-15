@@ -160,13 +160,13 @@ autowrap_mode = 3
 [node name="Megaphone" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "Press 1 for the megaphone. Hold right click to recruit. Aim, hold left click, then release to send your crowd."
+text = "Press 1 for the megaphone. In solo, hold right click to recruit. Aim and hold left click, then release to send the crowd. In LAN, your class sets your abilities."
 autowrap_mode = 3
 
 [node name="Melee" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-text = "Press 2 or 3 for melee. Left click to swing."
+text = "Press 2 for melee (or 3 in solo). Left click to swing."
 autowrap_mode = 3
 
 [node name="Objective" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]

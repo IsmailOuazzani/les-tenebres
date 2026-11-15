@@ -57,6 +57,15 @@ func take_damage(amount: float) -> void:
 		died.emit()
 
 
+func heal(amount: float) -> void:
+	if not NetworkManager.is_authoritative() or _dead or amount <= 0.0:
+		return
+	var restored := minf(current_health + amount, max_health)
+	if restored > current_health:
+		current_health = restored
+		health_changed.emit(current_health, max_health)
+
+
 func is_dead() -> bool:
 	return _dead
 

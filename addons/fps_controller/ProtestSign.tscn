@@ -1,0 +1,44 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/fps_controller/MeleeWeapon.tscn" id="1_base"]
+[ext_resource type="Script" path="res://addons/fps_controller/ProtestSign.gd" id="2_sign"]
+
+[sub_resource type="StandardMaterial3D" id="Material_card"]
+albedo_color = Color(0.89, 0.81, 0.64, 1)
+roughness = 0.92
+
+[sub_resource type="StandardMaterial3D" id="Material_wood"]
+albedo_color = Color(0.34, 0.19, 0.1, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="Mesh_card"]
+material = SubResource("Material_card")
+size = Vector3(0.42, 0.28, 0.012)
+
+[sub_resource type="BoxMesh" id="Mesh_handle"]
+material = SubResource("Material_wood")
+size = Vector3(0.042, 0.46, 0.032)
+
+[sub_resource type="SystemFont" id="Font_sign"]
+font_names = PackedStringArray("DejaVu Sans", "Arial")
+font_weight = 900
+
+[node name="ProtestSign" instance=ExtResource("1_base")]
+script = ExtResource("2_sign")
+
+[node name="Handle" type="MeshInstance3D" parent="VisualRoot" index="1"]
+position = Vector3(0, -0.085, -0.01)
+mesh = SubResource("Mesh_handle")
+
+[node name="Placard" type="MeshInstance3D" parent="VisualRoot" index="2"]
+position = Vector3(0, 0.18, 0)
+mesh = SubResource("Mesh_card")
+
+[node name="Slogan" type="Label3D" parent="VisualRoot/Placard" index="0"]
+position = Vector3(0, 0, 0.007)
+pixel_size = 0.0012
+modulate = Color(0.28, 0.08, 0.05, 1)
+text = "ON LÂCHE\nRIEN"
+font = SubResource("Font_sign")
+font_size = 70
+outline_size = 0

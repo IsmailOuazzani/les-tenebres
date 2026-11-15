@@ -25,6 +25,7 @@ extends CanvasLayer
 @onready var _armor_strip: ProgressBar = %ArmorStrip
 @onready var _health_label: Label = %HealthLabel
 @onready var _hotbar: HBoxContainer = %Hotbar
+@onready var _compass_anchor: Control = %CompassAnchor
 @onready var _compass_bar: TextureRect = %CompassBar
 @onready var _compass_markers: Control = %CompassMarkers
 @onready var _damage_flash: ColorRect = %DamageFlash
@@ -51,6 +52,8 @@ var _damage_flash_tween: Tween
 ## auto-assigned names.
 var _hotbar_slots: Array[PanelContainer] = []
 var _hotbar_key_labels: Array[Label] = []
+var _cooldown_labels: Dictionary[int, Label] = {}
+var _cooldown_timers: Dictionary[int, Label] = {}
 
 const _SLOT_SIZE := Vector2(96, 52)
 
@@ -63,7 +66,7 @@ var _wave_banner_tween: Tween
 var _threat_tween: Tween
 
 
-var _bound_player: Node3D = null
+var _bound_player: NetPlayer = null
 
 
 func _ready() -> void:
@@ -82,7 +85,7 @@ func is_bound() -> bool:
 
 ## Wires this HUD to the locally owned player character: health bar, weapon
 ## hotbar and compass. Called once per match by scenes/test_map.gd.
-func bind_player(player: Node3D) -> void:
+func bind_player(player: NetPlayer) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	_bound_player = player
@@ -101,18 +104,10 @@ func bind_player(player: Node3D) -> void:
 		weapon_switcher.weapon_switched.connect(_on_weapon_switched)
 		_on_weapon_switched(weapon_switcher.get_active_index())
 
-	_compass_bar.parent = player
-	# CompassBar's own _ready() runs before ours (children ready bottom-up),
-	# so it already saw `parent` as null and disabled its _physics_process --
-	# re-enable it now that `parent` is set.
-	_compass_bar.set_physics_process(true)
-	_compass_markers.player = player
+	_compass_anchor.visible = player.kit in [PlayerClass.Kit.SOLO, PlayerClass.Kit.SCOUT]
+	if _compass_anchor.visible:
+		_bind_compass(player)
 
-	# The run starts (scenes/test_map.gd -> WaveManager.start_run()) before
-	# the local character exists, and on a client the wave arrives as
-	# replicated state -- either way this binding happens after the first
-	# wave_started signal. Connect for future transitions, then sync the
-	# label by hand from WaveManager's current state.
 	WaveManager.wave_started.connect(_on_wave_started)
 	WaveManager.wave_completed.connect(_on_wave_completed)
 	WaveManager.intermission_started.connect(_on_intermission_started)
@@ -121,9 +116,19 @@ func bind_player(player: Node3D) -> void:
 	_sync_wave_label_from_current_state()
 
 
+func _bind_compass(player: NetPlayer) -> void:
+	_compass_bar.parent = player
+	# CompassBar's own _ready() runs before ours (children ready bottom-up),
+	# so it already saw `parent` as null and disabled its _physics_process --
+	# re-enable it now that `parent` is set.
+	_compass_bar.set_physics_process(true)
+	_compass_markers.player = player
+
+
 func _process(_delta: float) -> void:
 	_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
 	_update_wave_timer()
+	_update_cooldowns()
 
 
 func _on_crowd_count_changed(value: int) -> void:
@@ -173,6 +178,9 @@ func _build_hotbar(weapon_names: Array[String]) -> void:
 		slot.queue_free()
 	_hotbar_slots.clear()
 	_hotbar_key_labels.clear()
+	_cooldown_labels.clear()
+	_cooldown_timers.clear()
+	var abilities := PlayerClass.abilities(_bound_player.kit)
 
 	for i in weapon_names.size():
 		var panel := PanelContainer.new()
@@ -197,9 +205,43 @@ func _build_hotbar(weapon_names: Array[String]) -> void:
 		name_label.add_theme_font_size_override("font_size", 13)
 		box.add_child(name_label)
 
+		for ability in abilities:
+			if PlayerClass.ability_slot(ability) == i:
+				_add_cooldown_indicator(box, ability)
+
 		_hotbar.add_child(panel)
 		_hotbar_slots.append(panel)
 		_hotbar_key_labels.append(key_label)
+
+
+func _add_cooldown_indicator(slot: VBoxContainer, ability: int) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	slot.add_child(row)
+
+	var ability_label := Label.new()
+	var click := "L" if PlayerClass.ability_is_left_click(ability) else "R"
+	ability_label.text = "%s  %s" % [click, PlayerClass.ability_label(ability)]
+	ability_label.add_theme_font_size_override("font_size", 11)
+	row.add_child(ability_label)
+	_cooldown_labels[ability] = ability_label
+
+	var timer := Label.new()
+	timer.custom_minimum_size.x = 22.0
+	timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	timer.add_theme_font_size_override("font_size", 11)
+	row.add_child(timer)
+	_cooldown_timers[ability] = timer
+
+
+func _update_cooldowns() -> void:
+	if not is_instance_valid(_bound_player):
+		return
+	for ability in _cooldown_timers:
+		var seconds := _bound_player.get_cooldown_seconds(ability)
+		_cooldown_timers[ability].text = "%ds" % seconds if seconds > 0 else ""
+		_cooldown_labels[ability].modulate.a = 0.55 if seconds > 0 else 1.0
 
 
 func _on_weapon_switched(active_index: int) -> void:
