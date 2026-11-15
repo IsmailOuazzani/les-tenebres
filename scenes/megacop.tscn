@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3 uid="uid://dmegacop00001"]
+
+[ext_resource type="PackedScene" path="res://scenes/police.tscn" id="1_base"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_megabody"]
+radius = 0.45
+height = 3.2
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_megaoutline"]
+radius = 0.84
+height = 3.48
+
+[node name="MegaCop" instance=ExtResource("1_base")]
+attack_range = 3.0
+damage_per_second = 12.0
+
+[node name="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+shape = SubResource("CapsuleShape3D_megabody")
+
+[node name="MeshRoot" parent="."]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
+
+[node name="Outline" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+mesh = SubResource("CapsuleMesh_megaoutline")
+
+[node name="HealthBar" parent="."]
+position = Vector3(0, 4.3, 0)

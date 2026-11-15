@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/crowd_controller.gd" id="30_crowdctl"]
 [ext_resource type="Script" path="res://scripts/police_spawner.gd" id="31_policespw"]
 [ext_resource type="PackedScene" path="res://scenes/police.tscn" id="32_policescn"]
+[ext_resource type="PackedScene" path="res://scenes/megacop.tscn" id="33_megacopscn"]
 [ext_resource type="PackedScene" path="res://scenes/map_geometry.tscn" id="42_mapgeo"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
@@ -69,6 +70,7 @@ npc_spawner_path = NodePath("../NPCSpawner")
 [node name="PoliceSpawner" type="Node3D" parent="."]
 script = ExtResource("31_policespw")
 police_scene = ExtResource("32_policescn")
+megacop_scene = ExtResource("33_megacopscn")
 
 [node name="PoliceReplicator" type="MultiplayerSpawner" parent="."]
 spawn_path = NodePath("../PoliceSpawner")

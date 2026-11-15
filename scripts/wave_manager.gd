@@ -96,6 +96,16 @@ const ASSAULT_POLICE_MULTIPLIER: float = 1.75
 ## spawning is spread across the wave duration -- see police_spawner.gd).
 const ASSAULT_WARNING_LEAD_TIME: float = 3.0
 
+## Megacops (scripts/police.gd scaled up, see scenes/megacop.tscn) start
+## showing up once this Act is reached -- Act 1 stays a clean intro with only
+## regular cops.
+const MEGACOP_UNLOCK_ACT: int = 2
+## Fraction of a wave's police total that are megacops once unlocked, and the
+## bumped fraction on assault waves (escalation milestone per vision.md gets
+## a heavier mega presence too, not just more cops).
+const MEGACOP_BASE_FRACTION: float = 0.2
+const MEGACOP_ASSAULT_FRACTION: float = 0.35
+
 var state: State = State.PREPARING
 var current_act: int = 1        # 1-based
 var current_wave: int = 1       # 1-based, within the current Act
@@ -195,10 +205,12 @@ func _process_intermission(delta: float) -> void:
 ## intermission/preparation, within the current Act.
 func get_next_wave_preview() -> Dictionary:
 	var next_wave: int = current_wave + 1
+	var police_total: int = _police_count_for(current_act, next_wave)
 	return {
 		"wave": next_wave,
-		"police": _police_count_for(current_act, next_wave),
+		"police": police_total,
 		"assault": _is_assault_wave(next_wave),
+		"megacops": _megacop_count_for(current_act, next_wave, police_total),
 	}
 
 
@@ -280,8 +292,9 @@ func _start_wave(act: int, wave: int) -> void:
 	wave_time_left = wave_duration
 
 	var police_total: int = _police_count_for(act, wave)
+	var megacop_total: int = _megacop_count_for(act, wave, police_total)
 	_clear_police()
-	_begin_spawning(police_total, wave_duration)
+	_begin_spawning(police_total, wave_duration, megacop_total)
 
 	wave_started.emit(wave, police_total)
 	if NetworkManager.is_multiplayer_session():
@@ -338,6 +351,13 @@ func _is_assault_wave(wave: int) -> bool:
 	return wave % ASSAULT_WAVE_INTERVAL == 0
 
 
+func _megacop_count_for(act: int, wave: int, police_total: int) -> int:
+	if act < MEGACOP_UNLOCK_ACT:
+		return 0
+	var fraction: float = MEGACOP_ASSAULT_FRACTION if _is_assault_wave(wave) else MEGACOP_BASE_FRACTION
+	return int(round(float(police_total) * fraction))
+
+
 ## -- Spawner integration (via group lookup, per the crowd_controller
 ## pattern -- see scripts/audio_manager.gd) --
 
@@ -357,12 +377,12 @@ func _get_police_spawner() -> Node:
 ## boot dump before this was added. Mirrors the lazy-resolve pattern in
 ## scripts/crowd_controller.gd's _find_megaphone(), which exists for exactly
 ## the same autoload/scene ordering reason.
-func _begin_spawning(total_police: int, duration: float) -> void:
+func _begin_spawning(total_police: int, duration: float, megacop_count: int = 0) -> void:
 	var spawner: Node = _get_police_spawner()
 	if spawner != null:
-		spawner.begin_wave(total_police, duration)
+		spawner.begin_wave(total_police, duration, megacop_count)
 		return
-	_pending_spawn_request = {"police": total_police, "duration": duration}
+	_pending_spawn_request = {"police": total_police, "duration": duration, "megacops": megacop_count}
 
 
 ## Retries a spawn order that arrived before the PoliceSpawner existed. Called
@@ -373,7 +393,7 @@ func _flush_pending_spawn_request() -> void:
 	var spawner: Node = _get_police_spawner()
 	if spawner == null:
 		return
-	spawner.begin_wave(_pending_spawn_request["police"], _pending_spawn_request["duration"])
+	spawner.begin_wave(_pending_spawn_request["police"], _pending_spawn_request["duration"], _pending_spawn_request["megacops"])
 	_pending_spawn_request = {}
 
 

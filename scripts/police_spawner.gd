@@ -22,6 +22,11 @@ class_name PoliceSpawner
 ## "the" player, so the police response is spread across the whole protest.
 
 @export var police_scene: PackedScene
+## Bigger, harder-hitting cop variant (res://scenes/megacop.tscn) -- same
+## Police script/scene, just scaled up. How many of a wave are megacops is
+## decided entirely by WaveManager (see begin_wave()'s megacop_count); this
+## spawner just picks which scene to instantiate for each spawn slot.
+@export var megacop_scene: PackedScene
 @export var spawn_radius_min: float = 12.0
 @export var spawn_radius_max: float = 18.0
 
@@ -42,6 +47,12 @@ var spawned_police: Array[Node3D] = []
 ## -- Wave-driven spawn state (set by begin_wave(), consumed by _process())--
 var _spawning: bool = false
 var _police_remaining_to_spawn: int = 0
+## Of _police_remaining_to_spawn, how many of the REMAINING spawns should be
+## megacops. _spawn_police() converts one slot at a time with probability
+## _megacop_remaining_to_spawn / _police_remaining_to_spawn, which spreads
+## them evenly through the wave (same trick as dealing special cards from a
+## shuffled deck) while still landing on the exact count by the last spawn.
+var _megacop_remaining_to_spawn: int = 0
 var _spawn_interval: float = 1.0
 var _spawn_timer: float = 0.0
 
@@ -77,9 +88,11 @@ func _process(delta: float) -> void:
 
 ## Called by WaveManager at the start of a wave: spawn `total_police` cops,
 ## spread evenly across `duration` seconds (so they trickle in across the
-## whole wave rather than all landing at once).
-func begin_wave(total_police: int, duration: float) -> void:
+## whole wave rather than all landing at once). `megacop_count` of those
+## (clamped to total_police) are megacops rather than regular cops.
+func begin_wave(total_police: int, duration: float, megacop_count: int = 0) -> void:
 	_police_remaining_to_spawn = max(total_police, 0)
+	_megacop_remaining_to_spawn = clamp(megacop_count, 0, _police_remaining_to_spawn)
 	_spawn_interval = duration / max(total_police, 1)
 	_spawn_timer = 0.0
 	_spawning = _police_remaining_to_spawn > 0
@@ -91,6 +104,7 @@ func begin_wave(total_police: int, duration: float) -> void:
 func stop_spawning() -> void:
 	_spawning = false
 	_police_remaining_to_spawn = 0
+	_megacop_remaining_to_spawn = 0
 
 
 ## Called by WaveManager on wave transitions to retreat/despawn leftover
@@ -119,7 +133,14 @@ func _spawn_police() -> bool:
 	if anchor == null:
 		return false
 
-	var police: Node3D = police_scene.instantiate()
+	var scene_to_spawn: PackedScene = police_scene
+	if megacop_scene != null and _megacop_remaining_to_spawn > 0:
+		var mega_chance: float = float(_megacop_remaining_to_spawn) / float(_police_remaining_to_spawn)
+		if randf() < mega_chance:
+			scene_to_spawn = megacop_scene
+			_megacop_remaining_to_spawn -= 1
+
+	var police: Node3D = scene_to_spawn.instantiate()
 	police.name = "Cop%d" % _next_police_id
 	_next_police_id += 1
 	var spawn_point: Vector3 = _find_spawn_point(anchor)
