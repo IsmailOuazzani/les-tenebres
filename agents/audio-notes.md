@@ -1,12 +1,8 @@
 # Audio system notes
 
-Implements the sound-effects spec for Protest Simulator. **Phase 1 ("core
-feedback") is fully implemented** with real, license-verified assets.
-One Phase-3 item -- the Snap feed notification sounds (section 11) -- is
-also done, since it was requested directly. Everything else in Phases 2-4
-(interactions, Grabuge/game-over, target UI, personality/polish) is **not**
-implemented yet -- see "Deferred (Phases 2-4)" below. No Paris/city
-atmosphere audio was added, per the spec's explicit exclusion.
+The current build covers recruitment, crowd orders and ambience, Snap feed
+notifications, wave cues and prop destruction. The remaining audio work is
+listed below. Paris/city ambience is outside the sound-effects spec.
 
 ## Architecture
 
@@ -39,25 +35,25 @@ atmosphere audio was added, per the spec's explicit exclusion.
 - `scripts/crowd_controller.gd`: `_recruit()` -> individual/collective
   recruit feedback (by position); `_on_send_mob()` -> mob roar scaled by the
   actual committed NPC count (post ring-slice, not the raw percentage).
-- `scripts/audio_manager.gd` itself connects to `GameState.disruption_recorded`
-  for a basic success cheer (the one Phase 2 hook wired early since the
-  signal and a suitable asset already existed -- everything else in Phase
-  2-4 is intentionally left unwired).
-- Crowd-ambience volume is driven every frame from live
-  `CrowdController.get_recruited_count()` + `GameState.grabuge`, independent
-  axes per the spec's "10 protesters at 90% Grabuge sounds excited but
-  small; 300 at 90% sounds enormous; 300 at 10% sounds tired" examples.
-- `scripts/snap_feed.gd`: every `_push_system()`/`_push_user()` call now
-  tags a `kind` ("ordinary" / "funny" / "important") and calls
-  `AudioManager.play_feed_notification(kind)`. Disruption and police-defeat
-  messages are "important" (always plays, bypasses throttle); recruit
-  batches and ambient chatter/flavor are "ordinary"; nonsense one-liners are
-  "funny". `AudioManager.notification_min_interval` (0.35s default) gates
-  ordinary/funny sounds so a high-Grabuge flood of feed messages doesn't
-  turn into a wall of beeping -- see spec section 11's throttling
-  requirement.
+- `WaveManager.threat_warning` plays a radio chirp, and `wave_completed`
+  plays a short completion sting on each peer. The crowd bed fades 6 dB
+  lower during intermission.
+- `PoliceSpawner` plays a positional siren at the first successful spawn
+  and at most once every four seconds thereafter. In LAN, the host sends
+  the spawn's world position to clients over an unreliable cosmetic RPC.
+- `DestructibleProp._net_destroy()` plays the break sound at the prop on
+  each peer before local debris or shatter effects run. Glass, vehicles,
+  and generic props have distinct cues. A softer cheer follows after 250 ms,
+  capped at one cheer per 1.2 seconds.
+- Snap feed destruction and defeat entries are silent. The ordinary and
+  funny pops share a 1.5-second cooldown, including reactions to those
+  entries.
 
 ## Asset manifest
+
+The six mono WAVs in `audio/world/` are original synthesized effects for
+this project: radio chirp, arrival siren, wave-clear sting, generic prop
+clatter, glass shatter, and vehicle crunch. They contain no third-party audio.
 
 All Phase 1 assets are sourced from **Freesound.org, CC0 1.0 (Public Domain
 Dedication)** -- verified per-sound via each sound's own license link
@@ -110,10 +106,10 @@ assets" instruction rather than silently skipped:
   fallback note; no synthesized/mismatched-language substitute was added.
 - Crowd movement layer (section 4, Layer D -- footsteps).
 - Big-physics-accident "OOOOOH" and failed-disruption murmur (section 5B/C).
-- All contextual object interactions: vehicle horns/alarms/crashes,
-  barricade rattling/collapse, statue climbing (section 6).
+- Other contextual interactions (section 6), including vehicle horns/alarms
+  and statue climbing.
 - Cartoon physics stingers (section 7).
-- Police audio (section 8) -- siren, footsteps, combat impacts.
+- Police footsteps and combat impacts (section 8).
 - Grabuge gain/fanfare/low-warning/collapse sounds (section 9A, B, D, E) --
   `GameState.grabuge_changed` exists and is a clean hook for this later.
 - Game over sting (section 10) -- `GameState.game_over` exists and is a

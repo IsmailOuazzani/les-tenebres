@@ -49,3 +49,7 @@ func _die() -> void:
 	var tween := create_tween()
 	tween.tween_property(self, "scale", Vector3.ZERO, 0.3)
 	tween.tween_callback(queue_free)
+
+
+func _break_sound_key() -> String:
+	return "break_vehicle"

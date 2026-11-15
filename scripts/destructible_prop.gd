@@ -113,7 +113,12 @@ func _trigger_destruction() -> void:
 func _net_destroy() -> void:
 	if _dying:
 		return
+	AudioManager.play_prop_break(global_position, _break_sound_key())
 	_die()
+
+
+func _break_sound_key() -> String:
+	return "break_prop"
 
 
 ## Local destruction routine, run on every peer. Subclasses override this to

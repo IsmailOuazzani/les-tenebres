@@ -30,8 +30,8 @@ buses/default_bus_layout="res://default_bus_layout.tres"
 
 NetworkManager="*res://scripts/network_manager.gd"
 GameState="*res://scripts/game_state.gd"
-AudioManager="*res://scripts/audio_manager.gd"
 WaveManager="*res://scripts/wave_manager.gd"
+AudioManager="*res://scripts/audio_manager.gd"
 UpgradeManager="*res://scripts/upgrade_manager.gd"
 
 [display]
