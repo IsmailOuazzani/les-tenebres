@@ -498,27 +498,12 @@ The `.tpz` is a plain ZIP (1.3 GB, all platforms) whose files sit in a
 `templates/version.txt` (`4.7.2.stable`), which is exactly what the
 Taskfile's template check expects.
 
-`task export:macos` then produced a working build with every preset option
-unchanged. The macOS exporter chooses its output format from the extension of
-the path it is handed, and there is no preset setting for it, so the Taskfile
-now has both:
-
-* `task export:macos` -> `dist/ProtestSimulator.app` (188 MB bundle, nothing
-  to unarchive) — the local default.
-* `task export:macos:zip` -> `dist/ProtestSimulator-macOS.zip` (81 MB) — for
-  handing to another player, since a `.app` is a directory and rarely
-  survives a transfer intact.
-
-One wrinkle: the exporter writes *into* an existing bundle rather than
-replacing it, so the `.app` task `rm -rf`s the previous build first.
-
-The bundle's verification is stricter than the archive's, because two failure
-modes are invisible in a file listing: `codesign --verify --deep` (a bundle
-whose signature does not cover its contents refuses to launch on Apple
-Silicon) and a headless boot of the real binary
-(`.../Contents/MacOS/ProtestSimulator --headless --quit-after 120`), which
-catches a `.pck` that does not match the executable, a missing main scene, or
-a script parse error. Both pass; the app boots the main menu cleanly.
+The original `.app` export passed `codesign --verify --deep` and booted the
+main menu with `--headless --quit-after 120`. The exporter chooses its
+output format from the output path extension. `task export:macos` now writes
+`dist/ProtestSimulator-macOS.zip` and checks that the archive contains the
+app's executable, `Info.plist`, and game data. `task export:macos:zip` is an
+alias. `task build:all` builds this archive and the Windows release ZIP.
 
 Still unverified by a human: the windowed app hosting/joining a real LAN game,
 and the first-launch Gatekeeper override.

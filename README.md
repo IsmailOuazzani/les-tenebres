@@ -15,7 +15,7 @@ Now with **LAN co-op for 1-4 players**.
 | | |
 |---|---|
 | Engine | **Godot 4.7** (developed against 4.7.2 stable) |
-| Platform | macOS (Apple Silicon or Intel); the project also runs on other desktop platforms, only macOS is packaged |
+| Platform | Develop on macOS (Apple Silicon or Intel). Release builds are available for macOS and Windows x86_64. |
 | Task runner | [`go-task`](https://taskfile.dev) (`brew install go-task`) |
 
 The Godot binary is expected at `/Applications/Godot.app/Contents/MacOS/Godot`.
@@ -27,17 +27,15 @@ GODOT_BIN=/path/to/godot task run
 
 ### Export templates (only needed to build a release)
 
-`task export:macos` needs the **export templates for the exact Godot version
+Release builds need the **export templates for the exact Godot version
 you are running**. Install them once:
 
 * In the editor: **Editor → Manage Export Templates → Download and Install**, or
 * manually: download `Godot_v4.7.2-stable_export_templates.tpz` from the
   Godot downloads page and unpack its contents into
   `~/Library/Application Support/Godot/export_templates/4.7.2.stable/`
-  (the folder must contain `macos.zip`).
-
-`task export:macos` checks for this and fails with the exact expected path if
-it is missing.
+  (for both builds, the folder should contain `macos.zip` and
+  `windows_release_x86_64.exe`).
 
 ---
 
@@ -50,7 +48,9 @@ it is missing.
 | `task editor` | Open the project in the Godot editor |
 | `task verify:singleplayer` | Headless smoke test: match bootstrap, player spawn, replication wiring |
 | `task test:lan` | Two headless Godot processes replicating over `127.0.0.1:7000` |
+| `task build:all` | Build both release ZIPs into `dist/` |
 | `task export:macos` | Build a distributable macOS release ZIP into `dist/` |
+| `task export:windows` | Build a distributable Windows x86_64 release ZIP into `dist/` |
 
 The game boots to a main menu with three options: **Single Player**,
 **Host LAN** and **Join LAN**.
@@ -110,17 +110,17 @@ Dead players respawn after **5 seconds**; a death does not reset the protest.
 
 ---
 
-## Building a macOS release
+## Building release ZIPs
 
 ```sh
-task export:macos        # -> dist/ProtestSimulator.app   (just run it)
-task export:macos:zip    # -> dist/ProtestSimulator-macOS.zip (to hand to someone)
+task build:all       # builds both ZIPs below
+task export:macos    # dist/ProtestSimulator-macOS.zip
+task export:windows  # dist/ProtestSimulator-Windows.zip
 ```
 
-Both run the same release export; they differ only in the output format,
-which the exporter picks from the extension it is given. Use the first one
-locally — there is nothing to unarchive, just `open dist/ProtestSimulator.app`.
-Either way you get a complete, self-contained `ProtestSimulator.app`:
+### macOS
+
+The macOS ZIP contains `ProtestSimulator.app` with the following settings.
 
 * **Universal 2** binary (Apple Silicon + Intel).
 * Release export, all game resources bundled inside the `.app`.
@@ -129,25 +129,8 @@ Either way you get a complete, self-contained `ProtestSimulator.app`:
 * Networking entitlements enabled, so hosting and joining work.
 * Players do **not** need Godot installed.
 
-Both tasks resolve the Godot binary (honouring `GODOT_BIN`), validate the
-export templates, create `dist/`, run the headless release exporter, and then
-verify the result — failing loudly at whichever step breaks. The `.app` build
-goes furthest: as well as checking the executable, `Info.plist` and `.pck` are
-present, it runs `codesign --verify` (a bundle whose signature does not cover
-its contents refuses to launch on Apple Silicon, which no file listing would
-reveal) and boots the real binary headlessly, which catches a mismatched
-`.pck`, a missing main scene, or a script parse error.
-
-`dist/` is gitignored.
-
-### Distribution
-
-Use `task export:macos:zip` and send `dist/ProtestSimulator-macOS.zip` to the
-other players however you like (AirDrop, file share, USB) — a `.app` is a
-directory, so it needs wrapping to survive most transfers intact. Each player
-unzips it and drags
-`ProtestSimulator.app` wherever they want — typically `/Applications` or the
-Desktop.
+Send `dist/ProtestSimulator-macOS.zip` to macOS players. They can extract it
+and move `ProtestSimulator.app` to `/Applications` or the Desktop.
 
 ### Running the exported application
 
@@ -176,6 +159,11 @@ quarantine flag than files received via AirDrop or a USB stick — the
 To ship a build that opens with a plain double-click you would need a paid
 Apple Developer account for a Developer ID signature plus notarization; both
 are deliberately out of scope here.
+
+### Windows x86_64
+
+Send `dist/ProtestSimulator-Windows.zip` to the other players. Have them extract
+the whole ZIP and run `ProtestSimulator-Windows.exe` from the extracted folder.
 
 ---
 

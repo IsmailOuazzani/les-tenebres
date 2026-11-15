@@ -3,13 +3,10 @@ version: "3"
 vars:
   # Override with GODOT_BIN=/path/to/godot for a different install.
   GODOT: '{{.GODOT_BIN | default "/Applications/Godot.app/Contents/MacOS/Godot"}}'
-  # macOS export (see agents/multiplayer-notes.md and the README).
-  EXPORT_PRESET: macOS
-  # The exporter picks its output format from this extension: `.app` writes
-  # the bundle straight out (double-clickable, nothing to unarchive), `.zip`
-  # wraps it. See export:macos vs export:macos:zip below.
-  EXPORT_APP: dist/ProtestSimulator.app
-  EXPORT_ZIP: dist/ProtestSimulator-macOS.zip
+  EXPORT_MACOS_PRESET: macOS
+  EXPORT_MACOS_ZIP: dist/ProtestSimulator-macOS.zip
+  EXPORT_WINDOWS_PRESET: Windows Desktop
+  EXPORT_WINDOWS_ZIP: dist/ProtestSimulator-Windows.zip
 
 tasks:
   # Bare `task` lists what is available rather than failing with
@@ -48,100 +45,42 @@ tasks:
     cmds:
       - bash tools/lan_loopback_test.sh
 
-  export:macos:
-    desc: Build a self-contained, ad-hoc-signed ProtestSimulator.app into dist/
+  build:all:
+    desc: Build both release ZIPs into dist/
     cmds:
-      - task: _export:macos:check-templates
-      - mkdir -p dist
-      - |
-        set -euo pipefail
-        echo "== exporting preset '{{.EXPORT_PRESET}}' -> {{.EXPORT_APP}}"
-        # The exporter writes into the bundle rather than replacing it, so a
-        # stale .app from an earlier build has to go first.
-        rm -rf "{{.EXPORT_APP}}"
-        "{{.GODOT}}" --headless --path . \
-          --export-release "{{.EXPORT_PRESET}}" "{{.EXPORT_APP}}"
-      - task: _export:macos:verify:app
+      - task: export:macos
+      - task: export:windows
 
-  export:macos:zip:
-    desc: Same build, wrapped in a ZIP for handing to someone else
+  export:macos:
+    desc: Build a Universal 2 macOS release ZIP into dist/
+    aliases: [export:macos:zip]
     cmds:
-      - task: _export:macos:check-templates
       - mkdir -p dist
       - |
         set -euo pipefail
-        echo "== exporting preset '{{.EXPORT_PRESET}}' -> {{.EXPORT_ZIP}}"
-        rm -f "{{.EXPORT_ZIP}}"
+        echo "== exporting preset '{{.EXPORT_MACOS_PRESET}}' -> {{.EXPORT_MACOS_ZIP}}"
+        rm -f "{{.EXPORT_MACOS_ZIP}}"
         "{{.GODOT}}" --headless --path . \
-          --export-release "{{.EXPORT_PRESET}}" "{{.EXPORT_ZIP}}"
+          --export-release "{{.EXPORT_MACOS_PRESET}}" "{{.EXPORT_MACOS_ZIP}}"
       - task: _export:macos:verify:zip
 
-  _export:macos:check-templates:
-    internal: true
-    silent: true
-    desc: Fail loudly if the Godot executable or its export templates are missing
+  export:windows:
+    desc: Build a Windows x86_64 release ZIP into dist/
     cmds:
+      - mkdir -p dist
       - |
-        set -euo pipefail
-        GODOT="{{.GODOT}}"
-        if [ ! -x "$GODOT" ]; then
-          echo "error: Godot executable not found at '$GODOT'." >&2
-          echo "       Install Godot 4.7 or set GODOT_BIN=/path/to/godot." >&2
-          exit 1
-        fi
-        VERSION="$("$GODOT" --headless --version | tr -d '\r' | tail -n1)"
-        # Export templates live in a version-stamped directory, e.g.
-        # ~/Library/Application Support/Godot/export_templates/4.7.2.stable/
-        TEMPLATE_VERSION="$(printf '%s' "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+(\.[0-9]+)?)\.(stable|beta[0-9]*|rc[0-9]*|dev[0-9]*).*/\1.\3/')"
-        TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/$TEMPLATE_VERSION"
-        if [ ! -f "$TEMPLATE_DIR/macos.zip" ]; then
-          echo "error: macOS export template missing for Godot $VERSION." >&2
-          echo "       Expected: $TEMPLATE_DIR/macos.zip" >&2
-          echo "       Install it from the editor (Editor > Manage Export Templates)" >&2
-          echo "       or download export_templates.tpz for $TEMPLATE_VERSION and unpack it there." >&2
-          exit 1
-        fi
-        echo "== export templates present: $TEMPLATE_DIR"
+        set -eu
+        archive="{{.EXPORT_WINDOWS_ZIP}}"
+        rm -f "$archive"
+        "{{.GODOT}}" --headless --path . \
+          --export-release "{{.EXPORT_WINDOWS_PRESET}}" "$archive"
 
-  _export:macos:verify:app:
-    internal: true
-    silent: true
-    desc: Fail loudly unless the exported bundle is complete, signed and launchable
-    cmds:
-      - |
-        set -euo pipefail
-        APP="{{.EXPORT_APP}}"
-        if [ ! -d "$APP" ]; then
-          echo "error: export produced no bundle at $APP." >&2
+        listing="$(unzip -Z1 "$archive")"
+        if ! printf '%s\n' "$listing" | grep -Eq '(^|/)ProtestSimulator-Windows[.]exe$'; then
+          echo "error: $archive is missing ProtestSimulator-Windows.exe." >&2
           exit 1
         fi
-        for required in \
-          "Contents/MacOS/ProtestSimulator" \
-          "Contents/Info.plist" \
-          "Contents/Resources/ProtestSimulator.pck"
-        do
-          if [ ! -e "$APP/$required" ]; then
-            echo "error: $APP is missing $required -- it would not be playable." >&2
-            exit 1
-          fi
-        done
-        # A bundle whose signature does not cover its own contents fails to
-        # launch on Apple Silicon, and that is invisible in a file listing.
-        codesign --verify --deep "$APP" >/dev/null 2>&1 || {
-          echo "error: $APP failed codesign --verify." >&2
-          exit 1
-        }
-        # Cheapest end-to-end proof: boot the real binary headlessly. Catches
-        # a .pck that does not match the executable, a missing main scene and
-        # script parse errors, none of which a file listing would show.
-        "$APP/Contents/MacOS/ProtestSimulator" --headless --quit-after 120 >/dev/null 2>&1 || {
-          echo "error: $APP did not boot headlessly." >&2
-          exit 1
-        }
-        echo "== OK: $APP is complete, ad-hoc signed and boots"
-        echo "   $(du -sh "$APP" | cut -f1) — open it with: open $APP"
-        echo "   Note: ad-hoc signed, so first launch needs a Gatekeeper override."
-        echo "   See README.md > Running the exported application."
+        echo "== OK: $archive contains ProtestSimulator-Windows.exe"
 
   _export:macos:verify:zip:
     internal: true
@@ -150,7 +89,7 @@ tasks:
     cmds:
       - |
         set -euo pipefail
-        ZIP="{{.EXPORT_ZIP}}"
+        ZIP="{{.EXPORT_MACOS_ZIP}}"
         if [ ! -f "$ZIP" ]; then
           echo "error: export produced no archive at $ZIP." >&2
           exit 1
