@@ -7085,3 +7085,85 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 56.705, 7.14, 82.565)
 
 [node name="Shape" type="CollisionShape3D" parent="Collision/Col_BldA35"]
 shape = SubResource("Box_parisA")
+
+[node name="PoliceEntrances" type="Node3D" parent="."]
+
+[node name="Entrance01" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-32, 0.06, 10)
+metadata/unlock_act = 1
+
+[node name="Entrance02" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(32, 0.06, 10)
+metadata/unlock_act = 1
+
+[node name="Entrance03" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(0, 0.06, -32)
+metadata/unlock_act = 1
+
+[node name="Entrance04" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(0, 0.06, 32)
+metadata/unlock_act = 1
+
+[node name="Entrance05" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-32, 0.06, 32)
+metadata/unlock_act = 2
+
+[node name="Entrance06" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(32, 0.06, 32)
+metadata/unlock_act = 2
+
+[node name="Entrance07" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-32, 0.06, -32)
+metadata/unlock_act = 3
+
+[node name="Entrance08" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(32, 0.06, -32)
+metadata/unlock_act = 3
+
+[node name="Entrance09" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-32, 0.06, 96)
+metadata/unlock_act = 4
+
+[node name="Entrance10" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(32, 0.06, 96)
+metadata/unlock_act = 4
+
+[node name="Entrance11" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-96, 0.06, 32)
+metadata/unlock_act = 5
+
+[node name="Entrance12" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(96, 0.06, 32)
+metadata/unlock_act = 5
+
+[node name="Entrance13" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-96, 0.06, -32)
+metadata/unlock_act = 6
+
+[node name="Entrance14" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(96, 0.06, -32)
+metadata/unlock_act = 6
+
+[node name="Entrance15" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-32, 0.06, -96)
+metadata/unlock_act = 7
+
+[node name="Entrance16" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(32, 0.06, -96)
+metadata/unlock_act = 7
+
+[node name="Entrance17" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-96, 0.06, 96)
+metadata/unlock_act = 8
+
+[node name="Entrance18" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(96, 0.06, 96)
+metadata/unlock_act = 8
+
+[node name="Entrance19" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(-96, 0.06, -96)
+metadata/unlock_act = 9
+
+[node name="Entrance20" type="Marker3D" parent="PoliceEntrances"]
+position = Vector3(96, 0.06, -96)
+metadata/unlock_act = 9
