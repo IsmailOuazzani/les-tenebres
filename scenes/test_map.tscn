@@ -13,30 +13,37 @@
 [ext_resource type="PackedScene" path="res://scenes/police.tscn" id="32_policescn"]
 [ext_resource type="PackedScene" path="res://scenes/megacop.tscn" id="33_megacopscn"]
 [ext_resource type="PackedScene" path="res://scenes/map_geometry.tscn" id="42_mapgeo"]
+[ext_resource type="Script" path="res://scripts/act_atmosphere.gd" id="46_atmosphere"]
+[ext_resource type="Texture2D" path="res://assets/soviet_decay_skies/clear_summer_day.png" id="47_day_sky"]
+[ext_resource type="PackedScene" path="res://scenes/act_ash.tscn" id="48_ash"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yq8tt"]
-sky_top_color = Color(0.3, 0.5, 0.75, 1)
-sky_horizon_color = Color(0.85, 0.75, 0.62, 1)
-sky_curve = 0.2
-ground_horizon_color = Color(0.85, 0.75, 0.62, 1)
-ground_bottom_color = Color(0.3, 0.27, 0.23, 1)
-sun_angle_max = 30.0
-sun_curve = 0.15
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_day"]
+resource_local_to_scene = true
+panorama = ExtResource("47_day_sky")
+filter = false
 
 [sub_resource type="Sky" id="Sky_e6t1a"]
-sky_material = SubResource("ProceduralSkyMaterial_yq8tt")
+resource_local_to_scene = true
+sky_material = SubResource("PanoramaSkyMaterial_day")
 
 [sub_resource type="Environment" id="Environment_5wrcu"]
+resource_local_to_scene = true
 background_mode = 2
 sky = SubResource("Sky_e6t1a")
-ambient_light_source = 3
-ambient_light_energy = 0.6
+ambient_light_source = 2
+ambient_light_color = Color(0.78, 0.86, 1, 1)
+ambient_light_energy = 0.42
+ambient_light_sky_contribution = 0.0
 
 [node name="TestMap" type="Node3D" unique_id=555166134]
 script = ExtResource("1_hmnbr")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1436315016]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." node_paths=PackedStringArray("sun") unique_id=1436315016]
 environment = SubResource("Environment_5wrcu")
+script = ExtResource("46_atmosphere")
+sun = NodePath("../DirectionalLight3D")
+
+[node name="Ash" parent="WorldEnvironment" instance=ExtResource("48_ash")]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=243494170]
 transform = Transform3D(0.8137977, -0.4545195, 0.3620723, 0, 0.6225147, 0.7826239, -0.5811571, -0.6368793, 0.5064741, 0, 10, 0)

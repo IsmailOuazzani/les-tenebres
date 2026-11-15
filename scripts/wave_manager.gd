@@ -129,7 +129,7 @@ func start_run() -> void:
 	_running = true
 	if not NetworkManager.is_authoritative():
 		return
-	_start_wave(current_act, current_wave)
+	_start_wave(1, 1)
 
 
 func _process(delta: float) -> void:
