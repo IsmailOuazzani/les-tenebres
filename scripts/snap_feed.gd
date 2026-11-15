@@ -136,12 +136,12 @@ func _flush_recruit_batch() -> void:
 
 
 func _on_disruption_recorded(_total: int) -> void:
-	_push_system(SnapFeedData.random_destruction_message(_rng, int(GameState.DISRUPTION_GRABUGE_BASE)), "important")
+	_push_system(SnapFeedData.random_destruction_message(_rng, int(GameState.DISRUPTION_GRABUGE_BASE)), "")
 	_spawn_burst()
 
 
 func _on_police_defeated(grabuge_gain: float) -> void:
-	_push_system(SnapFeedData.random_police_defeat_message(_rng, int(grabuge_gain)), "important")
+	_push_system(SnapFeedData.random_police_defeat_message(_rng, int(grabuge_gain)), "")
 	_spawn_burst()
 
 
@@ -161,10 +161,11 @@ func _spawn_burst() -> void:
 
 ## `kind` ("ordinary" / "funny" / "important") selects which notification
 ## pop plays -- see AudioManager.play_feed_notification(). Purely an audio
-## tag; doesn't affect the message's visuals.
+## tag; an empty kind keeps the message silent.
 func _push_system(text: String, kind: String = "ordinary") -> void:
 	_push_item(_build_system_item(text))
-	AudioManager.play_feed_notification(kind)
+	if not kind.is_empty():
+		AudioManager.play_feed_notification(kind)
 
 
 func _push_user(text: String, kind: String = "ordinary") -> void:

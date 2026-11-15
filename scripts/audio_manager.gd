@@ -57,7 +57,7 @@ extends Node
 ## the feed can receive several messages a second, and this is what keeps
 ## that from turning into a wall of beeping. IMPORTANT notifications bypass
 ## this gate entirely (spec: "priority for important event notifications").
-@export var notification_min_interval: float = 0.35
+@export var notification_min_interval: float = 1.5
 @export var notification_pitch_variation: float = 0.05
 ## Share of ordinary notifications that use the alt pop instead of the
 ## default one, purely for variety (spec 11B: "use occasionally").
@@ -74,6 +74,12 @@ const SOUNDS: Dictionary = {
 	"crowd_cheer_burst": preload("res://audio/crowd/cheers/crowd_cheer_burst.wav"),
 	"mob_roar_burst": preload("res://audio/crowd/voices/mob_roar_burst.wav"),
 	"crowd_ambience_protest": preload("res://audio/crowd/crowd_ambience_protest.ogg"),
+	"assault_radio": preload("res://audio/world/assault_radio.wav"),
+	"police_arrival": preload("res://audio/world/police_arrival.wav"),
+	"wave_clear": preload("res://audio/world/wave_clear.wav"),
+	"break_prop": preload("res://audio/world/break_prop.wav"),
+	"break_glass": preload("res://audio/world/break_glass.wav"),
+	"break_vehicle": preload("res://audio/world/break_vehicle.wav"),
 	"notif_default": preload("res://audio/ui/notifications/notif_default.wav"),
 	"notif_alt": preload("res://audio/ui/notifications/notif_alt.wav"),
 	"notif_funny": preload("res://audio/ui/notifications/notif_funny.wav"),
@@ -81,7 +87,7 @@ const SOUNDS: Dictionary = {
 }
 
 ## Events from the spec that are intentionally unimplemented this pass
-## (Phases 2-4: barricades, vehicles, police combat, Grabuge
+## (Phases 2-4: police combat, Grabuge
 ## fanfares/warnings, game over, target UI, cartoon physics). Logged once
 ## via push_warning the first time anything calls play_missing() for a
 ## given key, so gaps are visible instead of silent.
@@ -107,12 +113,14 @@ var _crowd_controller: Node = null
 var _crowd_ambience_target_db: float = -80.0
 
 var _last_notification_time: float = -1000.0
+var _last_destruction_cheer_msec: int = -1200
 
 
 func _ready() -> void:
 	_build_pools()
 	_build_dedicated_players()
-	GameState.disruption_recorded.connect(_on_disruption_recorded)
+	WaveManager.threat_warning.connect(_on_threat_warning)
+	WaveManager.wave_completed.connect(_on_wave_completed)
 
 
 func _process(delta: float) -> void:
@@ -275,7 +283,7 @@ func _duck_crowd_bus() -> void:
 # ---------------------------------------------------------------------------
 
 func _update_crowd_ambience(delta: float) -> void:
-	if _crowd_controller == null:
+	if not is_instance_valid(_crowd_controller):
 		_crowd_controller = get_tree().get_first_node_in_group(&"crowd_controller")
 		if _crowd_controller == null:
 			return
@@ -293,6 +301,8 @@ func _update_crowd_ambience(delta: float) -> void:
 	var presence: float = size_ratio * lerp(0.3, 1.0, grabuge_ratio)
 
 	_crowd_ambience_target_db = lerp(-80.0, -6.0, presence) if count > 0 else -80.0
+	if WaveManager.state == WaveManager.State.INTERMISSION:
+		_crowd_ambience_target_db = maxf(-80.0, _crowd_ambience_target_db - 6.0)
 	_crowd_ambience_player.volume_db = lerp(
 		_crowd_ambience_player.volume_db, _crowd_ambience_target_db, clamp(crowd_crossfade_speed * delta, 0.0, 1.0))
 
@@ -303,15 +313,34 @@ func _update_crowd_ambience(delta: float) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Disruption feedback -- the one Phase-2 hook wired early since
-# GameState.disruption_recorded already exists and the cheer asset is
-# already on hand; everything else in Phase 2-4 is left as play_missing().
+# Wave and destruction cues
 # ---------------------------------------------------------------------------
 
-func _on_disruption_recorded(_total: int) -> void:
-	var cam := get_viewport().get_camera_3d()
-	var pos: Vector3 = cam.global_transform.origin if cam != null else Vector3.ZERO
-	_play_one_shot_3d("crowd_cheer_burst", pos, "Crowd", 1.0, 0.08)
+func _on_threat_warning(_message: String) -> void:
+	_play_one_shot_2d("assault_radio", "Stingers", -8.0)
+
+
+func _on_wave_completed(_wave_number: int) -> void:
+	_play_one_shot_2d("wave_clear", "Stingers", -10.0)
+
+
+func play_police_arrival(position: Vector3) -> void:
+	_play_one_shot_3d("police_arrival", position, "SFX", 0.0, 0.0, -3.0)
+
+
+func play_prop_break(position: Vector3, sound_key: String) -> void:
+	_play_one_shot_3d(sound_key, position, "SFX", 1.0, 0.07, -4.0)
+
+	# One reaction can cover several props breaking in the same burst.
+	var now := Time.get_ticks_msec()
+	if now - _last_destruction_cheer_msec < 1200:
+		return
+	_last_destruction_cheer_msec = now
+	var scene := get_tree().current_scene
+	get_tree().create_timer(0.25, false).timeout.connect(func() -> void:
+		if is_instance_valid(scene) and scene == get_tree().current_scene:
+			_play_one_shot_3d("crowd_cheer_burst", position, "Crowd", 1.0, 0.08, -12.0)
+	)
 
 
 # ---------------------------------------------------------------------------
@@ -323,8 +352,7 @@ func _on_disruption_recorded(_total: int) -> void:
 ##   "ordinary" -- routine messages (recruit batches, ambient chatter/flavor).
 ##     Alternates default/alt pop for variety, gated by notification_min_interval.
 ##   "funny"    -- the nonsense/joke lines. Distinct playful pop, same gate.
-##   "important" -- Grabuge milestones, disruptions, police events. Always
-##     plays (bypasses the throttle gate per spec 11D/14's priority rule).
+##   "important" -- reserved for milestone messages that should bypass the gate.
 func play_feed_notification(kind: String) -> void:
 	if kind == "important":
 		_play_notification_sound("notif_important")
@@ -348,6 +376,7 @@ func _play_notification_sound(sound_key: String) -> void:
 	p.bus = "UI"
 	p.stream = SOUNDS[sound_key]
 	p.pitch_scale = 1.0 + randf_range(-notification_pitch_variation, notification_pitch_variation)
+	p.volume_db = -9.0
 	add_child(p)
 	p.finished.connect(p.queue_free)
 	p.play()
@@ -415,16 +444,20 @@ func _build_dedicated_players() -> void:
 	add_child(_crowd_ambience_player)
 
 
-func _play_one_shot_2d(sound_key: String, bus: String) -> void:
+func _play_one_shot_2d(sound_key: String, bus: String, volume_db: float = 0.0) -> void:
 	var p := AudioStreamPlayer.new()
 	p.bus = bus
 	p.stream = SOUNDS[sound_key]
+	p.volume_db = volume_db
 	add_child(p)
 	p.finished.connect(p.queue_free)
 	p.play()
 
 
-func _play_one_shot_3d(sound_key: String, position: Vector3, bus: String, volume_variation_db: float, pitch_variation: float) -> void:
+func _play_one_shot_3d(
+	sound_key: String, position: Vector3, bus: String,
+	volume_variation_db: float, pitch_variation: float, volume_db: float = 0.0
+) -> void:
 	var pool: Array[AudioStreamPlayer3D] = _voice_pool if bus == "Voices" else _sfx_pool
 	var player: AudioStreamPlayer3D = _acquire_pooled(pool)
 	if player == null:
@@ -432,7 +465,7 @@ func _play_one_shot_3d(sound_key: String, position: Vector3, bus: String, volume
 	player.bus = bus
 	player.stream = SOUNDS[sound_key]
 	player.global_position = position
-	player.volume_db = randf_range(-volume_variation_db, volume_variation_db)
+	player.volume_db = volume_db + randf_range(-volume_variation_db, volume_variation_db)
 	player.pitch_scale = 1.0 + randf_range(-pitch_variation, pitch_variation)
 	player.play()
 

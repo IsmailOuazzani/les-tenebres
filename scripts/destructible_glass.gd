@@ -26,3 +26,7 @@ func _die() -> void:
 	# otherwise queue_free() here would take the shards down with it.
 	_pane.break_window(_pane.global_position)
 	get_tree().create_timer(_pane.despawn_time + 0.5).timeout.connect(queue_free)
+
+
+func _break_sound_key() -> String:
+	return "break_glass"

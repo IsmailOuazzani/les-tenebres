@@ -63,6 +63,7 @@ var _police_remaining_to_spawn: int = 0
 ## shuffled deck) while still landing on the exact count by the last spawn.
 var _megacop_remaining_to_spawn: int = 0
 var _spawn_timer: float = 0.0
+var _next_arrival_cue_msec: int = 0
 
 ## Monotonic counter feeding deterministic replicated node names.
 var _next_police_id: int = 0
@@ -107,6 +108,7 @@ func begin_wave(total_police: int, megacop_count: int = 0) -> void:
 	_police_remaining_to_spawn = max(total_police, 0)
 	_megacop_remaining_to_spawn = clamp(megacop_count, 0, _police_remaining_to_spawn)
 	_spawn_timer = 0.0
+	_next_arrival_cue_msec = 0
 	_spawning = _police_remaining_to_spawn > 0
 
 
@@ -172,7 +174,19 @@ func _spawn_police() -> bool:
 	police.net_position = spawn_point
 	add_child(police)
 	spawned_police.append(police)
+
+	var now := Time.get_ticks_msec()
+	if now >= _next_arrival_cue_msec:
+		_next_arrival_cue_msec = now + 4000
+		_play_arrival_cue(police.global_position)
+		if NetworkManager.is_multiplayer_session():
+			_play_arrival_cue.rpc(police.global_position)
 	return true
+
+
+@rpc("authority", "call_remote", "unreliable")
+func _play_arrival_cue(world_position: Vector3) -> void:
+	AudioManager.play_police_arrival(world_position)
 
 
 ## Picks a random point in the [spawn_radius_min, spawn_radius_max] ring
