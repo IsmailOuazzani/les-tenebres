@@ -12,6 +12,8 @@ The player starts alone and recruits NPCs to form an increasingly massive protes
 
 **Goal:** Survive as many waves of police as possible, growing an increasingly ridiculous mob and upgrading yourself between waves. No story mode — replayable runs centered on beating your previous best wave/Act.
 
+**Players:** Solo, or 1-4 player LAN co-op. Co-op is the same run with more megaphones: one shared protest crowd, one shared Grabuge wallet and upgrade shop, one shared wave/Act loop. A death is a respawn, not a game over.
+
 ## Core Gameplay Loop
 
 The game launches directly into **Survival Mode** by default.
