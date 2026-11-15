@@ -481,3 +481,26 @@ would otherwise quietly empty itself.
   wallet, and the first Continue drags everyone into the countdown.
 * The police spawn-out-of-view caveat (section 7) now applies to a
   wave-ordered spawner, but is otherwise unchanged.
+
+### macOS export: verified end to end (2026-11-14)
+
+Section 9's "not verified end to end" caveat is resolved. The export
+templates were missing locally; installing them is the whole fix:
+
+```sh
+curl -fLO https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
+unzip -q Godot_v4.7.2-stable_export_templates.tpz        # unpacks to templates/
+cp templates/* "$HOME/Library/Application Support/Godot/export_templates/4.7.2.stable/"
+```
+
+The `.tpz` is a plain ZIP (1.3 GB, all platforms) whose files sit in a
+`templates/` directory; the destination directory is the version string from
+`templates/version.txt` (`4.7.2.stable`), which is exactly what the
+Taskfile's template check expects.
+
+`task export:macos` then produced `dist/ProtestSimulator-macOS.zip` (80 MB,
+Universal 2, ad-hoc signed) with every preset option unchanged, and the
+unpacked `ProtestSimulator.app` boots the main menu cleanly when run headless
+(`.../Contents/MacOS/ProtestSimulator --headless --quit-after 120`). Still
+unverified by a human: the windowed app hosting/joining a real LAN game, and
+the first-launch Gatekeeper override.
