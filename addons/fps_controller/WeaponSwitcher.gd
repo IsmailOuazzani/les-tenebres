@@ -4,11 +4,8 @@ class_name WeaponSwitcher
 ## Owns which first-person weapon is equipped. `weapon_paths[0]` is slot 1
 ## (key "1"), `weapon_paths[1]` is slot 2 (key "2"), and so on.
 ##
-## Doesn't know anything about what a weapon does -- just calls
-## activate()/deactivate() on the Megaphone/Croissant-shaped node at the
-## selected index and leaves the rest (visuals, input handling) to that
-## weapon itself. Add a third weapon by appending to weapon_paths and giving
-## it the same two methods; no change needed here.
+## Calls activate()/deactivate() on each weapon, which handles its own
+## visuals and gameplay input.
 
 ## Emitted whenever the equipped weapon changes (including once at startup)
 ## so UI (see scripts/hud.gd's hotbar) can mirror the active slot without
@@ -26,7 +23,8 @@ func _ready() -> void:
 		_weapons.append(get_node(path))
 
 	for i in _weapons.size():
-		_weapons[i].call(&"activate" if i == _active_index else &"deactivate")
+		var equipped := is_multiplayer_authority() and i == _active_index
+		_weapons[i].call(&"activate" if equipped else &"deactivate")
 	weapon_switched.emit(_active_index)
 
 
@@ -39,6 +37,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_switch_to(0)
 	elif event.is_action_pressed(&"weapon_2"):
 		_switch_to(1)
+	elif event.is_action_pressed(&"weapon_3"):
+		_switch_to(2)
 
 
 ## Display names for the hotbar, in slot order -- just the weapon nodes' own
