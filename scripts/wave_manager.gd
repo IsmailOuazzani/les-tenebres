@@ -352,7 +352,11 @@ func _is_assault_wave(wave: int) -> bool:
 
 
 func _megacop_count_for(act: int, wave: int, police_total: int) -> int:
-	if act < MEGACOP_UNLOCK_ACT:
+	# Act 1's final wave gets a preview taste of megacops even though the
+	# Act is otherwise below MEGACOP_UNLOCK_ACT -- a last-wave escalation
+	# before Act 2 properly unlocks them.
+	var is_act1_finale: bool = act == 1 and wave == WAVES_PER_ACT
+	if act < MEGACOP_UNLOCK_ACT and not is_act1_finale:
 		return 0
 	var fraction: float = MEGACOP_ASSAULT_FRACTION if _is_assault_wave(wave) else MEGACOP_BASE_FRACTION
 	return int(round(float(police_total) * fraction))
