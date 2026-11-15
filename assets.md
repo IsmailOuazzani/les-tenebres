@@ -29,6 +29,8 @@ Running list of external assets we're pulling into the project. Add a row when y
 | VOiD1 Free Megaphones Collection | https://void1gaming.itch.io/free-3d-megaphones-collection | Props — megaphone (player prop) | FBX/.blend | Imported — `assets/megaphone/` (using the "Plastic Megaphone_low" variant from the FBX; see `agents/megaphone-notes.md`) |
 | Free Paris 3 Building Pack | https://www.cgtrader.com/free-3d-models/architectural/decoration/paris-3-building-pack | Map — Paris-styled buildings | FBX (OBJ/MTL export was broken, unused) | Imported — `assets/paris_building_pack/` (Buildings A/B/C swapped into `scenes/test_map.tscn`; see `agents/map-dressing-notes.md`) |
 | French Protest Crowd Audio | https://freesound.org/people/Mathias.Arrignon/sounds/686002/ | Audio — crowd/protest ambience | WAV/audio | Recommended, new category — not yet imported |
+| Soviet Decay PSX Skyboxes by SlopMaster | https://slopmaster.itch.io/psx-skyboxes | Act skies | 2048×1024 panoramic PNG | Four panoramas in `assets/soviet_decay_skies/`. Personal and commercial project use permitted. Credit optional. |
+| Thunder #2 by Joseph Sardin and Axeline T. | https://bigsoundbank.com/thunder-2-s3113.html | Act II thunder cue | Ogg Vorbis | CC0. Imported as `audio/world/act_thunder.ogg`. |
 
 ## Notes
 

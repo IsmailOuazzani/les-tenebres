@@ -66,7 +66,7 @@ EXT = [
     ("3_side", "res://assets/kenney_city_kit_roads/road-side.glb"),
     ("4_square", "res://assets/kenney_city_kit_roads/road-square.glb"),
     ("5_crossing", "res://assets/kenney_city_kit_roads/road-crossing.glb"),
-    ("6_lamp", "res://assets/kenney_city_kit_roads/light-square.glb"),
+    ("6_lamp", "res://scenes/street_lamp.tscn"),
     ("7_parisa", "res://assets/paris_building_pack/BuildingA/BuildingA.fbx"),
     ("8_parisb", "res://assets/paris_building_pack/BuildingB/BuildingB.fbx"),
     ("9_parisc", "res://assets/paris_building_pack/BuildingC/BuildingC.fbx"),

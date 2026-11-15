@@ -77,6 +77,7 @@ const SOUNDS: Dictionary = {
 	"assault_radio": preload("res://audio/world/assault_radio.wav"),
 	"police_arrival": preload("res://audio/world/police_arrival.wav"),
 	"wave_clear": preload("res://audio/world/wave_clear.wav"),
+	"act_thunder": preload("res://audio/world/act_thunder.ogg"),
 	"break_prop": preload("res://audio/world/break_prop.wav"),
 	"break_glass": preload("res://audio/world/break_glass.wav"),
 	"break_vehicle": preload("res://audio/world/break_vehicle.wav"),
@@ -322,6 +323,10 @@ func _on_threat_warning(_message: String) -> void:
 
 func _on_wave_completed(_wave_number: int) -> void:
 	_play_one_shot_2d("wave_clear", "Stingers", -10.0)
+
+
+func play_act_thunder() -> void:
+	_play_one_shot_2d("act_thunder", "Stingers", -5.0)
 
 
 func play_police_arrival(position: Vector3) -> void:
