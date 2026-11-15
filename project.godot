@@ -20,7 +20,7 @@ config/name="les tenebres"
 config/name.macos="ProtestSimulator"
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="res://protest-simulator-icon.png"
 
 [audio]
 
