@@ -204,6 +204,10 @@ func get_next_wave_preview() -> Dictionary:
 	}
 
 
+func is_shop_open() -> bool:
+	return state == State.INTERMISSION and not _intermission_counting
+
+
 ## Called by the upgrade station's Continue button to leave the paused shop
 ## and begin the live pre-wave countdown. No-op unless we're actually
 ## waiting in INTERMISSION.
