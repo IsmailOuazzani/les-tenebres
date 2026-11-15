@@ -19,6 +19,9 @@ extends Control
 @onready var _join_button: Button = %JoinButton
 @onready var _quit_button: Button = %QuitButton
 @onready var _status_label: Label = %StatusLabel
+@onready var _menu_layout: BoxContainer = %MenuLayout
+@onready var _session_panel: PanelContainer = %Panel
+@onready var _how_to_play: PanelContainer = %HowToPlay
 
 
 func _ready() -> void:
@@ -35,6 +38,21 @@ func _ready() -> void:
 
 	_name_field.text = NetworkManager.local_player_name
 	_status_label.text = NetworkManager.get_last_error()
+
+	resized.connect(_update_menu_layout)
+	get_window().size_changed.connect(_update_menu_layout)
+	_update_menu_layout()
+
+
+func _update_menu_layout() -> void:
+	var separation := _menu_layout.get_theme_constant("separation")
+	var row_width := (
+		_session_panel.get_combined_minimum_size().x
+		+ _how_to_play.get_combined_minimum_size().x
+		+ separation
+	)
+	var available_width := minf(size.x, get_window().size.x)
+	_menu_layout.vertical = available_width < row_width + 2.0 * separation
 
 
 func _on_single_player_pressed() -> void:
