@@ -8,6 +8,14 @@ vars:
   EXPORT_ZIP: dist/ProtestSimulator-macOS.zip
 
 tasks:
+  # Bare `task` lists what is available rather than failing with
+  # "Task \"default\" does not exist".
+  default:
+    desc: List the available tasks
+    cmds:
+      - task --list
+    silent: true
+
   run:
     desc: Launch the game (no editor), logging output to logs/run.log
     cmds:
