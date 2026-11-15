@@ -53,10 +53,8 @@ signal intermission_countdown_started
 
 ## -- Tuning constants (all balancing numbers live here, clearly named) --
 
-## Waves per Act. Flat across Acts per vision.md ("multiple waves with
-## increasing difficulty") -- difficulty scales via police counts/max_alive,
-## not wave count.
-const WAVES_PER_ACT: int = 5
+## Each Act ends after its third wave.
+const WAVES_PER_ACT: int = 3
 
 ## Live pre-wave countdown length (seconds) once the player leaves the
 ## upgrade station via begin_intermission_countdown().
@@ -75,9 +73,8 @@ const ASSAULT_WAVE_INTERVAL: int = 3
 ## Assault waves multiply the normal police count for that wave.
 const ASSAULT_POLICE_MULTIPLIER: float = 1.75
 
-## Megacops (scripts/police.gd scaled up, see scenes/megacop.tscn) start
-## showing up once this Act is reached -- Act 1 stays a clean intro with only
-## regular cops.
+## Megacops join the regular wave rotation starting in Act 2, with a preview
+## in Act 1's finale.
 const MEGACOP_UNLOCK_ACT: int = 2
 ## Fraction of a wave's police total that are megacops once unlocked, and the
 ## bumped fraction on assault waves (escalation milestone per vision.md gets
@@ -202,6 +199,10 @@ func get_next_wave_preview() -> Dictionary:
 		"assault": _is_assault_wave(next_wave),
 		"megacops": _megacop_count_for(current_act, next_wave, police_total),
 	}
+
+
+func is_shop_open() -> bool:
+	return state == State.INTERMISSION and not _intermission_counting
 
 
 ## Called by the upgrade station's Continue button to leave the paused shop

@@ -18,86 +18,98 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.07, 0.07, 0.09, 1)
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Scroll" type="ScrollContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+follow_focus = true
 
-[node name="Panel" type="PanelContainer" parent="Center"]
+[node name="Center" type="CenterContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="MenuLayout" type="BoxContainer" parent="Scroll/Center"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Panel" type="PanelContainer" parent="Scroll/Center/MenuLayout"]
+unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(420, 0)
 theme_type_variation = &"PanelContainerDefaultFlat"
 
-[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/MenuLayout/Panel"]
 layout_mode = 2
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 24
 
-[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="Scroll/Center/MenuLayout/Panel/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="Title" type="Label" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 layout_mode = 2
 text = "LES TENEBRES"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 32
 
-[node name="Subtitle" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="Subtitle" type="Label" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 layout_mode = 2
 modulate = Color(1, 1, 1, 0.6)
 text = "Protest Simulator — LAN co-op, 1-4 players"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 13
 
-[node name="Spacer1" type="Control" parent="Center/Panel/Margin/VBox"]
+[node name="Spacer1" type="Control" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 8)
 
-[node name="NameLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="NameLabel" type="Label" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 layout_mode = 2
 text = "Player name"
 theme_override_font_sizes/font_size = 13
 
-[node name="NameField" type="LineEdit" parent="Center/Panel/Margin/VBox"]
+[node name="NameField" type="LineEdit" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Manifestant"
 placeholder_text = "Manifestant"
 
-[node name="SinglePlayerButton" type="Button" parent="Center/Panel/Margin/VBox"]
+[node name="SinglePlayerButton" type="Button" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 44)
 text = "SINGLE PLAYER"
 
-[node name="HostButton" type="Button" parent="Center/Panel/Margin/VBox"]
+[node name="HostButton" type="Button" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 44)
 text = "HOST LAN"
 
-[node name="AddressLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="AddressLabel" type="Label" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 layout_mode = 2
 text = "Host IPv4 address"
 theme_override_font_sizes/font_size = 13
 
-[node name="AddressField" type="LineEdit" parent="Center/Panel/Margin/VBox"]
+[node name="AddressField" type="LineEdit" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "127.0.0.1"
 placeholder_text = "192.168.1.42"
 
-[node name="JoinButton" type="Button" parent="Center/Panel/Margin/VBox"]
+[node name="JoinButton" type="Button" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 44)
 text = "JOIN LAN"
 
-[node name="StatusLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+[node name="StatusLabel" type="Label" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
@@ -107,7 +119,58 @@ autowrap_mode = 3
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 13
 
-[node name="QuitButton" type="Button" parent="Center/Panel/Margin/VBox"]
+[node name="QuitButton" type="Button" parent="Scroll/Center/MenuLayout/Panel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "QUIT"
+
+[node name="HowToPlay" type="PanelContainer" parent="Scroll/Center/MenuLayout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(264, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"PanelContainerDefaultFlat"
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/MenuLayout/HowToPlay"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Scroll/Center/MenuLayout/HowToPlay/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Heading" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "HOW TO PLAY"
+
+[node name="Movement" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "WASD to move · Space to jump"
+autowrap_mode = 3
+
+[node name="Megaphone" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Press 1 for the megaphone. In solo, hold right click to recruit. Aim and hold left click, then release to send the crowd. In LAN, your class sets your abilities."
+autowrap_mode = 3
+
+[node name="Melee" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Press 2 for melee (or 3 in solo). Left click to swing."
+autowrap_mode = 3
+
+[node name="Objective" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Survive police waves. Spend Grabuge on upgrades between waves."
+autowrap_mode = 3

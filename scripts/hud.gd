@@ -22,6 +22,7 @@ extends CanvasLayer
 @onready var _crowd_label: Label = %CrowdLabel
 @onready var _grabuge_label: Label = %GrabugeLabel
 @onready var _health_bar: ProgressBar = %HealthBar
+@onready var _armor_strip: ProgressBar = %ArmorStrip
 @onready var _health_label: Label = %HealthLabel
 @onready var _hotbar: HBoxContainer = %Hotbar
 @onready var _compass_anchor: Control = %CompassAnchor
@@ -89,10 +90,13 @@ func bind_player(player: NetPlayer) -> void:
 		return
 	_bound_player = player
 
-	var player_health: Node = player.get_node_or_null("HealthComponent")
+	var player_health: HealthComponent = player.get_node_or_null("HealthComponent")
 	if player_health != null:
 		player_health.health_changed.connect(_on_player_health_changed)
 		_on_player_health_changed(player_health.current_health, player_health.max_health)
+		_armor_strip.max_value = HealthComponent.MAX_ARMOR
+		player_health.armor_changed.connect(_on_player_armor_changed)
+		_on_player_armor_changed(player_health.armor)
 
 	var weapon_switcher: Node = player.get_node_or_null("Head/Camera/WeaponSwitcher")
 	if weapon_switcher != null:
@@ -151,6 +155,11 @@ func _on_player_health_changed(current: float, max_value: float) -> void:
 	if _last_player_health >= 0.0 and current < _last_player_health:
 		_flash_damage()
 	_last_player_health = current
+
+
+func _on_player_armor_changed(current: float) -> void:
+	_armor_strip.value = current
+	_armor_strip.visible = current > 0.0
 
 
 ## Red screen-edge flash on taking damage (see scripts/damage_flash.gdshader).

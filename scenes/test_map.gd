@@ -42,6 +42,7 @@ const SPAWN_RING_RADIUS: float = 2.5
 @onready var _npc_spawner: NPCSpawner = $NPCSpawner
 @onready var _police_spawner: PoliceSpawner = $PoliceSpawner
 @onready var _hud: CanvasLayer = $HUD
+@onready var _upgrade_screen: CanvasLayer = $UpgradeScreen
 
 var _player_scene: PackedScene
 ## Spawn-slot index per peer, so a respawning player goes back to the slot
@@ -215,6 +216,7 @@ func _bind_local_player(local_player: NetPlayer) -> void:
 	# the movement controller.
 	_movement_controller = local_player as MovementController
 	_sprint = local_player.get_node_or_null("Sprint")
+	_upgrade_screen.bind_player_health(local_player.health)
 
 	_capture_player_upgrade_bases()
 	# Upgrades bought before this character existed (a respawn, or a client

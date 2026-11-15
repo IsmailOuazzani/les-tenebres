@@ -23,22 +23,14 @@ script, no subclass) with overrides:
 **Wave integration** (the "use at your discretion" part): `scripts/police_spawner.gd`
 gained `@export var megacop_scene` and `begin_wave(total_police, duration,
 megacop_count = 0)`. `scripts/wave_manager.gd` decides `megacop_count` via
-`_megacop_count_for()`: zero until `MEGACOP_UNLOCK_ACT = 2` (Act 1 stays a
-clean regular-cop intro), then `MEGACOP_BASE_FRACTION = 0.2` of a wave's
-police, bumped to `MEGACOP_ASSAULT_FRACTION = 0.35` on assault waves (every
-3rd wave) so the escalation milestone also escalates in cop *type*, not just
-count. `get_next_wave_preview()` now also returns `"megacops"`.
+`_megacop_count_for()`. Starting at `MEGACOP_UNLOCK_ACT = 2`, megacops make
+up `MEGACOP_BASE_FRACTION = 0.2` of each regular wave and
+`MEGACOP_ASSAULT_FRACTION = 0.35` of each assault wave.
+`get_next_wave_preview()` also returns `"megacops"`.
 
-**Exception: Act 1's finale (wave `WAVES_PER_ACT` = 5) also gets megacops**,
-at the base 20% fraction, even though Act 1 is otherwise below
-`MEGACOP_UNLOCK_ACT` -- a one-wave preview/escalation before the player hits
-the real unlock at the start of Act 2. Wave 5 isn't itself an assault wave
-(`5 % ASSAULT_WAVE_INTERVAL != 0`), so it only gets the base fraction, not
-the assault one. Verified: Act 1 waves 1/3 stay at 0 megacops, wave 5 with a
-20-police total produces exactly 4 megacops (confirmed both the count math
-and that `PoliceSpawner` actually instantiates `megacop.tscn` 4 times when
-driven through that wave), Act 2 wave 1 is unaffected (still 2 megacops out
-of 11 police).
+Act 1's first two waves have regular cops only. Its third wave is the assault
+finale and previews megacops at the 35% assault fraction. Act 2 adds megacops
+to regular waves at the 20% base fraction.
 
 `PoliceSpawner._spawn_police()` converts one regular-cop spawn slot to mega
 at a time with probability `_megacop_remaining_to_spawn /
