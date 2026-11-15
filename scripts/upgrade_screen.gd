@@ -28,14 +28,12 @@ extends CanvasLayer
 @onready var _next_wave_label: Label = %NextWaveLabel
 @onready var _grabuge_label: Label = %GrabugeLabel
 @onready var _cards_container: VBoxContainer = %CardsContainer
+@onready var _offers_scroll: ScrollContainer = %OffersScroll
 @onready var _continue_button: Button = %ContinueButton
 
-## Kenney UI Pack theme_type_variation names, same source as
-## scripts/hud.gd (see agents/hud-theme-notes.md) -- reused here rather than
-## inventing new styling.
-const _BUY_VARIANT_AFFORDABLE := &"ButtonPrimary"
-const _BUY_VARIANT_DISABLED := &"ButtonPlain"
-const _CARD_VARIANT := &"PanelContainerDefaultFlat"
+var _level_labels: Dictionary[StringName, Label] = {}
+var _current_labels: Dictionary[StringName, Label] = {}
+var _buy_buttons: Dictionary[StringName, Button] = {}
 
 
 func _ready() -> void:
@@ -43,6 +41,7 @@ func _ready() -> void:
 	# Lets scripts/pause_menu.gd check "is some other full-screen overlay
 	# already up" without a direct node reference to each one.
 	add_to_group(&"blocking_screen")
+	_build_cards()
 	_continue_button.pressed.connect(_on_continue_pressed)
 	GameState.grabuge_changed.connect(_on_grabuge_changed)
 	UpgradeManager.upgrade_purchased.connect(_on_upgrade_purchased)
@@ -66,7 +65,8 @@ func _on_intermission_started(next_wave_number: int, _duration: float) -> void:
 ## as scenes/game_over.gd. Public (not just signal-driven) so this screen can
 ## be verified standalone -- see the class comment above.
 func open(next_wave_number: int) -> void:
-	_next_wave_label.text = "Next wave: %d" % next_wave_number
+	_next_wave_label.text = "Before Wave %d" % next_wave_number
+	_offers_scroll.scroll_vertical = 0
 	_refresh()
 	visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -97,10 +97,8 @@ func _on_continue_pressed() -> void:
 	close()
 
 
-## Both of these fire from UpgradeManager.purchase() in the same call
-## (spend_grabuge() -> grabuge_changed, then upgrade_purchased) -- guarding
-## on `visible` means a purchase made right as the screen closes (shouldn't
-## happen, no buttons exist once hidden) can't rebuild a hidden screen.
+## Both signals can arrive for one purchase. Update the existing rows so
+## neither refresh resets scrolling or replaces the focused button.
 func _on_grabuge_changed(_available: float, _total_earned: float) -> void:
 	if visible:
 		_refresh()
@@ -112,78 +110,75 @@ func _on_upgrade_purchased(_id: StringName, _new_level: int) -> void:
 
 
 func _refresh() -> void:
-	_grabuge_label.text = "Grabuge available: %d" % round(GameState.grabuge_available)
-	_rebuild_cards()
-
-
-func _rebuild_cards() -> void:
-	for child in _cards_container.get_children():
-		child.queue_free()
-
+	_grabuge_label.text = str(roundi(GameState.grabuge_available))
 	for upgrade in UpgradeManager.get_upgrades():
-		_cards_container.add_child(_build_card(upgrade))
+		var id: StringName = upgrade["id"]
+		_level_labels[id].text = "Lv. %d" % upgrade["level"]
+		_current_labels[id].text = "Current: %s" % upgrade["current_value"]
+		_buy_buttons[id].text = "Buy · %d" % roundi(upgrade["price"])
+		_buy_buttons[id].disabled = not upgrade["affordable"]
 
 
-## One row per upgrade: name + current level, effect description, price, and
-## a Buy button that's disabled/greyed (per the Kenney "Plain" variant) when
-## unaffordable. Built in code rather than as scene children, per the class
-## comment above.
-func _build_card(upgrade: Dictionary) -> PanelContainer:
-	var id: StringName = upgrade["id"]
-	var affordable: bool = upgrade["affordable"]
+func _build_cards() -> void:
+	var upgrades := UpgradeManager.get_upgrades()
+	_build_section("Player", "player_", upgrades)
+	_build_section("Crowd", "crowd_", upgrades)
 
+
+func _build_section(title: String, id_prefix: String, upgrades: Array[Dictionary]) -> void:
+	var heading := Label.new()
+	heading.text = title
+	heading.theme_type_variation = &"HUDMuted"
+	_cards_container.add_child(heading)
+
+	for upgrade in upgrades:
+		var id: StringName = upgrade["id"]
+		if String(id).begins_with(id_prefix):
+			_cards_container.add_child(_build_card(id, upgrade))
+
+
+func _build_card(id: StringName, upgrade: Dictionary) -> PanelContainer:
 	var card := PanelContainer.new()
-	card.theme_type_variation = _CARD_VARIANT
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_bottom", 8)
-	card.add_child(margin)
+	card.theme_type_variation = &"HUDCard"
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
-	margin.add_child(row)
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
 
 	var info_box := VBoxContainer.new()
 	info_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_box.add_theme_constant_override("separation", 0)
 	row.add_child(info_box)
 
 	var name_label := Label.new()
-	name_label.text = "%s  (Lv. %d)" % [upgrade["name"], upgrade["level"]]
+	name_label.text = upgrade["name"]
 	info_box.add_child(name_label)
 
 	var desc_label := Label.new()
 	desc_label.text = upgrade["description"]
-	desc_label.add_theme_font_size_override("font_size", 12)
-	desc_label.modulate = Color(1.0, 1.0, 1.0, 0.7)
+	desc_label.theme_type_variation = &"HUDMuted"
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_box.add_child(desc_label)
 
-	# Current total effect at this level (e.g. "+20% move speed"), so a
-	# player can see what they already have, not just what the next level
-	# costs -- blank/neutral at level 0 reads the same as "+0%", which is
-	# the correct baseline rather than a special case.
 	var current_label := Label.new()
-	current_label.text = "Current: %s" % upgrade["current_value"]
-	current_label.add_theme_font_size_override("font_size", 12)
-	current_label.modulate = Color(0.6, 1.0, 0.6, 0.9) if upgrade["level"] > 0 else Color(1.0, 1.0, 1.0, 0.5)
+	current_label.theme_type_variation = &"HUDMuted"
+	current_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_box.add_child(current_label)
+	_current_labels[id] = current_label
 
-	var price_label := Label.new()
-	price_label.text = "%d" % round(upgrade["price"])
-	price_label.custom_minimum_size = Vector2(56, 0)
-	price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(price_label)
+	var level_label := Label.new()
+	level_label.theme_type_variation = &"HUDMuted"
+	level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	level_label.custom_minimum_size.x = 42
+	row.add_child(level_label)
+	_level_labels[id] = level_label
 
 	var buy_button := Button.new()
-	buy_button.text = "Buy"
-	buy_button.custom_minimum_size = Vector2(72, 0)
-	buy_button.disabled = not affordable
-	buy_button.theme_type_variation = _BUY_VARIANT_AFFORDABLE if affordable else _BUY_VARIANT_DISABLED
+	buy_button.custom_minimum_size.x = 100
+	buy_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	buy_button.pressed.connect(_on_buy_pressed.bind(id))
 	row.add_child(buy_button)
+	_buy_buttons[id] = buy_button
 
 	return card
 

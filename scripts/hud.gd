@@ -42,7 +42,7 @@ extends CanvasLayer
 var _last_player_health: float = -1.0
 var _damage_flash_tween: Tween
 
-## Hotbar slot panels (and their two labels), one per weapon, in
+## Hotbar slot panels and key labels, one per weapon, in
 ## WeaponSwitcher's slot order -- built fresh in _ready() from
 ## WeaponSwitcher.get_weapon_names() so adding a weapon shows up
 ## automatically. Labels are tracked directly rather than looked up by node
@@ -50,18 +50,8 @@ var _damage_flash_tween: Tween
 ## auto-assigned names.
 var _hotbar_slots: Array[PanelContainer] = []
 var _hotbar_key_labels: Array[Label] = []
-var _hotbar_name_labels: Array[Label] = []
 
-const _SLOT_SIZE := Vector2(72, 72)
-
-## Theme variant names baked into res://themes/main_theme.tres (Kenney UI
-## Pack, CC0, via https://github.com/Kingsmai/kenney-ui-pack-starter-kit).
-## See agents/hud-theme-notes.md.
-const _SLOT_VARIANT_INACTIVE := &"PanelContainerDefaultFlat"
-const _SLOT_VARIANT_ACTIVE := &"PanelContainerPrimaryFlat"
-const _HEALTH_VARIANT_OK := &"ProgressBarSuccess"
-const _HEALTH_VARIANT_LOW := &"ProgressBarWarning"
-const _HEALTH_VARIANT_CRITICAL := &"ProgressBarDanger"
+const _SLOT_SIZE := Vector2(96, 52)
 
 ## How long the "WAVE N CLEARED" banner and the threat warning stay on
 ## screen before fading out.
@@ -133,29 +123,25 @@ func _process(_delta: float) -> void:
 
 
 func _on_crowd_count_changed(value: int) -> void:
-	_crowd_label.text = "Protesters: %d" % value
+	_crowd_label.text = "Protesters  %d" % value
 
 
-## Grabuge is now an unbounded spendable currency, not a capped meter (see
-## agents/wave-survival-notes.md), so a ProgressBar reading toward some max
-## no longer makes sense -- just show the spendable balance (what upgrades
-## cost). `total_earned` still drives civilian spawn scaling elsewhere, it's
-## just not surfaced here.
+## The HUD displays the balance available for upgrades.
 func _on_grabuge_changed(available: float, _total_earned: float) -> void:
-	_grabuge_label.text = "⚡ %d" % round(available)
+	_grabuge_label.text = "Grabuge  %d" % round(available)
 
 
 func _on_player_health_changed(current: float, max_value: float) -> void:
 	_health_bar.max_value = max_value
 	_health_bar.value = current
-	_health_label.text = "Health: %d" % round(current)
+	_health_label.text = "Health  %d" % round(current)
 	var ratio: float = current / max_value if max_value > 0.0 else 0.0
 	if ratio <= 0.3:
-		_health_bar.theme_type_variation = _HEALTH_VARIANT_CRITICAL
+		_health_bar.theme_type_variation = &"HUDHealthCritical"
 	elif ratio <= 0.6:
-		_health_bar.theme_type_variation = _HEALTH_VARIANT_LOW
+		_health_bar.theme_type_variation = &"HUDHealthLow"
 	else:
-		_health_bar.theme_type_variation = _HEALTH_VARIANT_OK
+		_health_bar.theme_type_variation = &""
 
 	if _last_player_health >= 0.0 and current < _last_player_health:
 		_flash_damage()
@@ -172,21 +158,17 @@ func _flash_damage() -> void:
 	_damage_flash_tween.tween_property(material, "shader_parameter/intensity", 0.0, 0.35)
 
 
-## Creates one square slot panel per weapon (key number + name, e.g. "1" /
-## "Megaphone") under the Hotbar HBoxContainer. Each slot is a PanelContainer
-## with its own StyleBoxFlat so the active slot's border/background can be
-## swapped independently in _on_weapon_switched().
+## Creates one slot panel per weapon with its binding number and name.
 func _build_hotbar(weapon_names: Array[String]) -> void:
 	for slot in _hotbar_slots:
 		slot.queue_free()
 	_hotbar_slots.clear()
 	_hotbar_key_labels.clear()
-	_hotbar_name_labels.clear()
 
 	for i in weapon_names.size():
 		var panel := PanelContainer.new()
 		panel.custom_minimum_size = _SLOT_SIZE
-		panel.theme_type_variation = _SLOT_VARIANT_INACTIVE
+		panel.theme_type_variation = &"HUDCard"
 
 		var box := VBoxContainer.new()
 		box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -196,7 +178,7 @@ func _build_hotbar(weapon_names: Array[String]) -> void:
 		var key_label := Label.new()
 		key_label.text = str(i + 1)
 		key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		key_label.add_theme_font_size_override("font_size", 12)
+		key_label.theme_type_variation = &"HUDMuted"
 		box.add_child(key_label)
 
 		var name_label := Label.new()
@@ -209,14 +191,13 @@ func _build_hotbar(weapon_names: Array[String]) -> void:
 		_hotbar.add_child(panel)
 		_hotbar_slots.append(panel)
 		_hotbar_key_labels.append(key_label)
-		_hotbar_name_labels.append(name_label)
 
 
 func _on_weapon_switched(active_index: int) -> void:
 	for i in _hotbar_slots.size():
 		var active: bool = i == active_index
-		_hotbar_slots[i].theme_type_variation = _SLOT_VARIANT_ACTIVE if active else _SLOT_VARIANT_INACTIVE
-		_hotbar_key_labels[i].add_theme_font_size_override("font_size", 14 if active else 12)
+		_hotbar_slots[i].theme_type_variation = &"HUDSelected" if active else &"HUDCard"
+		_hotbar_key_labels[i].theme_type_variation = &"HUDAccent" if active else &"HUDMuted"
 
 
 ## -- Wave survival HUD (agents/wave-survival-notes.md) --

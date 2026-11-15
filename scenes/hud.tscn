@@ -1,11 +1,12 @@
-[gd_scene load_steps=8 format=3 uid="uid://chudmeta001"]
+[gd_scene load_steps=9 format=3 uid="uid://chudmeta001"]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://addons/compass/entities/compassbar.tscn" id="2_compassbar"]
 [ext_resource type="Script" path="res://scripts/compass_markers.gd" id="3_compassmarkers"]
 [ext_resource type="PackedScene" path="res://scenes/snap_feed.tscn" id="4_snapfeed"]
-[ext_resource type="Theme" path="res://themes/main_theme.tres" id="5_theme"]
+[ext_resource type="Theme" path="res://themes/hud_theme.tres" id="5_theme"]
 [ext_resource type="Shader" path="res://scripts/damage_flash.gdshader" id="6_damageflash"]
+[ext_resource type="Theme" path="res://themes/main_theme.tres" id="7_feed_theme"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_damageflash"]
 shader = ExtResource("6_damageflash")
@@ -30,12 +31,11 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -260.0
+offset_left = -224.0
 offset_top = 16.0
 offset_right = -16.0
-offset_bottom = 150.0
+offset_bottom = 16.0
 mouse_filter = 2
-theme_type_variation = &"PanelContainerDefaultFlat"
 
 [node name="Margin" type="MarginContainer" parent="Root/StatsPanel"]
 layout_mode = 2
@@ -53,26 +53,24 @@ theme_override_constants/separation = 6
 [node name="CrowdLabel" type="Label" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Protesters: 1"
-horizontal_alignment = 2
+text = "Protesters  1"
 
 [node name="GrabugeLabel" type="Label" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "⚡ 0  (earned 0)"
-horizontal_alignment = 2
+text = "Grabuge  0"
+theme_type_variation = &"HUDAccent"
 
 [node name="HealthLabel" type="Label" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Health: 100"
-horizontal_alignment = 2
+text = "Health  100"
+theme_type_variation = &"HUDMuted"
 
 [node name="HealthBar" type="ProgressBar" parent="Root/StatsPanel/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"ProgressBarSuccess"
-custom_minimum_size = Vector2(0, 18)
+custom_minimum_size = Vector2(0, 7)
 min_value = 0.0
 max_value = 100.0
 value = 100.0
@@ -86,8 +84,14 @@ anchor_right = 0.5
 offset_left = -140.0
 offset_top = 16.0
 offset_right = 140.0
-offset_bottom = 44.0
+offset_bottom = 48.0
 grow_horizontal = 2
+mouse_filter = 2
+
+[node name="CompassPlate" type="Panel" parent="Root/CompassAnchor"]
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 1.0
 mouse_filter = 2
 
 [node name="CompassBar" parent="Root/CompassAnchor" instance=ExtResource("2_compassbar")]
@@ -99,6 +103,7 @@ anchor_bottom = 1.0
 offset_right = 0.0
 offset_bottom = 0.0
 texture_filter = 1
+mouse_filter = 2
 
 [node name="CompassMarkers" type="Control" parent="Root/CompassAnchor"]
 unique_name_in_owner = true
@@ -110,13 +115,13 @@ mouse_filter = 2
 script = ExtResource("3_compassmarkers")
 compass_bar_path = NodePath("../CompassBar")
 
-[node name="WaveAnchor" type="MarginContainer" parent="Root"]
+[node name="WaveAnchor" type="CenterContainer" parent="Root"]
 layout_mode = 1
 anchors_preset = 10
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -160.0
-offset_top = 52.0
+offset_top = 54.0
 offset_right = 160.0
 offset_bottom = 90.0
 grow_horizontal = 2
@@ -125,10 +130,9 @@ mouse_filter = 2
 [node name="WaveLabel" type="Label" parent="Root/WaveAnchor"]
 unique_name_in_owner = true
 layout_mode = 2
-theme = ExtResource("5_theme")
+theme_type_variation = &"HUDWave"
 text = "Wave 1"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 20
 
 [node name="WaveBannerAnchor" type="CenterContainer" parent="Root"]
 unique_name_in_owner = true
@@ -140,23 +144,12 @@ offset_bottom = -140.0
 mouse_filter = 2
 visible = false
 
-[node name="WaveBannerPanel" type="PanelContainer" parent="Root/WaveBannerAnchor"]
-layout_mode = 2
-theme_type_variation = &"PanelContainerPrimaryFlat"
-
-[node name="WaveBannerMargin" type="MarginContainer" parent="Root/WaveBannerAnchor/WaveBannerPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 10
-
-[node name="WaveBannerLabel" type="Label" parent="Root/WaveBannerAnchor/WaveBannerPanel/WaveBannerMargin"]
+[node name="WaveBannerLabel" type="Label" parent="Root/WaveBannerAnchor"]
+theme_type_variation = &"HUDClear"
 unique_name_in_owner = true
 layout_mode = 2
 text = "WAVE 1 CLEARED"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 26
 
 [node name="IntermissionAnchor" type="CenterContainer" parent="Root"]
 unique_name_in_owner = true
@@ -164,23 +157,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 90.0
-offset_bottom = -200.0
+offset_top = 140.0
+offset_bottom = -180.0
 mouse_filter = 2
 visible = false
 
-[node name="IntermissionPanel" type="PanelContainer" parent="Root/IntermissionAnchor"]
-layout_mode = 2
-theme_type_variation = &"PanelContainerDefaultFlat"
-
-[node name="IntermissionMargin" type="MarginContainer" parent="Root/IntermissionAnchor/IntermissionPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 10
-
-[node name="IntermissionLabel" type="Label" parent="Root/IntermissionAnchor/IntermissionPanel/IntermissionMargin"]
+[node name="IntermissionLabel" type="Label" parent="Root/IntermissionAnchor"]
+theme_type_variation = &"HUDWave"
 unique_name_in_owner = true
 layout_mode = 2
 text = "Next wave in 0:00"
@@ -205,8 +188,7 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "ASSAULT WAVE INCOMING"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 22
-theme_override_colors/font_color = Color(0.9, 0.15, 0.15, 1)
+theme_type_variation = &"HUDThreat"
 
 [node name="SnapFeedMargin" type="MarginContainer" parent="Root"]
 layout_mode = 1
@@ -219,6 +201,7 @@ mouse_filter = 2
 
 [node name="SnapFeed" parent="Root/SnapFeedMargin" instance=ExtResource("4_snapfeed")]
 layout_mode = 2
+theme = ExtResource("7_feed_theme")
 
 [node name="HotbarMargin" type="MarginContainer" parent="Root"]
 layout_mode = 1
