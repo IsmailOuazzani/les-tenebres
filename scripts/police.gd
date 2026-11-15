@@ -26,12 +26,14 @@ class_name Police
 enum State { CHASE_PLAYER, FIGHT_PROTESTER, ATTACK_PLAYER }
 
 ## Replicated animation state -- see scripts/npc.gd for why this is an int.
-enum Anim { IDLE, RUN, SHOOT }
+enum Anim { IDLE, RUN, SHOOT, HIT }
 
-const _ANIM_NAMES: Array[StringName] = [&"Idle", &"Run", &"Gun_Shoot"]
+const _ANIM_NAMES: Array[StringName] = [&"Idle", &"Run", &"Gun_Shoot", &"HitRecieve"]
 
 const INTERP_SPEED: float = 9.0
 const INTERP_SNAP_DISTANCE: float = 6.0
+const KNOCKBACK_DURATION := 0.65
+const KNOCKBACK_DECELERATION := 28.0
 
 ## Emitted on death, mirroring scripts/destructible_prop.gd's contract --
 ## lets CrowdController clear `_attack_target` (CONNECT_ONE_SHOT) when a
@@ -74,8 +76,11 @@ var player: Node3D = null
 
 var _fight_target: Node3D = null
 var _attack_timer: float = 0.0
+var _knockback_velocity := Vector3.ZERO
+var _knockback_time_left := 0.0
 
 @onready var mesh_root: Node3D = $MeshRoot
+@onready var body_collider: CollisionShape3D = $CollisionShape3D
 @onready var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 @onready var health: HealthComponent = $HealthComponent
 @onready var _health_bar: ProgressBar3D = $HealthBar
@@ -106,10 +111,9 @@ func _ready() -> void:
 ## first since it's shared by reference across every instance of this scene
 ## -- see the matching comment in scripts/npc.gd.
 func _apply_collider_ratio() -> void:
-	var collision_shape: CollisionShape3D = $CollisionShape3D
-	var capsule: CapsuleShape3D = collision_shape.shape.duplicate()
+	var capsule: CapsuleShape3D = body_collider.shape.duplicate()
 	capsule.radius = attack_range * collider_to_damage_ratio
-	collision_shape.shape = capsule
+	body_collider.shape = capsule
 
 
 ## Called by Megaphone every frame the player's aim raycast is/isn't hitting
@@ -127,6 +131,15 @@ func take_damage(amount: float) -> void:
 	health.take_damage(amount)
 
 
+## Server-side launch. The hit reaction takes over movement until the stagger ends.
+func apply_knockback(horizontal_velocity: Vector3, lift: float) -> void:
+	if not NetworkManager.is_authoritative() or health.is_dead():
+		return
+	_knockback_velocity = horizontal_velocity
+	_knockback_time_left = KNOCKBACK_DURATION
+	velocity.y = lift
+
+
 func _physics_process(delta: float) -> void:
 	# Clients run no police AI -- transform and animation arrive as
 	# replicated state and are interpolated.
@@ -138,21 +151,27 @@ func _physics_process(delta: float) -> void:
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
-	else:
+	elif _knockback_time_left <= 0.0 or velocity.y < 0.0:
 		velocity.y = 0.0
 
-	_update_state()
+	if _knockback_time_left > 0.0:
+		velocity.x = _knockback_velocity.x
+		velocity.z = _knockback_velocity.z
+		_knockback_velocity = _knockback_velocity.move_toward(Vector3.ZERO, KNOCKBACK_DECELERATION * delta)
+	else:
+		_update_state()
 
-	match state:
-		State.CHASE_PLAYER:
-			_process_chase(delta)
-		State.FIGHT_PROTESTER:
-			_process_fight_protester(delta)
-		State.ATTACK_PLAYER:
-			_process_attack_player(delta)
+		match state:
+			State.CHASE_PLAYER:
+				_process_chase(delta)
+			State.FIGHT_PROTESTER:
+				_process_fight_protester(delta)
+			State.ATTACK_PLAYER:
+				_process_attack_player(delta)
 
 	move_and_slide()
 	_publish_snapshot()
+	_knockback_time_left = maxf(0.0, _knockback_time_left - delta)
 	_update_visuals(delta)
 
 
@@ -288,6 +307,8 @@ func _move_toward(direction: Vector3, delta: float) -> void:
 
 ## Server-side: derives the replicated animation state from this frame's AI.
 func _compute_anim() -> int:
+	if _knockback_time_left > 0.0:
+		return Anim.HIT
 	if state == State.ATTACK_PLAYER or state == State.FIGHT_PROTESTER:
 		return Anim.SHOOT
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()

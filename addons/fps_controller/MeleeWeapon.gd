@@ -1,17 +1,15 @@
 extends Node3D
-class_name Croissant
+class_name MeleeWeapon
 
-## First-person croissant melee weapon.
+## Shared first-person melee swing for Croissant and Baguette.
 ##
 ## Click swings it; the hit lands when the swing reaches its downward peak
 ## (not instantly on click) and damages whatever is inside HitArea at that
 ## moment -- no hold-to-charge,
 ## no recruiting, just bonk. A click is ignored while a swing is already in
 ## progress, so mashing the button doesn't restart the animation or land
-## extra hits. Switching between this and Megaphone is owned by
-## WeaponSwitcher.gd (see WeaponSwitcher.gd), which calls
-## activate()/deactivate() below; Croissant never decides when it's equipped
-## on its own.
+## extra hits. Baguette extends this weapon to reuse its swing, viewmodel
+## setup, and client-to-server hit routing.
 ##
 ## Damage targeting mirrors police.gd/npc.gd's melee pattern: look for a
 ## child named "HealthComponent" (player/police/protester) and hit that, or
@@ -26,11 +24,9 @@ class_name Croissant
 ## check over a volume is forgiving about exactly where on the target it
 ## lands.
 ##
-## The model is Kenney's CC0 Food Kit croissant.glb (assets/kenney_food_kit/),
-## instanced as VisualRoot/CroissantModel.
-
 @export var hit_damage := 15.0
 @export var swing_duration := 0.22
+@export var swing_rotation_degrees := Vector3(-40, -12, 18)
 
 @onready var visual_root: Node3D = $VisualRoot
 @onready var crumb_burst: CPUParticles3D = $VisualRoot/CrumbBurst
@@ -93,8 +89,8 @@ func _play_swing() -> void:
 	if _swing_tween:
 		_swing_tween.kill()
 
-	_swing_tween = create_tween()
-	var swing_rot := _rest_rotation + Vector3(deg_to_rad(-40), deg_to_rad(-12), deg_to_rad(18))
+	_swing_tween = create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	var swing_rot := _rest_rotation + swing_rotation_degrees * (PI / 180.0)
 	_swing_tween.tween_property(visual_root, "rotation", swing_rot, swing_duration * 0.4)
 	_swing_tween.tween_callback(_try_hit)
 	_swing_tween.tween_property(visual_root, "rotation", _rest_rotation, swing_duration * 0.6)
@@ -116,9 +112,17 @@ func _try_hit() -> void:
 			BloodBurst.spawn(get_tree().current_scene, body.global_position + Vector3.UP * 0.9)
 
 	if not target_paths.is_empty():
-		crumb_burst.restart()
-		crumb_burst.emitting = true
+		_play_crumb_burst()
 
+	_submit_hit(target_paths)
+
+
+func _play_crumb_burst() -> void:
+	crumb_burst.restart()
+	crumb_burst.emitting = true
+
+
+func _submit_hit(target_paths: Array[String]) -> void:
 	if NetworkManager.is_authoritative():
 		_apply_hit(target_paths)
 	else:
@@ -129,7 +133,7 @@ func _try_hit() -> void:
 func _request_hit(target_paths: Array) -> void:
 	if not NetworkManager.is_authoritative():
 		return
-	# Only the peer that owns this croissant may swing it.
+	# Only the peer that owns this weapon may swing it.
 	if multiplayer.get_remote_sender_id() != get_multiplayer_authority():
 		return
 	_apply_hit(target_paths)

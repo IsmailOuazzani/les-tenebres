@@ -77,7 +77,6 @@ const RUN_SPEED_THRESHOLD: float = 11.0
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera
 @onready var _megaphone: Megaphone = $Head/Camera/Megaphone
-@onready var _croissant: Croissant = $Head/Camera/Croissant
 @onready var _body: Node3D = $Body
 @onready var _collision: CollisionShape3D = $Collision
 
@@ -90,7 +89,7 @@ var _respawning: bool = false
 ## Authority is derived from the node name, which the spawn function sets to
 ## the owning peer id -- the standard Godot pattern, and the reason the name
 ## has to be deterministic across peers. Recursive by default, so Head,
-## Megaphone, Croissant, Sprint and InputSync all inherit it; ServerSync and
+## the weapons, Sprint and InputSync all inherit it; ServerSync and
 ## HealthComponent are pushed back to the server in `_ready()`.
 func _enter_tree() -> void:
 	set_multiplayer_authority(name.to_int())
@@ -127,19 +126,13 @@ func _setup_local() -> void:
 
 
 ## Remote player: a visible 3D character with no camera, no input handling
-## and no first-person viewmodel/HUD overlay of its own. The weapon nodes are
-## deactivated (which hides their CanvasLayer HUD, invisible to Node3D
-## visibility) and then frozen so their `_unhandled_input` never fires.
+## and no first-person viewmodels. WeaponSwitcher deactivates the weapons
+## on remote players and disabling Head also disables its children.
 func _setup_remote() -> void:
 	_camera.current = false
 	_body.visible = true
-	_megaphone.deactivate()
-	_croissant.deactivate()
-	_megaphone.process_mode = Node.PROCESS_MODE_DISABLED
-	_croissant.process_mode = Node.PROCESS_MODE_DISABLED
 	$Head.process_mode = Node.PROCESS_MODE_DISABLED
 	$Sprint.process_mode = Node.PROCESS_MODE_DISABLED
-	$Head/Camera/WeaponSwitcher.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## Freezes/unfreezes this character's own input and movement, used by
@@ -147,7 +140,7 @@ func _setup_remote() -> void:
 ## needs (see agents/multiplayer-notes.md's "nothing pauses the tree in a
 ## networked session" rule -- get_tree().paused would freeze every player,
 ## not just the one who opened the menu). PROCESS_MODE_DISABLED propagates to
-## every child (Head, Sprint, Megaphone, Croissant, WeaponSwitcher), so this
+## every child (Head, Sprint, weapons, WeaponSwitcher), so this
 ## also stops their _unhandled_input/_physics_process the same way
 ## _setup_remote() already does for a remote-owned character above.
 func set_input_locked(locked: bool) -> void:
