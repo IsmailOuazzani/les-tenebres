@@ -1,19 +1,26 @@
 extends Node
 class_name HealthComponent
 
-## Reusable health tracker, per agents/police-notes.md. Owns max/current
-## health and nothing else -- damage sources call take_damage() directly
-## (there's no separate "damage at controlled intervals" logic here; callers
-## are expected to already be ticking on their own cooldown, same pattern as
-## the existing scripts/destructible_prop.gd). Attached as a child node named
-## "HealthComponent" on the player, police, and protester (NPC) scenes.
+## Tracks health and optional armor. Damage sources handle their own timing
+## and call take_damage() directly. The shop grants armor to player
+## characters through this component.
 
 signal health_changed(current_health: float, max_health: float)
+signal armor_changed(current_armor: float)
 signal died
+
+const MAX_ARMOR: float = 25.0
 
 @export var max_health: float = 100.0
 
 var current_health: float
+var armor: float = 0.0:
+	set(value):
+		var clamped: float = clampf(value, 0.0, MAX_ARMOR)
+		if clamped == armor:
+			return
+		armor = clamped
+		armor_changed.emit(armor)
 
 var _dead: bool = false
 
@@ -34,6 +41,13 @@ func take_damage(amount: float) -> void:
 		return
 	if _dead or amount <= 0.0:
 		return
+
+	if armor > 0.0:
+		var absorbed: float = minf(armor, amount)
+		armor -= absorbed
+		amount -= absorbed
+		if amount <= 0.0:
+			return
 
 	current_health = max(current_health - amount, 0.0)
 	health_changed.emit(current_health, max_health)

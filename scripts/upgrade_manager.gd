@@ -11,11 +11,9 @@ extends Node
 ## and never touch grabuge_total_earned, so buying upgrades can never shrink
 ## the civilian spawn pool (see agents/grabuge-notes.md / game_state.gd).
 ##
-## This autoload only tracks the numbers and spends currency -- it does NOT
-## reach into the player or NPCs itself. scenes/test_map.gd applies player
-## upgrades (from outside the vendored addons/fps_controller/ scene, per the
-## contract's "known gotchas"), and scripts/npc.gd / crowd_controller.gd read
-## the crowd multipliers directly. See each file's comments for how.
+## scenes/test_map.gd applies the shared player upgrades, and scripts/npc.gd
+## and crowd_controller.gd read the crowd multipliers. Gilet jaune is a
+## fixed-price refill that the server applies directly to the buyer.
 ##
 ## ## Multiplayer
 ##
@@ -58,9 +56,10 @@ const BASE_PRICES: Dictionary = {
 	&"crowd_damage": 70.0,
 }
 
-## Display metadata, keyed by id -- kept alongside the prices/steps above so
-## adding a 7th upgrade later is a matter of adding one entry per Dictionary,
-## not touching get_upgrades()/purchase()'s logic.
+const GILET_JAUNE_ID: StringName = &"player_gilet_jaune"
+const GILET_JAUNE_PRICE: float = 50.0
+
+## Display metadata for the shared, level-based upgrades.
 const UPGRADE_NAMES: Dictionary = {
 	&"player_speed": "Speed",
 	&"player_jump": "Jump",
@@ -112,11 +111,8 @@ func _ready() -> void:
 	reset()
 
 
-## One entry per upgrade: {id, name, description, price, level, affordable,
-## current_value}. Built fresh each call (cheap, 6 entries) so callers (the
-## upgrade screen) always see live prices/affordability without needing their
-## own signal bookkeeping beyond upgrade_purchased + GameState.grabuge_changed.
-func get_upgrades() -> Array[Dictionary]:
+## Build the offers from the shared upgrade levels and the local buyer's armor.
+func get_upgrades(buyer_health: HealthComponent = null) -> Array[Dictionary]:
 	var upgrades: Array[Dictionary] = []
 	for id in UPGRADE_IDS:
 		var level: int = _levels.get(id, 0)
@@ -130,6 +126,18 @@ func get_upgrades() -> Array[Dictionary]:
 			"affordable": price <= GameState.grabuge_available,
 			"current_value": _current_value_text(id),
 		})
+	var max_armor: float = HealthComponent.MAX_ARMOR
+	var has_buyer: bool = is_instance_valid(buyer_health)
+	var armor: float = buyer_health.armor if has_buyer else 0.0
+	upgrades.append({
+		"id": GILET_JAUNE_ID,
+		"name": "Gilet jaune",
+		"description": "Refills your armor to %d. Armor absorbs damage before health." % int(max_armor),
+		"price": GILET_JAUNE_PRICE,
+		"affordable": has_buyer and GILET_JAUNE_PRICE <= GameState.grabuge_available,
+		"current_value": "%d/%d armor" % [floori(armor), int(max_armor)],
+		"armor_full": armor >= max_armor,
+	})
 	return upgrades
 
 
@@ -155,17 +163,18 @@ func _current_value_text(id: StringName) -> String:
 	return ""
 
 
-## Attempts to buy one more level of `id`. Returns true and applies the
-## effect on success, false (no change at all) if GameState.spend_grabuge()
-## can't afford it or `id` isn't a known upgrade.
+## Attempts to buy a shop offer. On clients, the result arrives through replication.
 func purchase(id: StringName) -> bool:
-	if not BASE_PRICES.has(id):
+	if id != GILET_JAUNE_ID and not BASE_PRICES.has(id):
 		push_warning("UpgradeManager.purchase(): unknown upgrade id %s" % id)
 		return false
 
 	if not NetworkManager.is_authoritative():
 		_request_purchase.rpc_id(1, id)
 		return false
+
+	if id == GILET_JAUNE_ID:
+		return _purchase_armor(NetworkManager.get_local_peer_id())
 
 	var level: int = _levels.get(id, 0)
 	var price: float = _price_for(id, level)
@@ -177,6 +186,22 @@ func purchase(id: StringName) -> bool:
 	if NetworkManager.is_multiplayer_session():
 		_apply_purchase.rpc(id, new_level)
 	return true
+
+
+func _purchase_armor(buyer_peer_id: int) -> bool:
+	if not WaveManager.is_shop_open():
+		return false
+	for player in PlayerRegistry.alive(self):
+		if player.get_multiplayer_authority() != buyer_peer_id:
+			continue
+		var health: HealthComponent = player.get_node("HealthComponent")
+		if health.is_dead() or health.armor >= HealthComponent.MAX_ARMOR:
+			return false
+		if not GameState.spend_grabuge(GILET_JAUNE_PRICE):
+			return false
+		health.armor = HealthComponent.MAX_ARMOR
+		return true
+	return false
 
 
 ## Resets every upgrade back to level 0 / neutral multipliers. Called by
@@ -254,5 +279,8 @@ func _apply_reset() -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _request_purchase(id: StringName) -> void:
 	if not NetworkManager.is_authoritative():
+		return
+	if id == GILET_JAUNE_ID:
+		_purchase_armor(multiplayer.get_remote_sender_id())
 		return
 	purchase(id)

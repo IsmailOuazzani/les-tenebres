@@ -6,9 +6,8 @@ extends CanvasLayer
 ## PROCESS_MODE_ALWAYS on this CanvasLayer, see the .tscn), since this screen
 ## must keep running its own UI while get_tree().paused is true.
 ##
-## Cards are built entirely from UpgradeManager.get_upgrades() rather than
-## hand-placed in the scene, so a 7th upgrade later needs zero scene edits --
-## same precedent as scripts/hud.gd's _build_hotbar().
+## Cards are built from UpgradeManager.get_upgrades(). The Gilet jaune offer
+## displays the locally owned player's armor.
 ##
 ## ## Multiplayer
 ##
@@ -34,6 +33,7 @@ extends CanvasLayer
 var _level_labels: Dictionary[StringName, Label] = {}
 var _current_labels: Dictionary[StringName, Label] = {}
 var _buy_buttons: Dictionary[StringName, Button] = {}
+var _player_health: HealthComponent
 
 
 func _ready() -> void:
@@ -55,6 +55,15 @@ func _ready() -> void:
 		WaveManager.intermission_countdown_started.connect(_on_countdown_started)
 	else:
 		push_warning("UpgradeScreen: WaveManager.intermission_started not found; open() must be called directly.")
+
+
+func bind_player_health(health: HealthComponent) -> void:
+	if is_instance_valid(_player_health):
+		_player_health.armor_changed.disconnect(_on_armor_changed)
+	_player_health = health
+	_player_health.armor_changed.connect(_on_armor_changed)
+	if visible:
+		_refresh()
 
 
 func _on_intermission_started(next_wave_number: int, _duration: float) -> void:
@@ -109,14 +118,21 @@ func _on_upgrade_purchased(_id: StringName, _new_level: int) -> void:
 		_refresh()
 
 
+func _on_armor_changed(_current_armor: float) -> void:
+	if visible:
+		_refresh()
+
+
 func _refresh() -> void:
 	_grabuge_label.text = str(roundi(GameState.grabuge_available))
-	for upgrade in UpgradeManager.get_upgrades():
+	for upgrade in UpgradeManager.get_upgrades(_player_health):
 		var id: StringName = upgrade["id"]
-		_level_labels[id].text = "Lv. %d" % upgrade["level"]
+		if _level_labels.has(id):
+			_level_labels[id].text = "Lv. %d" % upgrade["level"]
 		_current_labels[id].text = "Current: %s" % upgrade["current_value"]
-		_buy_buttons[id].text = "Buy · %d" % roundi(upgrade["price"])
-		_buy_buttons[id].disabled = not upgrade["affordable"]
+		var armor_full: bool = upgrade.get("armor_full", false)
+		_buy_buttons[id].text = "Armor full" if armor_full else "Buy · %d" % roundi(upgrade["price"])
+		_buy_buttons[id].disabled = armor_full or not upgrade["affordable"]
 
 
 func _build_cards() -> void:
@@ -166,12 +182,13 @@ func _build_card(id: StringName, upgrade: Dictionary) -> PanelContainer:
 	info_box.add_child(current_label)
 	_current_labels[id] = current_label
 
-	var level_label := Label.new()
-	level_label.theme_type_variation = &"HUDMuted"
-	level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	level_label.custom_minimum_size.x = 42
-	row.add_child(level_label)
-	_level_labels[id] = level_label
+	if id != UpgradeManager.GILET_JAUNE_ID:
+		var level_label := Label.new()
+		level_label.theme_type_variation = &"HUDMuted"
+		level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		level_label.custom_minimum_size.x = 42
+		row.add_child(level_label)
+		_level_labels[id] = level_label
 
 	var buy_button := Button.new()
 	buy_button.custom_minimum_size.x = 100

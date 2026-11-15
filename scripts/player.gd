@@ -9,14 +9,14 @@ class_name NetPlayer
 ##
 ## Network ownership (see agents/multiplayer-notes.md):
 ##   * Movement and look        -> owning client (client-authoritative)
-##   * Health, death, respawn   -> server
+##   * Health, armor, death, respawn -> server
 ##
 ## Two MultiplayerSynchronizers back that split, because one synchronizer can
 ## only have one authority:
 ##   * `InputSync`  authority = owning peer. Replicates the owner's transform
 ##     snapshot, head pitch, animation state and recruit-held flag outward.
-##   * `ServerSync` authority = 1 (the listen server). Replicates health and
-##     alive/dead back to everyone.
+##   * `ServerSync` authority = 1 (the listen server). Replicates health,
+##     armor and alive/dead back to everyone.
 ##
 ## Remote players are rendered from `Body` (a Quaternius character) driven by
 ## the replicated animation state, and their transform is **interpolated**
@@ -72,6 +72,11 @@ const RUN_SPEED_THRESHOLD: float = 11.0
 		if NetworkManager.is_client() and is_node_ready():
 			health.set_replicated_health(value)
 @export var net_alive: bool = true
+@export var net_armor: float = 0.0:
+	set(value):
+		net_armor = value
+		if NetworkManager.is_client() and is_node_ready():
+			health.armor = value
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var _head: Node3D = $Head
@@ -98,7 +103,7 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	add_to_group(PlayerRegistry.GROUP)
 
-	# Server owns health and the alive/dead flag regardless of who drives
+	# Server owns health, armor and the alive/dead flag regardless of who drives
 	# movement.
 	$ServerSync.set_multiplayer_authority(1)
 	health.set_multiplayer_authority(1)
@@ -114,6 +119,9 @@ func _ready() -> void:
 		_setup_remote()
 
 	health.health_changed.connect(_on_health_changed)
+	health.armor_changed.connect(_on_armor_changed)
+	if NetworkManager.is_client():
+		health.armor = net_armor
 
 
 ## Local player: first-person. Its own third-person body is hidden so it
@@ -247,7 +255,7 @@ func get_recruit_radius() -> float:
 
 
 # --------------------------------------------------------------------------
-# Health / death / respawn (server-authoritative)
+# Health / armor / death / respawn (server-authoritative)
 # --------------------------------------------------------------------------
 
 func is_alive() -> bool:
@@ -263,6 +271,11 @@ func is_respawning() -> bool:
 func _on_health_changed(current: float, _max_value: float) -> void:
 	if NetworkManager.is_authoritative():
 		net_health = current
+
+
+func _on_armor_changed(current: float) -> void:
+	if NetworkManager.is_authoritative():
+		net_armor = current
 
 
 ## True when the RPC currently being handled came from the listen server (or
