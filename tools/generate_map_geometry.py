@@ -417,6 +417,32 @@ def build_furniture() -> dict[str, int]:
     return tally
 
 
+def build_police_entrances() -> list[str]:
+    # Start with the four roads around the player spawn block, then add
+    # intersections from the centre of the map outward.
+    positions = [
+        (NS_STREETS[1], SPAWN[1]),
+        (NS_STREETS[2], SPAWN[1]),
+        (SPAWN[0], EW_STREETS[1]),
+        (SPAWN[0], EW_STREETS[2]),
+    ]
+    intersections = [(x, z) for x in NS_STREETS for z in EW_STREETS]
+    positions += sorted(intersections, key=lambda pos: (
+        (pos[0] - SPAWN[0]) ** 2 + (pos[1] - SPAWN[1]) ** 2
+    ))
+
+    out = ['[node name="PoliceEntrances" type="Node3D" parent="."]', ""]
+    for index, (x, z) in enumerate(positions):
+        unlock_act = 1 + max(0, (index - 2) // 2)
+        out += [
+            f'[node name="Entrance{index + 1:02}" type="Marker3D" parent="PoliceEntrances"]',
+            f"position = Vector3({fmt(x)}, 0.06, {fmt(z)})",
+            f"metadata/unlock_act = {unlock_act}",
+            "",
+        ]
+    return out
+
+
 # --- Emit -------------------------------------------------------------------
 
 def main() -> None:
@@ -468,7 +494,8 @@ def main() -> None:
         'shape = SubResource("Box_ground")', "",
     ]
 
-    OUT.write_text("\n".join(head + visuals + mid + props + tail + ground + collision))
+    OUT.write_text("\n".join(head + visuals + mid + props + tail + ground + collision
+                             + build_police_entrances()))
 
     n_tiles = sum(counters.get(p, 0) for p in
                   ("Xsq", "NSr", "NSw", "NSe", "EWr", "EWn", "EWs"))

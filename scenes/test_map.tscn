@@ -72,6 +72,7 @@ npc_spawner_path = NodePath("../NPCSpawner")
 script = ExtResource("31_policespw")
 police_scene = ExtResource("32_policescn")
 megacop_scene = ExtResource("33_megacopscn")
+entrances_path = NodePath("../MapGeometry/PoliceEntrances")
 
 [node name="PoliceReplicator" type="MultiplayerSpawner" parent="."]
 spawn_path = NodePath("../PoliceSpawner")
