@@ -9,10 +9,10 @@ class_name SnapFeedData
 const USERNAMES: Array[String] = [
 	"kevindu93", "titouan_75", "ratatouille92", "jordan.rsa", "sofiane_tlse",
 	"lea.bzh44", "yanis_du9", "manon2000", "doudou_94", "nolhan.oss",
-	"inesse_paname", "bryan_le_fou", "kenzaa.75", "mathys_banlieue",
+	"inesse_enretard", "bryan_le_fou", "kenzaa.75", "mathys_banlieue",
 	"chloe_xv", "rayan931", "lucas.caillou", "sarah_mdr95", "theo_zbeul",
 	"lina.chui", "karimdu13", "enzo_frero", "yasmine.tl", "nathan2k6",
-	"dylan_93200", "mehdi.zbeul", "camille_bg", "soufiane77", "jade_paname",
+	"dylan_93200", "mehdi.zbeul", "camille_bg", "soufiane77", "jade_horsligne",
 	"hugo_relou", "amine.tqt", "zinedine.ocb", "lisa_du62", "malik95",
 ]
 

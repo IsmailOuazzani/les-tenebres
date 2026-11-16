@@ -2,7 +2,9 @@
 
 ## Overview
 
-A chaotic, funny, first-person protest simulator set in Paris, France.
+A chaotic, funny, first-person protest simulator set in an unnamed city.
+
+**Setting rule.** Never name France or Paris in anything players can see or hear, including menus, the Snap Feed, signage, dialogue, subtitles, trailers, and store copy. The joke is that players recognize the setting from the architecture, slang, and protest culture.
 
 The player starts alone and recruits NPCs to form an increasingly massive protest. Using a megaphone, they direct their mob toward locations, objects, and police, causing ridiculous disruptions across the city while surviving escalating waves of police attacks.
 
@@ -211,7 +213,7 @@ This starting set is intentionally simple — the selection can expand once the 
 Build the smallest prototype that proves the central mechanic is fun.
 
 **First playable version:**
-1. A small Paris-inspired street environment.
+1. A small street environment with Haussmann-style buildings.
 2. First-person character with a megaphone and health.
 3. Civilian NPCs who can be recruited by holding right click (recruitment cone).
 4. Recruited NPCs follow the player as a loose crowd (seek/separation/cohesion steering).

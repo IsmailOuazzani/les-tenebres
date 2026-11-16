@@ -1,7 +1,7 @@
 # les tenebres — Protest Simulator
 
-A chaotic, funny, first-person protest simulator set in Paris. Recruit
-civilians with a megaphone, point them at something, shout *"À L'ATTAQUE!"*,
+A chaotic, funny, first-person protest simulator. Recruit civilians with a
+megaphone, point them at something, shout *"À L'ATTAQUE!"*,
 and survive escalating waves of police. Grabuge is the currency you spend on
 upgrades between waves. See [`vision.md`](vision.md) for the game concept and
 design pillars.
