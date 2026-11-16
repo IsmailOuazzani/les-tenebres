@@ -126,7 +126,7 @@ text = "QUIT"
 
 [node name="HowToPlay" type="PanelContainer" parent="Scroll/Center/MenuLayout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(264, 0)
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
@@ -151,26 +151,50 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "HOW TO PLAY"
 
-[node name="Movement" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+[node name="Movement" type="RichTextLabel" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "WASD to move · Space to jump"
+mouse_filter = 2
+theme_override_colors/default_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_font_sizes/normal_font_size = 16
+theme_override_font_sizes/bold_font_size = 16
+bbcode_enabled = true
+text = "[b]WASD[/b] · Move\n[b]Space[/b] · Jump"
+fit_content = true
+scroll_active = false
 autowrap_mode = 3
 
-[node name="Megaphone" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+[node name="Megaphone" type="RichTextLabel" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Press 1 for the megaphone. In solo, hold right click to recruit. Aim and hold left click, then release to send the crowd. In LAN, your class sets your abilities."
+mouse_filter = 2
+theme_override_colors/default_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_font_sizes/normal_font_size = 16
+theme_override_font_sizes/bold_font_size = 16
+bbcode_enabled = true
+text = "[b]1[/b] · Equip megaphone\n[b]Hold right click[/b] · Recruit (solo)\n[b]Aim, hold left click, then release[/b] · Send the crowd\nIn LAN, your class sets your abilities."
+fit_content = true
+scroll_active = false
 autowrap_mode = 3
 
-[node name="Melee" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+[node name="Melee" type="RichTextLabel" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "Press 2 for melee (or 3 in solo). Left click to swing."
+mouse_filter = 2
+theme_override_colors/default_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_font_sizes/normal_font_size = 16
+theme_override_font_sizes/bold_font_size = 16
+bbcode_enabled = true
+text = "[b]2 (3 in solo)[/b] · Equip melee\n[b]Left click[/b] · Swing"
+fit_content = true
+scroll_active = false
 autowrap_mode = 3
 
-[node name="Objective" type="Label" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
+[node name="Objective" type="RichTextLabel" parent="Scroll/Center/MenuLayout/HowToPlay/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 13
+mouse_filter = 2
+theme_override_colors/default_color = Color(0.2, 0.2, 0.2, 1)
+theme_override_font_sizes/normal_font_size = 16
+theme_override_font_sizes/bold_font_size = 16
+bbcode_enabled = true
 text = "Survive police waves. Spend Grabuge on upgrades between waves."
+fit_content = true
+scroll_active = false
 autowrap_mode = 3
