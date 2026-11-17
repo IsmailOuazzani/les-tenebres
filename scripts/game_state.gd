@@ -28,11 +28,9 @@ extends Node
 
 signal grabuge_changed(new_available: float, new_total_earned: float)
 signal crowd_count_changed(new_value: int)
-signal disruption_recorded(total: int)
-## Emitted when a cop goes down (scripts/police.gd's _on_died()) -- consumed
-## by scripts/snap_feed.gd to inject a "police defeated" message. Carries
-## the Grabuge amount just awarded so the feed can display it. See
-## agents/snap-feed-notes.md.
+signal disruption_recorded(total: int, feed_topic: StringName)
+signal first_megacop_spawned
+## Emitted when a cop goes down, with the Grabuge awarded for the defeat.
 signal police_defeated(grabuge_gain: float)
 signal game_over
 
@@ -73,6 +71,7 @@ var police_defeated_count: int = 0
 
 var _session_start_msec: int = 0
 var _game_over_fired: bool = false
+var _megacop_seen: bool = false
 var _push_timer: float = 0.0
 var _dirty: bool = false
 
@@ -153,19 +152,27 @@ func set_live_crowd_count(value: int) -> void:
 ## Grabuge. `magnitude` is a stub scalar (1.0 = normal-sized disruption) for
 ## when bigger/more ridiculous disruptions should raise Grabuge
 ## proportionally more, per vision.md.
-func record_disruption(magnitude: float = 1.0) -> void:
+func record_disruption(magnitude: float = 1.0, feed_topic: StringName = &"") -> void:
 	if not NetworkManager.is_authoritative():
 		return
 	total_disruptions += 1
-	disruption_recorded.emit(total_disruptions)
+	disruption_recorded.emit(total_disruptions, feed_topic)
 	if NetworkManager.is_multiplayer_session():
-		_apply_disruption.rpc(total_disruptions)
+		_apply_disruption.rpc(total_disruptions, feed_topic)
 	add_grabuge(DISRUPTION_GRABUGE_BASE * magnitude)
 
 
-## Fired by Police._on_died() -- raises Grabuge by POLICE_DEFEAT_GRABUGE_BASE
-## and notifies the snap feed with the amount awarded. See
-## agents/snap-feed-notes.md.
+## Shares the first successful megacop spawn of the run with every HUD.
+func record_megacop_spawn() -> void:
+	if not NetworkManager.is_authoritative() or _megacop_seen:
+		return
+	if NetworkManager.is_multiplayer_session():
+		_apply_first_megacop_spawn.rpc()
+	else:
+		_apply_first_megacop_spawn()
+
+
+## Fired by Police._on_died() to award Grabuge and update the run total.
 func record_police_defeat() -> void:
 	if not NetworkManager.is_authoritative():
 		return
@@ -218,6 +225,7 @@ func reset() -> void:
 	police_defeated_count = 0
 	_session_start_msec = Time.get_ticks_msec()
 	_game_over_fired = false
+	_megacop_seen = false
 	_dirty = false
 	_push_timer = 0.0
 	crowd_count_changed.emit(crowd_count)
@@ -271,9 +279,15 @@ func _apply_core_state(
 
 
 @rpc("authority", "call_remote", "reliable")
-func _apply_disruption(total: int) -> void:
+func _apply_disruption(total: int, feed_topic: StringName) -> void:
 	total_disruptions = total
-	disruption_recorded.emit(total)
+	disruption_recorded.emit(total, feed_topic)
+
+
+@rpc("authority", "call_local", "reliable")
+func _apply_first_megacop_spawn() -> void:
+	_megacop_seen = true
+	first_megacop_spawned.emit()
 
 
 @rpc("authority", "call_remote", "reliable")
