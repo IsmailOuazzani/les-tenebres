@@ -33,6 +33,8 @@ class_name DestructibleProp
 signal destroyed
 
 @export var max_health: float = 100.0
+## Optional subject for the protest chat. Empty leaves routine props quiet.
+@export var snap_feed_topic: StringName = &""
 
 ## How often a damaged prop's health is pushed to clients, in milliseconds.
 const _HEALTH_PUSH_INTERVAL_MSEC: int = 100
@@ -102,7 +104,7 @@ func _net_health(value: float) -> void:
 func _trigger_destruction() -> void:
 	if _dying:
 		return
-	GameState.record_disruption(1.0)
+	GameState.record_disruption(1.0, snap_feed_topic)
 	if NetworkManager.is_multiplayer_session():
 		_net_destroy.rpc()
 	else:
