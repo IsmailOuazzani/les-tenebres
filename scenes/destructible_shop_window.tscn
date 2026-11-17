@@ -37,6 +37,7 @@ emission_energy_multiplier = 1.0
 collision_layer = 1
 collision_mask = 1
 script = ExtResource("1_script")
+snap_feed_topic = &"shop_window"
 max_health = 20.0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
