@@ -49,6 +49,7 @@ emission_energy_multiplier = 1.0
 collision_layer = 1
 collision_mask = 1
 script = ExtResource("5_script")
+snap_feed_topic = &"garbage_truck"
 max_health = 300.0
 debris_paths = [NodePath("WheelFL"), NodePath("WheelFR"), NodePath("WheelRL"), NodePath("WheelRR"), NodePath("BumperFront"), NodePath("DoorRight")]
 debris_despawn_time = 8.0

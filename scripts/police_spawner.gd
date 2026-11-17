@@ -174,6 +174,8 @@ func _spawn_police() -> bool:
 	police.net_position = spawn_point
 	add_child(police)
 	spawned_police.append(police)
+	if scene_to_spawn == megacop_scene:
+		GameState.record_megacop_spawn()
 
 	var now := Time.get_ticks_msec()
 	if now >= _next_arrival_cue_msec:

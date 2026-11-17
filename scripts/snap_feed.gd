@@ -1,39 +1,19 @@
 extends Control
 class_name SnapFeed
 
-## Snapchat-style live protest group-chat feed, per agents/snap-feed-notes.md.
-## Purely cosmetic/flavor -- reads GameState signals to react to real
-## events, but writes nothing back and has zero gameplay effect. All copy
-## is canned (scripts/snap_feed_data.gd), no AI generation at runtime.
+## Snapchat-style protest group chat. Gameplay events supply the subject and
+## the local HUD controls which exchanges to show and how to pace them.
 
-## How often the ambient ticker fires a fresh random message when nothing
-## in particular just happened.
-@export var min_interval: float = 2.0
-@export var max_interval: float = 5.0
-
-## Visible message cap -- oldest entries beyond this are faded out and
-## freed as new ones arrive.
 @export var max_visible: int = 6
 
-## A real gameplay event also triggers a short burst of extra reaction
-## messages from fictional users, staggered a little so it reads as a
-## crowd reacting rather than a single canned line.
-@export var burst_min: int = 2
-@export var burst_max: int = 4
-@export var burst_delay_min: float = 0.15
-@export var burst_delay_max: float = 0.55
+## Recruits can arrive together on the host or over several state updates
+## on clients. Collect them before deciding whether the sweep merits a post.
+const _RECRUIT_BATCH_WINDOW := 0.6
+const _MIN_RECRUIT_BATCH := 5
+const _THREAD_INTERVAL := 5.0
+const _REPLY_DELAY := 1.4
 
-## Recruiting sweeps up every unrecruited civilian in the cone in the same
-## physics frame (see CrowdController._process_recruit_cone), so a single
-## hold can fire crowd_count_changed many times in a row. Recruits within
-## this window of each other are collapsed into one message instead of one
-## per NPC -- otherwise a big sweep floods the whole feed. See
-## agents/snap-feed-notes.md.
-@export var recruit_batch_window: float = 0.6
-
-const _ITEM_SIZE := Vector2(0, 0)
 const _AVATAR_SIZE := Vector2(28, 28)
-const _BG_SYSTEM := Color(1.0, 0.988, 0.0, 0.92) ## Snapchat yellow banner
 const _BG_USER := Color(0.08, 0.08, 0.1, 0.72)
 const _FADE_MIN_ALPHA := 0.3
 
@@ -42,10 +22,15 @@ const _FADE_MIN_ALPHA := 0.3
 @onready var _logo: Label = %Logo
 
 var _rng := RandomNumberGenerator.new()
-var _timer: float = 0.0
-var _prev_crowd_count: int = 1
-var _recruit_batch_pending: bool = false
+var _last_prop_thread: Dictionary = {}
+var _prev_crowd_count: int
 var _recruit_batch_count: int = 0
+var _recruit_batch_wait: float = 0.0
+var _thread_wait: float = 0.0
+var _reply_wait: float = 0.0
+var _reply: Array = []
+var _callback: Array = []
+var _callback_ready: bool = false
 
 
 func _ready() -> void:
@@ -53,22 +38,32 @@ func _ready() -> void:
 	_style_panel()
 	_style_header()
 	_prev_crowd_count = GameState.crowd_count
-	_reset_timer()
 
 	GameState.crowd_count_changed.connect(_on_crowd_count_changed)
 	GameState.disruption_recorded.connect(_on_disruption_recorded)
-	GameState.police_defeated.connect(_on_police_defeated)
+	GameState.first_megacop_spawned.connect(_on_first_megacop_spawned)
+	WaveManager.intermission_countdown_started.connect(_on_intermission_countdown_started)
+	WaveManager.act_completed.connect(_on_act_completed)
 
 
 func _process(delta: float) -> void:
-	_timer -= delta
-	if _timer <= 0.0:
-		_reset_timer()
-		_spawn_ambient_message()
+	_thread_wait = maxf(_thread_wait - delta, 0.0)
 
+	if _reply_wait > 0.0:
+		_reply_wait -= delta
+		if _reply_wait <= 0.0:
+			_push_user(_reply)
+			_reply = []
 
-func _reset_timer() -> void:
-	_timer = _rng.randf_range(min_interval, max_interval)
+	if _callback_ready and _thread_wait <= 0.0:
+		_push_user(_callback)
+		_clear_callback()
+		_thread_wait = _THREAD_INTERVAL
+
+	if _recruit_batch_wait > 0.0:
+		_recruit_batch_wait -= delta
+		if _recruit_batch_wait <= 0.0:
+			_flush_recruit_batch()
 
 
 func _style_panel() -> void:
@@ -92,85 +87,76 @@ func _style_header() -> void:
 	_title.add_theme_color_override("font_color", Color(1.0, 0.988, 0.0))
 
 
-## -- Ambient ticker: 20% gameplay flavor / 30% chatter / 50% nonsense -- ##
-
-func _spawn_ambient_message() -> void:
-	var roll: float = _rng.randf()
-	if roll < 0.2:
-		_push_system(SnapFeedData.random_gameplay_flavor(_rng, GameState.grabuge_available, GameState.crowd_count))
-	elif roll < 0.5:
-		_push_user(SnapFeedData.random_chatter(_rng), "ordinary")
-	else:
-		_push_user(SnapFeedData.random_nonsense(_rng), "funny")
-
-
-## -- Real gameplay events: inject immediately + trigger a reaction burst -- ##
-
 func _on_crowd_count_changed(new_value: int) -> void:
-	if new_value > _prev_crowd_count:
-		_recruit_batch_count += new_value - _prev_crowd_count
-		if not _recruit_batch_pending:
-			_recruit_batch_pending = true
-			_flush_recruit_batch()
+	var gained := new_value - _prev_crowd_count
 	_prev_crowd_count = new_value
-
-
-## Collapses every recruit that landed within recruit_batch_window into a
-## single message (no reaction burst -- recruiting is routine, not the
-## kind of standout moment a burst should sell). Runs fire-and-forget from
-## the first recruit in a batch; later recruits in the same window just
-## bump _recruit_batch_count and ride along.
-func _flush_recruit_batch() -> void:
-	await get_tree().create_timer(recruit_batch_window).timeout
-	if not is_instance_valid(self):
-		return
-	var gained: int = _recruit_batch_count
-	_recruit_batch_count = 0
-	_recruit_batch_pending = false
 	if gained <= 0:
 		return
-	if gained == 1:
-		_push_system(SnapFeedData.random_recruit_message(_rng, GameState.crowd_count), "ordinary")
-	else:
-		_push_system(SnapFeedData.random_recruit_batch_message(_rng, gained, GameState.crowd_count), "ordinary")
+	if _recruit_batch_wait <= 0.0:
+		_recruit_batch_wait = _RECRUIT_BATCH_WINDOW
+	_recruit_batch_count += gained
 
 
-func _on_disruption_recorded(_total: int) -> void:
-	_push_system(SnapFeedData.random_destruction_message(_rng, int(GameState.DISRUPTION_GRABUGE_BASE)), "")
-	_spawn_burst()
+func _flush_recruit_batch() -> void:
+	var gained := _recruit_batch_count
+	_recruit_batch_count = 0
+	if gained < _MIN_RECRUIT_BATCH or _thread_wait > 0.0:
+		return
+
+	var thread: Array = _pick_thread(SnapFeedData.RECRUIT_THREADS)
+	var opener: Array = thread[0]
+	_start_thread([[opener[0], opener[1] % gained], thread[1]])
 
 
-func _on_police_defeated(grabuge_gain: float) -> void:
-	_push_system(SnapFeedData.random_police_defeat_message(_rng, int(grabuge_gain)), "")
-	_spawn_burst()
+func _on_disruption_recorded(_total: int, feed_topic: StringName) -> void:
+	if _thread_wait > 0.0 or not SnapFeedData.PROP_THREADS.has(feed_topic):
+		return
+	var threads: Array = SnapFeedData.PROP_THREADS[feed_topic]
+	var index := _rng.randi_range(0, threads.size() - 1)
+	if index == _last_prop_thread.get(feed_topic, -1):
+		index = (index + 1) % threads.size()
+	_last_prop_thread[feed_topic] = index
+	_start_thread(threads[index])
 
 
-func _spawn_burst() -> void:
-	var count: int = _rng.randi_range(burst_min, burst_max)
-	for i in count:
-		await get_tree().create_timer(_rng.randf_range(burst_delay_min, burst_delay_max)).timeout
-		if not is_instance_valid(self):
-			return
-		if _rng.randf() < 0.5:
-			_push_user(SnapFeedData.random_chatter(_rng), "ordinary")
-		else:
-			_push_user(SnapFeedData.random_nonsense(_rng), "funny")
+func _on_first_megacop_spawned() -> void:
+	# This only happens once per run. Give it the slot even if a routine
+	# exchange was already underway.
+	_start_thread(_pick_thread(SnapFeedData.MEGACOP_THREADS))
 
 
-## -- Message construction -- ##
-
-## `kind` ("ordinary" / "funny" / "important") selects which notification
-## pop plays -- see AudioManager.play_feed_notification(). Purely an audio
-## tag; an empty kind keeps the message silent.
-func _push_system(text: String, kind: String = "ordinary") -> void:
-	_push_item(_build_system_item(text))
-	if not kind.is_empty():
-		AudioManager.play_feed_notification(kind)
+func _pick_thread(threads: Array) -> Array:
+	return threads[_rng.randi_range(0, threads.size() - 1)]
 
 
-func _push_user(text: String, kind: String = "ordinary") -> void:
-	_push_item(_build_user_item(SnapFeedData.random_username(_rng), text))
-	AudioManager.play_feed_notification(kind)
+func _on_intermission_countdown_started() -> void:
+	_callback_ready = not _callback.is_empty()
+
+
+func _on_act_completed(_act: int) -> void:
+	_clear_callback()
+
+
+func _clear_callback() -> void:
+	_callback = []
+	_callback_ready = false
+
+
+func _start_thread(thread: Array) -> void:
+	_push_user(thread[0])
+	_reply = thread[1]
+	_reply_wait = _REPLY_DELAY
+	_thread_wait = _THREAD_INTERVAL
+	if thread.size() == 3 and _callback.is_empty():
+		_callback = thread[2]
+
+
+func _push_user(post: Array) -> void:
+	var username: String = post[0]
+	var message: String = post[1]
+	var profile: Dictionary = SnapFeedData.PROFILES[username]
+	_push_item(_build_user_item(username, message, profile))
+	AudioManager.play_feed_notification("ordinary")
 
 
 func _push_item(item: Control) -> void:
@@ -181,28 +167,7 @@ func _push_item(item: Control) -> void:
 	_refresh_fade()
 
 
-func _build_system_item(text: String) -> PanelContainer:
-	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = _BG_SYSTEM
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 8
-	style.content_margin_right = 8
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	panel.add_theme_stylebox_override("panel", style)
-
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 13)
-	label.add_theme_color_override("font_color", Color(0.05, 0.05, 0.05))
-	panel.add_child(label)
-	return panel
-
-
-func _build_user_item(username: String, text: String) -> PanelContainer:
+func _build_user_item(username: String, text: String, profile: Dictionary) -> PanelContainer:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = _BG_USER
@@ -217,7 +182,7 @@ func _build_user_item(username: String, text: String) -> PanelContainer:
 	row.add_theme_constant_override("separation", 6)
 	panel.add_child(row)
 
-	row.add_child(_build_avatar())
+	row.add_child(_build_avatar(profile))
 
 	var text_box := VBoxContainer.new()
 	text_box.add_theme_constant_override("separation", 0)
@@ -227,7 +192,7 @@ func _build_user_item(username: String, text: String) -> PanelContainer:
 	var name_label := Label.new()
 	name_label.text = username
 	name_label.add_theme_font_size_override("font_size", 12)
-	name_label.add_theme_color_override("font_color", SnapFeedData.random_avatar_color(_rng))
+	name_label.add_theme_color_override("font_color", profile["color"])
 	text_box.add_child(name_label)
 
 	var msg_label := Label.new()
@@ -247,16 +212,16 @@ func _build_user_item(username: String, text: String) -> PanelContainer:
 	return panel
 
 
-func _build_avatar() -> PanelContainer:
+func _build_avatar(profile: Dictionary) -> PanelContainer:
 	var avatar := PanelContainer.new()
 	avatar.custom_minimum_size = _AVATAR_SIZE
 	var style := StyleBoxFlat.new()
-	style.bg_color = SnapFeedData.random_avatar_color(_rng)
+	style.bg_color = profile["color"]
 	style.set_corner_radius_all(int(_AVATAR_SIZE.x / 2.0))
 	avatar.add_theme_stylebox_override("panel", style)
 
 	var label := Label.new()
-	label.text = SnapFeedData.random_avatar_emoji(_rng)
+	label.text = profile["emoji"]
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 14)
