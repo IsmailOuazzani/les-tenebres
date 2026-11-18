@@ -1,8 +1,7 @@
-[gd_scene load_steps=6 format=3 uid="uid://cnetplayer001"]
+[gd_scene load_steps=5 format=3 uid="uid://cnetplayer001"]
 
 [ext_resource type="PackedScene" uid="uid://bdupkh0grwy27" path="res://addons/fps_controller/Player.tscn" id="1_base"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_script"]
-[ext_resource type="PackedScene" uid="uid://crsteg230ii02" path="res://assets/quaternius_men/Casual_2.gltf" id="3_body"]
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_input"]
 properties/0/path = NodePath(".:net_position")
@@ -37,8 +36,6 @@ script = ExtResource("2_script")
 
 [node name="Body" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
-
-[node name="Character" parent="Body" instance=ExtResource("3_body")]
 
 [node name="InputSync" type="MultiplayerSynchronizer" parent="."]
 replication_interval = 0.033

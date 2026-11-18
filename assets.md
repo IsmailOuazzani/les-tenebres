@@ -11,7 +11,7 @@ Running list of external assets we're pulling into the project. Add a row when y
 | Nozenx Lowpoly Street Pack | https://nozenx.itch.io/lowpoly-street-pack | Map — building facades (filler) | FBX | Optional filler, not yet imported |
 | Quaternius City Pack | https://poly.pizza/bundle/City-Pack-q11onRvPoJ | Map — generic clutter (filler) | glTF/FBX/OBJ | Optional filler, not yet imported |
 | Quaternius Modular Street Pack | https://opengameart.org/content/lowpoly-modular-street-pack | Map — roads/sidewalks (filler) | glTF/FBX/OBJ | Optional filler, not yet imported |
-| Quaternius Ultimate Modular Men Pack | https://quaternius.com/packs/ultimatemodularcharacters.html | Characters — crowd NPCs | glTF/FBX/OBJ/blend | Recommended, not yet imported |
+| Quaternius Ultimate Modular Men Pack | https://quaternius.com/packs/ultimatemodularcharacters.html | Characters — crowd NPCs | glTF/FBX/OBJ/blend | Imported under `assets/quaternius_men/` (CC0). Multiplayer outfits use Casual_Hoodie, Worker, and Casual_2 with a first-aid bag. |
 | Quaternius Ultimate Animated Character Pack | https://quaternius.com/packs/ultimatedanimatedcharacter.html | Characters — alt NPCs (textured) | FBX/OBJ/blend | Alternative, not yet imported |
 | Quaternius Animated Men/Women Packs | https://quaternius.com/packs/animatedmen.html | Characters — named civilians/player | FBX/OBJ/blend | Optional, not yet imported |
 | Kenney Character Assets (Mini Characters) | https://kenney.itch.io/kenney-character-assets | Characters — alt NPCs (blocky style) | glTF/FBX | Alternative, not yet imported |
