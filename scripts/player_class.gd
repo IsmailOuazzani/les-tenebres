@@ -47,3 +47,11 @@ static func ability_slot(ability: int) -> int:
 
 static func ability_is_left_click(ability: int) -> bool:
 	return ability == Ability.REVEAL or ability == Ability.HEAL
+
+
+static func outfit(kit: int) -> PackedScene:
+	match kit:
+		Kit.SCOUT: return preload("res://assets/quaternius_men/Casual_Hoodie.gltf")
+		Kit.MENEUR: return preload("res://assets/quaternius_men/Worker.gltf")
+		Kit.MEDIC: return preload("res://scenes/medic_outfit.tscn")
+	return preload("res://assets/quaternius_men/Casual_2.gltf")

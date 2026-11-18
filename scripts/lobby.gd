@@ -17,8 +17,12 @@ extends Control
 @onready var _start_button: Button = %StartButton
 @onready var _leave_button: Button = %LeaveButton
 @onready var _hint_label: Label = %HintLabel
-@onready var _class_picker: OptionButton = %ClassPicker
+@onready var _class_picker: HBoxContainer = %ClassPicker
 @onready var _class_description: Label = %ClassDescription
+
+
+const CLASS_CARD := preload("res://scenes/class_card.tscn")
+var _cards: Dictionary[int, Button] = {}
 
 
 func _ready() -> void:
@@ -28,12 +32,26 @@ func _ready() -> void:
 	_start_button.pressed.connect(_on_start_pressed)
 	_leave_button.pressed.connect(_on_leave_pressed)
 
-	for kit in PlayerClass.LAN_KITS:
-		_class_picker.add_item(PlayerClass.display_name(kit), kit)
-	_class_picker.item_selected.connect(_on_kit_selected)
+	var group := ButtonGroup.new()
+	for kit: int in PlayerClass.LAN_KITS:
+		var card := CLASS_CARD.instantiate() as Button
+		card.button_group = group
+		card.tooltip_text = PlayerClass.description(kit)
+		card.accessibility_name = PlayerClass.display_name(kit)
+		_class_picker.add_child(card)
+		var caption := card.get_node("Caption") as Label
+		caption.text = PlayerClass.display_name(kit)
+		var character := PlayerClass.outfit(kit).instantiate() as Node3D
+		character.rotation.y = 0.18
+		card.get_node("Portrait/Stage").add_child(character)
+		var animator := character.get_node_or_null("AnimationPlayer") as AnimationPlayer
+		if animator and animator.has_animation(&"Idle"):
+			animator.play(&"Idle")
+		card.pressed.connect(_on_kit_selected.bind(kit))
+		_cards[kit] = card
 
 	NetworkManager.players_changed.connect(_refresh)
-	NetworkManager.match_starting.connect(func() -> void: _class_picker.disabled = true)
+	NetworkManager.match_starting.connect(_lock_cards)
 	NetworkManager.connection_error.connect(_on_connection_error)
 
 	if NetworkManager.is_host():
@@ -74,16 +92,21 @@ func _refresh() -> void:
 
 	var local_id := NetworkManager.get_local_peer_id()
 	var kit := NetworkManager.get_player_kit(local_id)
-	_class_picker.select(_class_picker.get_item_index(kit))
-	_class_picker.disabled = NetworkManager.match_in_progress or not NetworkManager.players.has(local_id)
+	for id: int in _cards:
+		_cards[id].set_pressed_no_signal(id == kit)
+		_cards[id].disabled = NetworkManager.match_in_progress or not NetworkManager.players.has(local_id)
 	_class_description.text = PlayerClass.description(kit)
 
 	if NetworkManager.is_host():
 		_start_button.disabled = NetworkManager.players.is_empty() or NetworkManager.match_in_progress
 
 
-func _on_kit_selected(index: int) -> void:
-	var kit := _class_picker.get_item_id(index)
+func _lock_cards() -> void:
+	for card: Button in _cards.values():
+		card.disabled = true
+
+
+func _on_kit_selected(kit: int) -> void:
 	_class_description.text = PlayerClass.description(kit)
 	NetworkManager.select_kit(kit)
 

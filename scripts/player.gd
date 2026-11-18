@@ -124,7 +124,6 @@ func _ready() -> void:
 		else:
 			_megaphone.right_ability = ability
 
-	_body_anim = _body.get_node_or_null("Character/AnimationPlayer")
 	net_position = position
 	net_body_yaw = rotation.y
 	_base_max_health = health.max_health
@@ -158,6 +157,11 @@ func _setup_local() -> void:
 ## on remote players and disabling Head also disables its children.
 func _setup_remote() -> void:
 	_camera.current = false
+	var character := PlayerClass.outfit(kit).instantiate() as Node3D
+	character.name = "Character"
+	character.rotation.y = PI
+	_body.add_child(character)
+	_body_anim = character.get_node_or_null("AnimationPlayer")
 	_body.visible = true
 	$Head.process_mode = Node.PROCESS_MODE_DISABLED
 	$Sprint.process_mode = Node.PROCESS_MODE_DISABLED

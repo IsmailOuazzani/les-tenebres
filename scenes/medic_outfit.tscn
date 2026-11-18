@@ -1,0 +1,30 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/quaternius_men/Casual_2.gltf" id="1"]
+
+[sub_resource type="StandardMaterial3D" id="Teal"]
+albedo_color = Color(0.02, 0.55, 0.51, 1)
+
+[sub_resource type="BoxMesh" id="Bag"]
+material = SubResource("Teal")
+size = Vector3(0.39, 0.23, 0.18)
+
+[sub_resource type="BoxMesh" id="CrossH"]
+size = Vector3(0.13, 0.04, 0.01)
+
+[sub_resource type="BoxMesh" id="CrossV"]
+size = Vector3(0.04, 0.13, 0.012)
+
+[node name="Medic" instance=ExtResource("1")]
+
+[node name="FirstAidBag" type="MeshInstance3D" parent="."]
+position = Vector3(0.16, 0.92, 0.16)
+mesh = SubResource("Bag")
+
+[node name="Horizontal" type="MeshInstance3D" parent="FirstAidBag"]
+position = Vector3(0, 0, 0.091)
+mesh = SubResource("CrossH")
+
+[node name="Vertical" type="MeshInstance3D" parent="FirstAidBag"]
+position = Vector3(0, 0, 0.091)
+mesh = SubResource("CrossV")
